@@ -3,7 +3,6 @@
     <div class="header__content">
       <div class="header__right">
         <div class="header-items">
-          <div class="header-item">411</div>
           <div class="header-item membership-btn">开通会员</div>
           <div class="header-item">
             <svg class="header-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
