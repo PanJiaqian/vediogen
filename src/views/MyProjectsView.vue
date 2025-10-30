@@ -147,7 +147,7 @@ export default {
   padding: 12px 24px;
   border: none;
   background: none;
-  color: #6c757d;
+  color: #666666;
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;

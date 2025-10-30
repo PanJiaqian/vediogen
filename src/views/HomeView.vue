@@ -50,7 +50,7 @@
               </button>
               <button class="action-btn">
                 <div class="action-icon-wrapper">
-                  <span class="paint-icon"></span>
+                  <img src="/home_draw.svg" alt="draw" />
                 </div>
                 <span>画风</span>
               </button>

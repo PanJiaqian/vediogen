@@ -1,65 +1,65 @@
 <template>
   <div class="asset-library">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h1 class="page-title">资产库</h1>
-      <p class="page-description">丰富的视频素材，助力您的创作</p>
+    <!-- 顶部标签导航 -->
+    <div class="tab-navigation">
+      <button 
+        v-for="tab in tabs" 
+        :key="tab.id"
+        :class="['tab-button', { 'tab-button--active': activeTab === tab.id }]"
+        @click="setActiveTab(tab.id)"
+      >
+        {{ tab.name }}
+      </button>
     </div>
 
     <!-- 筛选和搜索区域 -->
     <div class="filter-section">
-      <div class="filter-tabs">
-        <button 
-          v-for="category in categories" 
-          :key="category.id"
-          :class="['filter-tab', { active: activeCategory === category.id }]"
-          @click="setActiveCategory(category.id)"
-        >
-          <i :class="category.icon"></i>
-          {{ category.name }}
-        </button>
-      </div>
-      
       <div class="filter-controls">
-        <div class="search-box">
-          <i class="search-icon">🔍</i>
-          <input 
-            type="text" 
-            placeholder="搜索资产..." 
-            v-model="searchQuery"
-            @input="handleSearch"
-          />
-        </div>
-        
         <div class="filter-dropdown">
-          <select v-model="sortBy" @change="handleSort">
-            <option value="newest">最新上传</option>
-            <option value="popular">最受欢迎</option>
-            <option value="name">按名称</option>
-            <option value="duration">按时长</option>
+          <select v-model="categoryFilter">
+            <option value="">类别</option>
+            <option value="video">人物</option>
+            <option value="audio">动物</option>
+            <option value="image">其他</option>
           </select>
         </div>
         
-        <div class="view-toggle">
-          <button 
-            :class="['view-btn', { active: viewMode === 'grid' }]"
-            @click="viewMode = 'grid'"
-          >
-            <i class="grid-icon">⊞</i>
-          </button>
-          <button 
-            :class="['view-btn', { active: viewMode === 'list' }]"
-            @click="viewMode = 'list'"
-          >
-            <i class="list-icon">☰</i>
-          </button>
+        <div class="filter-dropdown">
+          <select v-model="timeFilter">
+            <option value="">性别</option>
+            <option value="today">全部</option>
+            <option value="week">男</option>
+            <option value="month">女</option>
+          </select>
+        </div>
+        
+        <div class="filter-dropdown">
+          <select v-model="gradeFilter">
+            <option value="">年龄</option>
+            <option value="elementary">全部</option>
+            <option value="middle">儿童</option>
+            <option value="high">少年</option>
+            <option value="high">青年</option>
+            <option value="high">成年</option>
+            <option value="high">老年</option>
+          </select>
+        </div>
+        
+        <div class="search-box">
+          <input 
+            type="text" 
+            placeholder="输入主体名称进行搜索" 
+            v-model="searchQuery"
+            @input="handleSearch"
+          />
+          <img src="/zhuti_search.svg" class="search-icon" alt="search" />
         </div>
       </div>
     </div>
 
-    <!-- 资产网格/列表 -->
+    <!-- 资产网格 -->
     <div class="assets-container">
-      <div :class="['assets-grid', viewMode]">
+      <div class="assets-grid">
         <div 
           v-for="asset in filteredAssets" 
           :key="asset.id"
@@ -68,40 +68,17 @@
         >
           <div class="asset-preview">
             <img :src="asset.thumbnail" :alt="asset.title" />
-            <div class="asset-overlay">
-              <button class="preview-btn">预览</button>
-              <button class="download-btn">下载</button>
-            </div>
-            <div class="asset-duration">{{ asset.duration }}</div>
-            <div class="asset-type">{{ asset.type }}</div>
           </div>
           
           <div class="asset-info">
             <h3 class="asset-title">{{ asset.title }}</h3>
-            <p class="asset-description">{{ asset.description }}</p>
-            <div class="asset-meta">
-              <span class="asset-size">{{ asset.size }}</span>
-              <span class="asset-format">{{ asset.format }}</span>
-              <span class="asset-downloads">{{ asset.downloads }} 下载</span>
-            </div>
-            <div class="asset-tags">
-              <span 
-                v-for="tag in asset.tags" 
-                :key="tag"
-                class="tag"
-              >
-                {{ tag }}
-              </span>
-            </div>
           </div>
         </div>
       </div>
       
-      <!-- 加载更多 -->
-      <div class="load-more-section" v-if="hasMore">
-        <button class="load-more-btn" @click="loadMore" :disabled="loading">
-          {{ loading ? '加载中...' : '加载更多' }}
-        </button>
+      <!-- 暂无更多内容 -->
+      <div class="empty-message">
+        暂无更多内容
       </div>
     </div>
 
@@ -150,100 +127,52 @@ export default {
   name: 'AssetLibraryView',
   data() {
     return {
-      activeCategory: 'all',
+      activeTab: 'public',
       searchQuery: '',
-      sortBy: 'newest',
-      viewMode: 'grid',
-      loading: false,
-      hasMore: true,
+      categoryFilter: '',
+      timeFilter: '',
+      gradeFilter: '',
       selectedAsset: null,
-      categories: [
-        { id: 'all', name: '全部', icon: '📁' },
-        { id: 'video', name: '视频', icon: '🎬' },
-        { id: 'audio', name: '音频', icon: '🎵' },
-        { id: 'image', name: '图片', icon: '🖼️' },
-        { id: 'template', name: '模板', icon: '📋' },
-        { id: 'effect', name: '特效', icon: '✨' },
-        { id: 'transition', name: '转场', icon: '🔄' }
+      tabs: [
+        { id: 'public', name: '公共' },
+        { id: 'personal', name: '个人' }
       ],
       assets: [
         {
           id: 1,
-          title: '城市夜景延时摄影',
-          description: '繁华都市夜晚的美丽景色，适合商业宣传片',
-          thumbnail: generateGradientPlaceholder('城市夜景', '4A90E2', 'F8F9FA'),
-          duration: '00:30',
-          type: 'video',
-          size: '45.2 MB',
-          format: 'MP4',
-          resolution: '1920x1080',
-          downloads: 1234,
-          tags: ['城市', '夜景', '延时', '商业']
+          title: '首选版kitty',
+          thumbnail: generateGradientPlaceholder('首选版kitty', 'E8E8E8', 'F8F9FA'),
+          type: 'public'
         },
         {
           id: 2,
-          title: '自然风光音乐',
-          description: '轻松舒缓的背景音乐，适合自然风光视频',
-          thumbnail: generateGradientPlaceholder('自然音乐', '7ED321', 'F8F9FA'),
-          duration: '02:15',
-          type: 'audio',
-          size: '8.7 MB',
-          format: 'MP3',
-          resolution: '320kbps',
-          downloads: 856,
-          tags: ['音乐', '自然', '舒缓', '背景']
+          title: '多儿',
+          thumbnail: generateGradientPlaceholder('多儿', 'E8E8E8', 'F8F9FA'),
+          type: 'public'
         },
         {
           id: 3,
-          title: '科技感转场效果',
-          description: '现代科技风格的转场动画效果',
-          thumbnail: generateGradientPlaceholder('科技转场', '9013FE', 'F8F9FA'),
-          duration: '00:03',
-          type: 'effect',
-          size: '12.1 MB',
-          format: 'MOV',
-          resolution: '1920x1080',
-          downloads: 2341,
-          tags: ['转场', '科技', '动画', '特效']
+          title: 'Chou Chou',
+          thumbnail: generateGradientPlaceholder('Chou Chou', 'E8E8E8', 'F8F9FA'),
+          type: 'public'
         },
         {
           id: 4,
-          title: '企业宣传片模板',
-          description: '专业的企业宣传片制作模板',
-          thumbnail: generateGradientPlaceholder('企业模板', 'F5A623', 'F8F9FA'),
-          duration: '01:30',
-          type: 'template',
-          size: '156.8 MB',
-          format: 'AEP',
-          resolution: '1920x1080',
-          downloads: 567,
-          tags: ['模板', '企业', '宣传', '专业']
+          title: 'Mokoko',
+          thumbnail: generateGradientPlaceholder('Mokoko', 'E8E8E8', 'F8F9FA'),
+          type: 'public'
         },
         {
           id: 5,
-          title: '美食摄影素材',
-          description: '高清美食摄影图片素材集合',
-          thumbnail: generateGradientPlaceholder('美食摄影', 'D0021B', 'F8F9FA'),
-          duration: '-',
-          type: 'image',
-          size: '25.4 MB',
-          format: 'JPG',
-          resolution: '4000x3000',
-          downloads: 1789,
-          tags: ['美食', '摄影', '高清', '素材']
+          title: 'Zimomo',
+          thumbnail: generateGradientPlaceholder('Zimomo', 'E8E8E8', 'F8F9FA'),
+          type: 'public'
         },
         {
           id: 6,
-          title: '粒子爆炸特效',
-          description: '震撼的粒子爆炸视觉特效',
-          thumbnail: generateGradientPlaceholder('粒子特效', '50E3C2', 'F8F9FA'),
-          duration: '00:05',
-          type: 'effect',
-          size: '78.9 MB',
-          format: 'MOV',
-          resolution: '1920x1080',
-          downloads: 3456,
-          tags: ['特效', '粒子', '爆炸', '震撼']
+          title: 'Labubu',
+          thumbnail: generateGradientPlaceholder('Labubu', 'E8E8E8', 'F8F9FA'),
+          type: 'public'
         }
       ]
     }
@@ -252,61 +181,32 @@ export default {
     filteredAssets() {
       let filtered = this.assets
 
-      // 按分类筛选
-      if (this.activeCategory !== 'all') {
-        filtered = filtered.filter(asset => asset.type === this.activeCategory)
-      }
+      // 按标签页筛选
+      filtered = filtered.filter(asset => asset.type === this.activeTab)
 
       // 按搜索关键词筛选
       if (this.searchQuery) {
         const query = this.searchQuery.toLowerCase()
         filtered = filtered.filter(asset => 
-          asset.title.toLowerCase().includes(query) ||
-          asset.description.toLowerCase().includes(query) ||
-          asset.tags.some(tag => tag.toLowerCase().includes(query))
+          asset.title.toLowerCase().includes(query)
         )
       }
-
-      // 排序
-      filtered.sort((a, b) => {
-        switch (this.sortBy) {
-          case 'popular':
-            return b.downloads - a.downloads
-          case 'name':
-            return a.title.localeCompare(b.title)
-          case 'duration':
-            return a.duration.localeCompare(b.duration)
-          default: // newest
-            return b.id - a.id
-        }
-      })
 
       return filtered
     }
   },
   methods: {
-    setActiveCategory(categoryId) {
-      this.activeCategory = categoryId
+    setActiveTab(tabId) {
+      this.activeTab = tabId
     },
     handleSearch() {
       // 搜索逻辑已在computed中处理
-    },
-    handleSort() {
-      // 排序逻辑已在computed中处理
     },
     selectAsset(asset) {
       this.selectedAsset = asset
     },
     closeModal() {
       this.selectedAsset = null
-    },
-    loadMore() {
-      this.loading = true
-      // 模拟加载更多数据
-      setTimeout(() => {
-        this.loading = false
-        this.hasMore = false // 模拟没有更多数据
-      }, 1000)
     }
   }
 }
@@ -314,68 +214,47 @@ export default {
 
 <style scoped>
 .asset-library {
-  padding: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-/* 页面头部 */
-.page-header {
-  margin-bottom: 32px;
-}
-
-.page-title {
-  font-size: 32px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 8px 0;
-}
-
-.page-description {
-  font-size: 16px;
-  color: var(--text-secondary);
+  max-width: 1200px;
   margin: 0;
+  padding: 20px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+/* 标签页导航 */
+.tab-navigation {
+  display: flex;
+  margin-bottom: 30px;
+  margin-left: -20px;
+  margin-right: -20px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.tab-button {
+  padding: 12px 24px;
+  border: none;
+  background: none;
+  color: #6c757d;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.tab-button:hover {
+  color: #495057;
+}
+
+.tab-button--active {
+  color: #007bff;
+  border-bottom-color: #007bff;
 }
 
 /* 筛选区域 */
 .filter-section {
-  background: var(--bg-secondary);
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 32px;
-  border: 1px solid var(--border-light);
-}
-
-.filter-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.filter-tab {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 14px;
-}
-
-.filter-tab:hover {
-  border-color: var(--primary-color);
-  color: var(--primary-color);
-}
-
-.filter-tab.active {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
-  color: white;
+  margin-bottom: 30px;
 }
 
 .filter-controls {
@@ -385,102 +264,94 @@ export default {
   flex-wrap: wrap;
 }
 
+.filter-dropdown select {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: #666666;
+  font-size: 14px;
+  min-width: 80px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23495057' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0px center;
+  background-size: 16px;
+  padding-right: 24px;
+}
+
 .search-box {
   position: relative;
   flex: 1;
   min-width: 200px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-secondary);
-  font-size: 14px;
+  max-width: 300px;
+  margin-left: auto;
 }
 
 .search-box input {
   width: 100%;
-  padding: 10px 12px 10px 36px;
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
+  padding: 12px 40px 12px 20px;
+  border: 1px solid #F0F0F0;
+  border-radius: 100px;
   font-size: 14px;
-  background: var(--bg-primary);
+  background: #FFFFFF;
+  color: #333;
 }
 
-.filter-dropdown select {
-  padding: 10px 12px;
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 14px;
-  cursor: pointer;
+.search-box input::placeholder {
+  color: #999;
 }
 
-.view-toggle {
-  display: flex;
-  border: 1px solid var(--border-light);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.view-btn {
-  padding: 10px 12px;
-  border: none;
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.view-btn:hover {
-  background: var(--bg-hover);
-}
-
-.view-btn.active {
-  background: var(--primary-color);
-  color: white;
+.search-icon {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  opacity: 0.6;
 }
 
 /* 资产网格 */
 .assets-container {
-  margin-bottom: 32px;
+  margin-bottom: 40px;
 }
 
 .assets-grid {
-  display: grid;
-  gap: 24px;
-}
-
-.assets-grid.grid {
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-}
-
-.assets-grid.list {
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  margin-bottom: 40px;
 }
 
 .asset-card {
-  background: var(--bg-secondary);
+  width: 200px;
+  height: 280px;
+  flex-shrink: 0;
+  background-color: white;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid var(--border-light);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   cursor: pointer;
 }
 
 .asset-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-lg);
-  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
 }
 
 .asset-preview {
   position: relative;
-  aspect-ratio: 16/9;
+  height: 200px;
   overflow: hidden;
+  background-color: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .asset-preview img {
@@ -489,158 +360,25 @@ export default {
   object-fit: cover;
 }
 
-.asset-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.asset-card:hover .asset-overlay {
-  opacity: 1;
-}
-
-.preview-btn,
-.download-btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.preview-btn {
-  background: var(--primary-color);
-  color: white;
-}
-
-.download-btn {
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.asset-duration,
-.asset-type {
-  position: absolute;
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.8);
-  color: white;
-  font-size: 12px;
-  border-radius: 4px;
-}
-
-.asset-duration {
-  bottom: 8px;
-  right: 8px;
-}
-
-.asset-type {
-  top: 8px;
-  left: 8px;
-  text-transform: uppercase;
-}
-
 .asset-info {
   padding: 16px;
+  height: 100px;
 }
 
 .asset-title {
   font-size: 16px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 8px 0;
+  font-weight: 500;
+  color: #212529;
+  margin-bottom: 8px;
   line-height: 1.4;
 }
 
-.asset-description {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin: 0 0 12px 0;
-  line-height: 1.5;
-}
-
-.asset-meta {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-.asset-meta span {
-  font-size: 12px;
-  color: var(--text-secondary);
-  background: var(--bg-tertiary);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.asset-tags {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.tag {
-  font-size: 12px;
-  color: var(--primary-color);
-  background: var(--primary-light);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* 列表视图样式 */
-.assets-grid.list .asset-card {
-  display: flex;
-  align-items: center;
-}
-
-.assets-grid.list .asset-preview {
-  width: 200px;
-  flex-shrink: 0;
-  aspect-ratio: 16/9;
-}
-
-.assets-grid.list .asset-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-/* 加载更多 */
-.load-more-section {
+.empty-message {
+  width: 100%;
   text-align: center;
-  margin-top: 32px;
-}
-
-.load-more-btn {
-  padding: 12px 32px;
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.load-more-btn:hover:not(:disabled) {
-  background: var(--primary-dark);
-}
-
-.load-more-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+  padding: 60px 20px;
+  color: #6c757d;
+  font-size: 16px;
 }
 
 /* 模态框 */
