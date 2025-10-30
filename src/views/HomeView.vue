@@ -3,7 +3,6 @@
     <!-- 主要内容区域 -->
     <div class="home-content">
       <h1 class="main-title">今天有什么可以帮到您？</h1>
-      
       <!-- 功能标签 -->
       <div class="feature-tags">
         <button 

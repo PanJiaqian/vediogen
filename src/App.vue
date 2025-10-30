@@ -28,16 +28,12 @@
       class="mobile-overlay"
       @click="toggleMobileMenu"
     ></div>
-    
-
   </div>
 </template>
 
 <script>
 import Sidebar from '@/components/Sidebar.vue'
 import Header from '@/components/Header.vue'
-// 导入全局样式
-import '@/assets/css/global.css'
 
 export default {
   name: 'App',
@@ -50,8 +46,6 @@ export default {
       sidebarCollapsed: false,
       mobileMenuOpen: false
     }
-  },
-  computed: {
   },
   methods: {
     toggleSidebar() {
@@ -111,9 +105,9 @@ export default {
   flex: 1;
   padding: 0;
   overflow-y: auto;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  /* display: flex; */
+  justify-content: flex-start;
+  align-items: flex-start;
   width: 100%;
 }
 
