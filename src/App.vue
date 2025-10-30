@@ -29,15 +29,13 @@
       @click="toggleMobileMenu"
     ></div>
     
-    <!-- 性能监控组件 (仅在开发环境显示) -->
-    <PerformanceMonitor v-if="isDevelopment" />
+
   </div>
 </template>
 
 <script>
 import Sidebar from '@/components/Sidebar.vue'
 import Header from '@/components/Header.vue'
-import PerformanceMonitor from '@/components/PerformanceMonitor.vue'
 // 导入全局样式
 import '@/assets/css/global.css'
 
@@ -45,8 +43,7 @@ export default {
   name: 'App',
   components: {
     Sidebar,
-    Header,
-    PerformanceMonitor
+    Header
   },
   data() {
     return {
@@ -55,9 +52,6 @@ export default {
     }
   },
   computed: {
-    isDevelopment() {
-      return process.env.NODE_ENV === 'development'
-    }
   },
   methods: {
     toggleSidebar() {
@@ -74,7 +68,7 @@ export default {
 @import '@/styles/global.css';
 
 #app {
-  display: flex;
+  /* display: flex; */
   min-height: 100vh;
   background-color: var(--bg-secondary);
 }
@@ -115,8 +109,12 @@ export default {
 /* 主内容区域 */
 .main-content {
   flex: 1;
-  padding: var(--spacing-xl);
+  padding: 0;
   overflow-y: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
 }
 
 /* 移动端遮罩 */
@@ -154,7 +152,7 @@ export default {
   }
   
   .main-content {
-    padding: var(--spacing-md);
+    padding: 0;
     min-height: calc(100vh - 56px);
   }
 }
@@ -179,7 +177,7 @@ export default {
   }
   
   .main-content {
-    padding: var(--spacing-lg);
+    padding: 0;
     min-height: calc(100vh - 60px);
   }
 }
@@ -196,7 +194,7 @@ export default {
   }
   
   .main-content {
-    padding: var(--spacing-lg) var(--spacing-xl);
+    padding: 0;
     min-height: calc(100vh - var(--header-height));
   }
 }
@@ -213,7 +211,7 @@ export default {
   }
   
   .main-content {
-    padding: var(--spacing-xl);
+    padding: 0;
     min-height: calc(100vh - var(--header-height));
   }
 }
@@ -230,17 +228,15 @@ export default {
   }
   
   .main-content {
-    padding: var(--spacing-xl) var(--spacing-xxl);
+    padding: 0;
     min-height: calc(100vh - var(--header-height));
-    max-width: 1400px;
-    margin: 0 auto;
   }
 }
 
 /* 高度适配 */
 @media (max-height: 600px) {
   .main-content {
-    padding: var(--spacing-md) var(--spacing-lg);
+    padding: 0;
   }
 }
 
@@ -251,7 +247,7 @@ export default {
   }
   
   .main-content {
-    padding: var(--spacing-sm) var(--spacing-lg);
+    padding: 0;
     min-height: calc(100vh - 48px);
   }
 }

@@ -1,13 +1,10 @@
 <template>
-  <div class="sidebar" :class="{ 'sidebar--collapsed': collapsed }">
+  <div class="sidebar">
     <!-- Logo区域 -->
     <div class="sidebar__logo">
       <div class="logo">
-        <svg class="logo__icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-          <path d="M8 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span class="logo__text" v-if="!collapsed">织梦</span>
+        <img class="logo__icon" src="/logo.png" alt="Logo" />
+        <span class="logo__text">织梦</span>
       </div>
     </div>
 
@@ -49,54 +46,38 @@
           <router-link 
             to="/asset-library" 
             class="nav-link"
-            :class="{ 'nav-link--active': $route.path === '/asset-library' }"
+            active-class="nav-link--active"
           >
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="nav-text" v-if="!collapsed">素材库</span>
+            <span class="nav-text">素材库</span>
           </router-link>
         </li>
 
-        <li class="nav-item">
+        <li class="nav-item nav-item--with-badge">
           <router-link 
             to="/digital-human" 
             class="nav-link"
-            :class="{ 'nav-link--active': $route.path === '/digital-human' }"
+            active-class="nav-link--active"
           >
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M20 7h-4V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v3H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM10 4h4v3h-4V4zm8 16H6v-9h12v9z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            <span class="nav-text" v-if="!collapsed">数字人</span>
+            <span class="nav-text">数字人视频</span>
+            <span class="nav-badge">NEW</span>
           </router-link>
         </li>
       </ul>
     </nav>
-
-    <!-- 折叠按钮 -->
-    <div class="sidebar__toggle" @click="toggleSidebar">
-      <svg class="toggle-icon" :class="{ 'toggle-icon--rotated': collapsed }" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <polyline points="15,18 9,12 15,6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </div>
   </div>
 </template>
 
 <script>
 export default {
-  name: 'AppSidebar',
-  data() {
-    return {
-      collapsed: false
-    }
-  },
-  methods: {
-    toggleSidebar() {
-      this.collapsed = !this.collapsed
-      this.$emit('toggle', this.collapsed)
-    }
-  }
+  name: 'AppSidebar'
 }
 </script>
 
@@ -105,44 +86,39 @@ export default {
   position: fixed;
   left: 0;
   top: 0;
-  width: var(--sidebar-width);
+  width: 240px;
   height: 100vh;
-  background-color: var(--bg-primary);
-  border-right: 1px solid var(--border-secondary);
+  background-color: #ffffff;
+  border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  transition: width var(--transition-normal);
   z-index: 1000;
-}
-
-.sidebar--collapsed {
-  width: 64px;
 }
 
 /* Logo区域 */
 .sidebar__logo {
-  padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--border-secondary);
+  padding: 24px 20px;
+  border-bottom: 1px solid #f3f4f6;
   flex-shrink: 0;
 }
 
 .logo {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: 12px;
 }
 
 .logo__icon {
-  width: 32px;
-  height: 32px;
-  color: var(--primary-color);
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
+  object-fit: contain;
 }
 
 .logo__text {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
   white-space: nowrap;
   overflow: hidden;
 }
@@ -150,51 +126,41 @@ export default {
 /* 导航区域 */
 .sidebar__nav {
   flex: 1;
-  padding: var(--spacing-lg) 0;
+  padding: 16px 0;
   overflow-y: auto;
 }
 
 .nav-list {
   list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .nav-item {
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: 4px;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md) var(--spacing-lg);
-  color: var(--text-secondary);
+  gap: 12px;
+  padding: 12px 20px;
+  color: #6b7280;
   text-decoration: none;
-  transition: all var(--transition-fast);
+  transition: all 0.2s ease;
   position: relative;
-  border-radius: 0 24px 24px 0;
-  margin-right: var(--spacing-lg);
 }
 
 .nav-link:hover {
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
+  background-color: #f9fafb;
+  color: #374151;
 }
 
 .nav-link--active {
-  background-color: var(--primary-color);
-  color: white;
+  background-color: #eff6ff;
+  color: #3b82f6;
+  border-radius: 25px;
 }
-
-.nav-link--active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background-color: var(--primary-color);
-}
-
 .nav-icon {
   width: 20px;
   height: 20px;
@@ -202,165 +168,22 @@ export default {
 }
 
 .nav-text {
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
+  font-size: 14px;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
 }
 
 .nav-badge {
-  background-color: var(--error-color);
+  background-color: #ef4444;
   color: white;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
+  font-size: 10px;
+  font-weight: 600;
   padding: 2px 6px;
-  border-radius: 10px;
+  border-radius: 8px;
   margin-left: auto;
+  text-transform: uppercase;
 }
 
-/* 折叠按钮 */
-.sidebar__toggle {
-  padding: var(--spacing-lg);
-  border-top: 1px solid var(--border-secondary);
-  display: flex;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
-}
 
-.sidebar__toggle:hover {
-  background-color: var(--bg-tertiary);
-}
-
-.toggle-icon {
-  width: 20px;
-  height: 20px;
-  color: var(--text-secondary);
-  transition: transform var(--transition-normal);
-}
-
-.toggle-icon--rotated {
-  transform: rotate(180deg);
-}
-
-/* 响应式设计 */
-
-/* 超小屏幕 (手机, 小于 480px) */
-@media (max-width: 479px) {
-  .sidebar {
-    width: 280px;
-    transform: translateX(-100%);
-    transition: transform var(--transition-normal);
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
-  }
-  
-  .sidebar--mobile-open {
-    transform: translateX(0);
-  }
-  
-  .sidebar__logo {
-    padding: var(--spacing-md);
-  }
-  
-  .logo__text {
-    font-size: var(--font-size-md);
-  }
-  
-  .nav-link {
-    padding: var(--spacing-sm) var(--spacing-md);
-    margin-right: var(--spacing-md);
-  }
-  
-  .nav-text {
-    font-size: var(--font-size-sm);
-  }
-  
-  .sidebar__toggle {
-    padding: var(--spacing-md);
-  }
-}
-
-/* 小屏幕 (平板, 480px 到 767px) */
-@media (min-width: 480px) and (max-width: 767px) {
-  .sidebar {
-    width: 300px;
-    transform: translateX(-100%);
-    transition: transform var(--transition-normal);
-    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
-  }
-  
-  .sidebar--mobile-open {
-    transform: translateX(0);
-  }
-}
-
-/* 中等屏幕 (小型桌面, 768px 到 991px) */
-@media (min-width: 768px) and (max-width: 991px) {
-  .sidebar {
-    width: 240px;
-  }
-  
-  .sidebar--collapsed {
-    width: 60px;
-  }
-  
-  .nav-link {
-    padding: var(--spacing-sm) var(--spacing-md);
-    margin-right: var(--spacing-md);
-  }
-}
-
-/* 大屏幕 (桌面, 992px 到 1199px) */
-@media (min-width: 992px) and (max-width: 1199px) {
-  .sidebar {
-    width: 260px;
-  }
-  
-  .sidebar--collapsed {
-    width: 64px;
-  }
-}
-
-/* 超大屏幕 (大桌面, 1200px 及以上) */
-@media (min-width: 1200px) {
-  .sidebar {
-    width: 280px;
-  }
-  
-  .sidebar--collapsed {
-    width: 64px;
-  }
-}
-
-/* 高度适配 */
-@media (max-height: 600px) {
-  .sidebar__logo {
-    padding: var(--spacing-sm) var(--spacing-lg);
-  }
-  
-  .sidebar__nav {
-    padding: var(--spacing-sm) 0;
-  }
-  
-  .nav-link {
-    padding: var(--spacing-xs) var(--spacing-lg);
-  }
-  
-  .sidebar__toggle {
-    padding: var(--spacing-sm) var(--spacing-lg);
-  }
-}
-
-/* 触摸设备优化 */
-@media (hover: none) and (pointer: coarse) {
-  .nav-link {
-    padding: var(--spacing-md) var(--spacing-lg);
-    min-height: 48px;
-  }
-  
-  .sidebar__toggle {
-    min-height: 48px;
-    padding: var(--spacing-md) var(--spacing-lg);
-  }
-}
 </style>
