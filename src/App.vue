@@ -97,7 +97,7 @@ export default {
 .header {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 2000;
 }
 
 /* 主内容区域 */

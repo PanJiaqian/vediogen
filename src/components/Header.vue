@@ -1,13 +1,22 @@
 <template>
   <header class="header">
     <div class="header__content">
+      <!-- 左侧Logo -->
+      <div class="header__left">
+        <div class="logo">
+          <img src="/logo.png" alt="VideoGen" class="logo-icon" />
+          <span class="logo-text">织梦</span>
+        </div>
+      </div>
+      
+      <!-- 右侧功能区 -->
       <div class="header__right">
         <div class="header-items">
           <div class="header-item membership-btn">开通会员</div>
           <div class="header-item">
             <svg class="header-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 17a5 5 0 100-10 5 5 0 000 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
           <div class="header-item">
@@ -49,12 +58,12 @@ export default {
 .header {
   position: fixed;
   top: 0;
-  left: 240px;
+  left: 0;
   right: 0;
   height: 60px;
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
-  z-index: 100;
+  z-index: 2000;
 }
 
 .header__content {
@@ -63,13 +72,37 @@ export default {
   justify-content: space-between;
   height: 100%;
   padding: 0 2rem;
+  padding-left: 2rem;
+}
+
+.header__left {
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.logo-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.logo-text {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.025em;
 }
 
 .header__right {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  width: 100%;
 }
 
 .header-items {

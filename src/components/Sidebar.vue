@@ -1,13 +1,5 @@
 <template>
   <div class="sidebar">
-    <!-- Logo区域 -->
-    <div class="sidebar__logo">
-      <div class="logo">
-        <img class="logo__icon" src="/logo.png" alt="Logo" />
-        <span class="logo__text">织梦</span>
-      </div>
-    </div>
-
     <!-- 导航菜单 -->
     <nav class="sidebar__nav">
       <ul class="nav-list">
@@ -126,6 +118,7 @@ export default {
 /* 导航区域 */
 .sidebar__nav {
   flex: 1;
+  margin-top: 70px;
   padding: 16px 0;
   overflow-y: auto;
 }

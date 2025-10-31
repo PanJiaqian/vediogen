@@ -92,7 +92,8 @@ export default {
       // 实现导入项目逻辑
     },
     openProject(project) {
-      // 实现打开项目逻辑
+      // 跳转到项目详情页面
+      this.$router.push(`/project/${project.id}`)
     },
     editProject(project) {
       // 实现编辑项目逻辑

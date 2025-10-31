@@ -55,7 +55,7 @@
           <img src="/zhuti_search.svg" class="search-icon" alt="search" />
         </div>
         
-        <button class="create-subject-btn" @click="createNewSubject">
+        <button v-if="activeTab === 'personal'" class="create-subject-btn" @click="createNewSubject">
           <span class="plus-icon">+</span>
           创建新主体
         </button>
@@ -94,7 +94,6 @@
         <button class="back-btn" @click="closeModal">
           <span class="back-icon">×</span>
         </button>
-        <h1 class="detail-title">{{ selectedAsset.title }}</h1>
         <button class="favorite-btn">
           <span class="star-icon">☆</span>
         </button>
@@ -134,6 +133,7 @@
 
         <!-- 右侧信息区域 -->
         <div class="detail-info-section">
+          <h2 class="info-title">{{ selectedAsset.title }}</h2>
           <div class="info-row">
             <span class="info-label">类别</span>
             <span class="info-value">动物</span>
@@ -168,6 +168,118 @@
         </div>
       </div>
     </div>
+
+    <!-- 创建新主体弹窗 -->
+    <div v-if="showCreateModal" class="modal-overlay" @click="closeCreateModal">
+      <div class="create-modal" @click.stop>
+        <div class="modal-header">
+          <h2 class="modal-title">添加新主体</h2>
+          <button class="modal-close-btn" @click="closeCreateModal">×</button>
+        </div>
+        
+        <div class="modal-content">
+          <!-- 左侧图片上传区域 -->
+          <div class="image-upload-section">
+            <div class="image-upload-area" @click="triggerImageUpload">
+              <div v-if="!newSubject.image" class="upload-placeholder">
+                <div class="upload-icon">📷</div>
+                <p class="upload-text">点击/拖拽从本地上传<br/>用图描述生成</p>
+              </div>
+              <img v-else :src="newSubject.image" alt="预览图" class="preview-image" />
+            </div>
+            <input 
+              ref="imageInput" 
+              type="file" 
+              accept="image/*" 
+              @change="handleImageUpload" 
+              style="display: none;"
+            />
+          </div>
+
+          <!-- 右侧表单区域 -->
+          <div class="form-section">
+            <!-- 形象名称 -->
+            <div class="form-group">
+              <label class="form-label">形象名称</label>
+              <input 
+                v-model="newSubject.name" 
+                type="text" 
+                placeholder="请输入形象名称" 
+                class="form-input"
+              />
+            </div>
+
+            <!-- 类别和性别 -->
+            <div class="form-row">
+              <div class="form-group half">
+                <label class="form-label">类别</label>
+                <div class="button-group">
+                  <button 
+                    v-for="category in ['人类', '动物', '其他']" 
+                    :key="category"
+                    :class="['option-btn', { 'active': newSubject.category === category }]"
+                    @click="newSubject.category = category"
+                  >
+                    {{ category }}
+                  </button>
+                </div>
+              </div>
+              
+              <div class="form-group half">
+                <label class="form-label">性别</label>
+                <div class="button-group">
+                  <button 
+                    v-for="gender in ['男性', '女性']" 
+                    :key="gender"
+                    :class="['option-btn', { 'active': newSubject.gender === gender }]"
+                    @click="newSubject.gender = gender"
+                  >
+                    {{ gender }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 年龄 -->
+            <div class="form-group">
+              <label class="form-label">年龄</label>
+              <div class="button-group">
+                <button 
+                  v-for="age in ['儿童', '少年', '青年', '中年', '老年']" 
+                  :key="age"
+                  :class="['option-btn', { 'active': newSubject.age === age }]"
+                  @click="newSubject.age = age"
+                >
+                  {{ age }}
+                </button>
+              </div>
+            </div>
+
+            <!-- 主体描述 -->
+            <div class="form-group">
+              <label class="form-label">主体描述</label>
+              <textarea 
+                v-model="newSubject.description" 
+                placeholder="请输入主体描述" 
+                class="form-textarea"
+                rows="4"
+              ></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 底部按钮 -->
+        <div class="modal-footer">
+          <div class="footer-left">
+            <span class="example-text">主体范例 ℹ</span>
+          </div>
+          <div class="footer-right">
+            <button class="cancel-btn" @click="closeCreateModal">取消</button>
+            <button class="submit-btn" @click="submitNewSubject">应用形象</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -187,6 +299,15 @@ export default {
       showInputBox: false,
       inputText: '',
       showTag: false,
+      showCreateModal: false,
+      newSubject: {
+        name: '',
+        category: '人类',
+        gender: '男性',
+        age: '青年',
+        description: '',
+        image: null
+      },
       tabs: [
         { id: 'public', name: '公共' },
         { id: 'personal', name: '个人' }
@@ -263,8 +384,48 @@ export default {
       this.selectedAsset = null
     },
     createNewSubject() {
-      // 创建新主体的逻辑
-      console.log('创建新主体')
+      this.showCreateModal = true
+    },
+    closeCreateModal() {
+      this.showCreateModal = false
+      // 重置表单数据
+      this.newSubject = {
+        name: '',
+        category: '人类',
+        gender: '男性',
+        age: '青年',
+        description: '',
+        image: null
+      }
+    },
+    triggerImageUpload() {
+      this.$refs.imageInput.click()
+    },
+    handleImageUpload(event) {
+      const file = event.target.files[0]
+      if (file) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          this.newSubject.image = e.target.result
+        }
+        reader.readAsDataURL(file)
+      }
+    },
+    submitNewSubject() {
+      // 验证必填字段
+      if (!this.newSubject.name.trim()) {
+        alert('请输入形象名称')
+        return
+      }
+      
+      // 这里可以添加提交到后端的逻辑
+      console.log('提交新主体:', this.newSubject)
+      
+      // 关闭弹窗
+      this.closeCreateModal()
+      
+      // 可以显示成功提示
+      alert('主体创建成功！')
     },
     toggleInputBox() {
       this.showInputBox = !this.showInputBox
@@ -434,7 +595,7 @@ export default {
 }
 
 .create-subject-btn:hover {
-  background: #45B7B8;
+  background: #0088FF;
   transform: translateY(-1px);
 }
 
@@ -587,29 +748,33 @@ export default {
   flex: 1;
   display: flex;
   padding: 40px;
-  gap: 60px;
+  gap: 150px;
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
+  height: calc(100% - 60px);
+  overflow: hidden;
 }
 
 /* 左侧图片区域 */
 .detail-image-section {
   flex: 2;
-  max-width: 600px;
+  max-width: 550px;
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
   transition: all 0.3s ease;
 }
 
 .detail-image-section.compressed .image-container {
-  height: calc(100% - 80px);
-  max-height: 320px;
+  height: calc(100% - 150px);
+  max-height: 350px;
 }
 
 .image-container {
   width: 100%;
-  aspect-ratio: 1;
+  height: 100%;
+  max-height: 450px;
   background: white;
   border-radius: 12px;
   overflow: hidden;
@@ -617,7 +782,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
+  transition: height 0.3s ease;
 }
 
 .image-container img {
@@ -629,7 +794,22 @@ export default {
 /* 右侧信息区域 */
 .detail-info-section {
   flex: 1;
-  max-width: 300px;
+  max-height: 500px;
+  max-width: 320px;
+  padding: 15px;
+  overflow-y: auto;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  margin-top: 10px;
+}
+
+.info-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
 }
 
 .info-row {
@@ -802,6 +982,293 @@ export default {
 .send-icon {
   font-size: 16px;
   font-weight: bold;
+}
+
+/* 创建新主体弹窗样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.create-modal {
+  background: white;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 24px 16px;
+  border-bottom: none;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #212529;
+  margin: 0;
+}
+
+.modal-close-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  font-size: 20px;
+  color: #6c757d;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.modal-close-btn:hover {
+  background: #f8f9fa;
+}
+
+.modal-content {
+  display: flex;
+  padding: 0 24px 24px;
+  gap: 32px;
+  max-height: calc(90vh - 140px);
+  overflow-y: auto;
+}
+
+/* 左侧图片上传区域 */
+.image-upload-section {
+  flex: 1;
+  min-width: 280px;
+}
+
+.image-upload-area {
+  width: 100%;
+  height: 400px;
+  border: 2px dashed #e0e0e0;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #fafafa;
+}
+
+.image-upload-area:hover {
+  border-color: #4dabf7;
+  background: #f8fbff;
+}
+
+.upload-placeholder {
+  text-align: center;
+  color: #8a8a8a;
+}
+
+.upload-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.6;
+}
+
+.upload-text {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+/* 右侧表单区域 */
+.form-section {
+  flex: 1;
+  min-width: 320px;
+  padding: 4px 0;
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group.half {
+  flex: 1;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  background: white;
+  box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.2);
+}
+
+.form-input::placeholder {
+  color: #9ca3af;
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 70px;
+  font-family: inherit;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+  line-height: 1.5;
+}
+
+.form-textarea:focus {
+  outline: none;
+  background: white;
+  box-shadow: 0 0 0 2px rgba(77, 171, 247, 0.2);
+}
+
+.form-textarea::placeholder {
+  color: #9ca3af;
+}
+
+/* 按钮组 */
+.button-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  margin-top: 2px;
+  justify-content: space-between;
+}
+
+.option-btn {
+  padding: 6px 10px;
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.option-btn:hover {
+  background: #e5f3ff;
+  color: #2563eb;
+}
+
+.option-btn.active {
+  background: #4dabf7;
+  color: white;
+}
+
+/* 弹窗底部 */
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-top: none;
+  background: white;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+}
+
+.example-text {
+  font-size: 14px;
+  color: #6c757d;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.example-text:hover {
+  color: #495057;
+}
+
+.footer-right {
+  display: flex;
+  gap: 12px;
+}
+
+.cancel-btn {
+  padding: 10px 20px;
+  border: none;
+  background: #f5f5f5;
+  color: #666;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn:hover {
+  background: #e8e8e8;
+}
+
+.submit-btn {
+  padding: 10px 20px;
+  border: none;
+  background: #4dabf7;
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.submit-btn:hover {
+  background: #0088FF;
+  transform: translateY(-1px);
 }
 
 /* 响应式设计 */
