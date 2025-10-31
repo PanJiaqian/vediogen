@@ -54,6 +54,11 @@
           />
           <img src="/zhuti_search.svg" class="search-icon" alt="search" />
         </div>
+        
+        <button class="create-subject-btn" @click="createNewSubject">
+          <span class="plus-icon">+</span>
+          创建新主体
+        </button>
       </div>
     </div>
 
@@ -82,38 +87,84 @@
       </div>
     </div>
 
-    <!-- 资产详情模态框 -->
-    <div v-if="selectedAsset" class="asset-modal" @click="closeModal">
-      <div class="modal-content" @click.stop>
-        <button class="close-btn" @click="closeModal">×</button>
-        <div class="modal-preview">
-          <img :src="selectedAsset.thumbnail" :alt="selectedAsset.title" />
+    <!-- 资产详情页面 -->
+    <div v-if="selectedAsset" class="asset-detail-page">
+      <!-- 顶部导航栏 -->
+      <div class="detail-header">
+        <button class="back-btn" @click="closeModal">
+          <span class="back-icon">×</span>
+        </button>
+        <h1 class="detail-title">{{ selectedAsset.title }}</h1>
+        <button class="favorite-btn">
+          <span class="star-icon">☆</span>
+        </button>
+      </div>
+
+      <!-- 主要内容区域 -->
+      <div class="detail-content">
+        <!-- 左侧图片区域 -->
+        <div class="detail-image-section" :class="{ 'compressed': showInputBox }">
+          <div class="image-container">
+            <img :src="selectedAsset.thumbnail" :alt="selectedAsset.title" />
+          </div>
+          
+          <!-- 图片下方输入框 -->
+          <div v-if="showInputBox" class="input-box-container">
+            <div class="input-box">
+              <div class="input-content">
+                <span v-if="showTag" class="name-tag" @click="removeTag">
+                  @{{ selectedAsset.title }}
+                  <span class="tag-close">×</span>
+                </span>
+                <textarea 
+                  v-model="inputText"
+                  placeholder="输入你的想法，小梦会帮你自动为你创作"
+                  class="text-input"
+                  @keyup.enter="sendMessage"
+                  @focus="handleInputFocus"
+                  rows="3"
+                ></textarea>
+              </div>
+            </div>
+            <button class="send-btn" @click="sendMessage">
+              <span class="send-icon">↑</span>
+            </button>
+          </div>
         </div>
-        <div class="modal-info">
-          <h2>{{ selectedAsset.title }}</h2>
-          <p>{{ selectedAsset.description }}</p>
-          <div class="modal-meta">
-            <div class="meta-item">
-              <span class="label">时长:</span>
-              <span class="value">{{ selectedAsset.duration }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="label">格式:</span>
-              <span class="value">{{ selectedAsset.format }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="label">大小:</span>
-              <span class="value">{{ selectedAsset.size }}</span>
-            </div>
-            <div class="meta-item">
-              <span class="label">分辨率:</span>
-              <span class="value">{{ selectedAsset.resolution }}</span>
-            </div>
+
+        <!-- 右侧信息区域 -->
+        <div class="detail-info-section">
+          <div class="info-row">
+            <span class="info-label">类别</span>
+            <span class="info-value">动物</span>
           </div>
-          <div class="modal-actions">
-            <button class="btn btn-primary">下载资产</button>
-            <button class="btn btn-secondary">添加到项目</button>
+          
+          <div class="info-row">
+            <span class="info-label">性别</span>
+            <span class="info-value">无</span>
+            <span class="info-label">年龄</span>
+            <span class="info-value">无</span>
           </div>
+          
+          <div class="info-row">
+            <span class="info-label">主体描述</span>
+          </div>
+          
+          <div class="description-text">
+            皮克斯版，皮克斯版，卡通风格，全身，正面回视，
+            独头鹰，动物，绿色的毛，人眼睛，黄色嘴，橙
+            色脚，我有白色头毛
+          </div>
+          
+          <div class="info-footer">
+            <span class="creator-info">内容由 AI 生成</span>
+          </div>
+          
+          <!-- 使用主体按钮 -->
+          <button class="use-subject-btn" @click="toggleInputBox">
+            <span class="plus-icon">+</span>
+            使用主体
+          </button>
         </div>
       </div>
     </div>
@@ -133,6 +184,9 @@ export default {
       timeFilter: '',
       gradeFilter: '',
       selectedAsset: null,
+      showInputBox: false,
+      inputText: '',
+      showTag: false,
       tabs: [
         { id: 'public', name: '公共' },
         { id: 'personal', name: '个人' }
@@ -207,6 +261,51 @@ export default {
     },
     closeModal() {
       this.selectedAsset = null
+    },
+    createNewSubject() {
+      // 创建新主体的逻辑
+      console.log('创建新主体')
+    },
+    toggleInputBox() {
+      this.showInputBox = !this.showInputBox
+      if (this.showInputBox) {
+        // 当显示输入框时，显示标签并清空文本
+        this.showTag = true
+        this.inputText = ''
+        // 延迟聚焦到输入框
+        this.$nextTick(() => {
+          const input = this.$el.querySelector('.text-input')
+          if (input) {
+            input.focus()
+          }
+        })
+      } else {
+        this.showTag = false
+        this.inputText = ''
+      }
+    },
+    removeTag() {
+      this.showTag = false
+      // 聚焦到输入框
+      this.$nextTick(() => {
+        const input = this.$el.querySelector('.text-input')
+        if (input) {
+          input.focus()
+        }
+      })
+    },
+    handleInputFocus() {
+      // 当输入框获得焦点时的处理
+    },
+    sendMessage() {
+      if (this.inputText.trim()) {
+        // 处理发送消息的逻辑
+        console.log('发送消息:', this.inputText)
+        // 清空输入框
+        this.inputText = ''
+        // 可以选择隐藏输入框或保持显示
+        // this.showInputBox = false
+      }
     }
   }
 }
@@ -214,6 +313,7 @@ export default {
 
 <style scoped>
 .asset-library {
+  position: relative;
   max-width: 1200px;
   margin: 0;
   padding: 20px;
@@ -315,6 +415,35 @@ export default {
   opacity: 0.6;
 }
 
+/* 创建新主体按钮 */
+.create-subject-btn {
+  height: 35px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #4dabf7;
+  color: white;
+  border: none;
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.create-subject-btn:hover {
+  background: #45B7B8;
+  transform: translateY(-1px);
+}
+
+.create-subject-btn .plus-icon {
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1;
+}
+
 /* 资产网格 */
 .assets-container {
   margin-bottom: 40px;
@@ -381,105 +510,298 @@ export default {
   font-size: 16px;
 }
 
-/* 模态框 */
-.asset-modal {
-  position: fixed;
+/* 资产详情页面 */
+.asset-detail-page {
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: #f8f9fa;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部导航栏 */
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+}
+
+.back-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-content {
-  background: var(--bg-primary);
-  border-radius: 12px;
-  max-width: 800px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
-}
-
-.close-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border: none;
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  border-radius: 50%;
+  background: none;
   cursor: pointer;
-  font-size: 18px;
-  z-index: 1;
+  border-radius: 8px;
+  transition: background-color 0.2s;
 }
 
-.modal-preview {
-  aspect-ratio: 16/9;
+.back-btn:hover {
+  background: #f8f9fa;
+}
+
+.back-icon {
+  font-size: 35px;
+  color: #6c757d;
+}
+
+.detail-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #212529;
+  margin: 0;
+}
+
+.favorite-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.favorite-btn:hover {
+  background: #f8f9fa;
+}
+
+.star-icon {
+  font-size: 20px;
+  color: #6c757d;
+}
+
+/* 主要内容区域 */
+.detail-content {
+  flex: 1;
+  display: flex;
+  padding: 40px;
+  gap: 60px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* 左侧图片区域 */
+.detail-image-section {
+  flex: 2;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+}
+
+.detail-image-section.compressed .image-container {
+  height: calc(100% - 80px);
+  max-height: 320px;
+}
+
+.image-container {
+  width: 100%;
+  aspect-ratio: 1;
+  background: white;
+  border-radius: 12px;
   overflow: hidden;
-  border-radius: 12px 12px 0 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
 }
 
-.modal-preview img {
+.image-container img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.modal-info {
-  padding: 24px;
+/* 右侧信息区域 */
+.detail-info-section {
+  flex: 1;
+  max-width: 300px;
 }
 
-.modal-info h2 {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 12px 0;
-}
-
-.modal-info p {
-  font-size: 16px;
-  color: var(--text-secondary);
-  margin: 0 0 24px 0;
-  line-height: 1.6;
-}
-
-.modal-meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.meta-item {
+.info-row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 20px;
 }
 
-.meta-item .label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-.meta-item .value {
+.info-label {
   font-size: 14px;
-  color: var(--text-primary);
+  color: #6c757d;
+  min-width: 60px;
+}
+
+.info-value {
+  font-size: 14px;
+  color: #212529;
   font-weight: 500;
 }
 
-.modal-actions {
+.description-text {
+  font-size: 14px;
+  color: #495057;
+  line-height: 1.6;
+  margin-bottom: 30px;
+  padding: 16px;
+}
+
+.info-footer {
+  margin-bottom: 30px;
+}
+
+.creator-info {
+  font-size: 12px;
+  color: #6c757d;
+}
+
+/* 使用主体按钮 */
+.use-subject-btn {
   display: flex;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #4dabf7;
+  color: white;
+  border: none;
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.use-subject-btn:hover {
+  background: #0088FF;
+  transform: translateY(-1px);
+}
+
+.use-subject-btn .plus-icon {
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* 底部输入框容器 */
+.input-box-container {
+  position: relative;
+  width: 100%;
+  background: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  padding: 10px;
+  margin-top: 10px;
+}
+
+/* 输入框 */
+.input-box {
+  background: white;
+  border: 2px solid #4dabf7;
+  border-radius: 25px;
+  padding: 16px;
+  width: 100%;
+  min-height: 120px;
+  position: relative;
+}
+
+/* 输入内容区域 */
+.input-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+/* 名称标签 */
+.name-tag {
+  display: inline-flex;
+  align-items: center;
+  background: #4dabf7;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+  margin-top: 2px;
+}
+
+.name-tag:hover {
+  background: #0088FF;
+}
+
+.tag-close {
+  margin-left: 4px;
+  font-size: 16px;
+  font-weight: bold;
+  opacity: 0.7;
+}
+
+.name-tag:hover .tag-close {
+  opacity: 1;
+}
+
+/* 文本输入框 */
+.text-input {
+  flex: 1;
+  min-width: 200px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  background: transparent;
+  resize: none;
+  padding-right: 50px;
+  padding-bottom: 10px;
+  font-family: inherit;
+}
+
+.text-input::placeholder {
+  color: #999;
+}
+
+/* 发送按钮 */
+.send-btn {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  background: #4dabf7;
+  border: none;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+  z-index: 1;
+}
+
+.send-btn:hover {
+  background: #0088FF;
+}
+
+.send-icon {
+  font-size: 16px;
+  font-weight: bold;
 }
 
 /* 响应式设计 */
@@ -518,17 +840,19 @@ export default {
     width: 100%;
   }
 
-  .modal-content {
-    margin: 10px;
-    max-height: calc(100vh - 20px);
-  }
-
-  .modal-info {
-    padding: 16px;
-  }
-
-  .modal-actions {
+  /* 详情页面响应式 */
+  .detail-content {
     flex-direction: column;
+    padding: 20px;
+    gap: 30px;
+  }
+
+  .detail-image-section {
+    max-width: 100%;
+  }
+
+  .detail-info-section {
+    max-width: 100%;
   }
 }
 
@@ -545,6 +869,19 @@ export default {
     flex: 1;
     justify-content: center;
     min-width: 0;
+  }
+
+  .detail-content {
+    padding: 16px;
+    gap: 20px;
+  }
+
+  .detail-header {
+    padding: 12px 16px;
+  }
+
+  .detail-title {
+    font-size: 18px;
   }
 }
 </style>

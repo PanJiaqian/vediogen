@@ -134,22 +134,18 @@ export default {
   methods: {
     handleSearch() {
       if (this.searchQuery.trim()) {
-        console.log('搜索:', this.searchQuery)
         // 实现搜索逻辑
       }
     },
-    applySuggestion(text) {
-      this.searchQuery = text
+    selectSuggestion(suggestion) {
+      this.searchQuery = suggestion.text
       this.handleSearch()
     },
     openRecommendation(item) {
-      console.log('打开推荐内容:', item)
       // 实现打开推荐内容逻辑
     },
     setActiveFeature(feature) {
       this.activeFeature = feature
-      console.log('切换功能:', feature)
-      // 可以根据不同功能更新搜索建议等
     }
   }
 }

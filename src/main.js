@@ -1,14 +1,12 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
-import store from './store'
 import { performanceMonitor, lazyLoadImages } from './utils/performance'
 
 // 创建Vue应用实例
 const app = createApp(App)
 
-// 使用store和路由
-app.use(store)
+// 使用路由
 app.use(router)
 
 // 性能优化配置

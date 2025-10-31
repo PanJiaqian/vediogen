@@ -86,27 +86,21 @@ export default {
       this.activeTab = tabId
     },
     createNewProject() {
-      console.log('创建新项目')
       // 实现创建新项目逻辑
     },
     importProject() {
-      console.log('导入项目')
       // 实现导入项目逻辑
     },
     openProject(project) {
-      console.log('打开项目:', project)
       // 实现打开项目逻辑
     },
     editProject(project) {
-      console.log('编辑项目:', project)
       // 实现编辑项目逻辑
     },
     duplicateProject(project) {
-      console.log('复制项目:', project)
       // 实现复制项目逻辑
     },
     deleteProject(project) {
-      console.log('删除项目:', project)
       // 实现删除项目逻辑
     },
     getStatusText(status) {

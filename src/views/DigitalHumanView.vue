@@ -125,12 +125,9 @@
     </div>
   </div>
 
-    <!-- 创建数字人模态框 -->
-
 </template>
 
 <script>
-import { generateAvatarPlaceholder } from '@/utils/placeholder'
 
 export default {
   name: 'DigitalHumanView',
@@ -138,120 +135,10 @@ export default {
     return {
       isDragging: false,
       uploadedImage: null,
-      activeCategory: 'all',
-      categories: [
-        { id: 'all', name: '全部', icon: '👥', count: 12 },
-        { id: 'my', name: '我的数字人', icon: '👤', count: 3 },
-        { id: 'preset', name: '预设模板', icon: '🎭', count: 9 },
-        { id: 'training', name: '训练中', icon: '⏳', count: 2 }
-      ],
-      humans: [
-        {
-          id: 1,
-          name: '艾米',
-          description: '专业的商务主播，适合企业宣传和产品介绍',
-          avatar: generateAvatarPlaceholder('艾米', '4A90E2'),
-          category: 'business',
-          gender: 'female',
-          age: '25-30',
-          style: 'professional',
-          languages: ['中文', '英文'],
-          features: ['高清画质', '自然表情', '多语言支持'],
-          price: '免费',
-          rating: 4.8,
-          usageCount: 1234
-        },
-        {
-          id: 2,
-          name: '大卫',
-          description: '亲和力强的教育主播，适合在线课程和培训视频',
-          avatar: generateAvatarPlaceholder('大卫', '7ED321'),
-          category: 'education',
-          gender: 'male',
-          age: '30-35',
-          style: 'friendly',
-          languages: ['中文', '英文', '日文'],
-          features: ['清晰发音', '生动讲解', '互动性强'],
-          price: '¥99/月',
-          rating: 4.9,
-          usageCount: 856
-        },
-        {
-          id: 3,
-          name: '小雅',
-          description: '时尚活泼的生活主播，适合美妆、时尚类内容',
-          avatar: generateAvatarPlaceholder('小雅', 'F5A623'),
-          category: 'lifestyle',
-          gender: 'female',
-          age: '20-25',
-          style: 'trendy',
-          languages: ['中文', '韩文'],
-          features: ['时尚造型', '活泼表情', '年轻化'],
-          price: '¥199/月',
-          rating: 4.7,
-          usageCount: 2341
-        },
-        {
-          id: 4,
-          name: '博士',
-          description: '权威专业的学术主播，适合科研和技术类内容',
-          avatar: generateAvatarPlaceholder('博士', '9013FE'),
-          category: 'academic',
-          gender: 'male',
-          age: '40-45',
-          style: 'authoritative',
-          languages: ['中文', '英文'],
-          features: ['专业权威', '逻辑清晰', '学术风格'],
-          price: '¥299/月',
-          rating: 4.6,
-          usageCount: 567
-        },
-        {
-          id: 5,
-          name: '娜娜',
-          description: '温柔亲切的客服主播，适合客户服务和咨询类视频',
-          avatar: generateAvatarPlaceholder('娜娜', 'D0021B'),
-          category: 'service',
-          gender: 'female',
-          age: '25-30',
-          style: 'gentle',
-          languages: ['中文'],
-          features: ['温柔声音', '亲切笑容', '服务导向'],
-          price: '¥149/月',
-          rating: 4.8,
-          usageCount: 1789
-        },
-        {
-          id: 6,
-          name: '杰克',
-          description: '动感活力的运动主播，适合健身和体育类内容',
-          avatar: generateAvatarPlaceholder('杰克', '50E3C2'),
-          category: 'sports',
-          gender: 'male',
-          age: '25-30',
-          style: 'energetic',
-          languages: ['中文', '英文'],
-          features: ['运动风格', '活力四射', '激励强劲'],
-          price: '¥179/月',
-          rating: 4.5,
-          usageCount: 3456
-        }
-      ]
+      activeCategory: 'all'
     }
   },
   computed: {
-    filteredHumans() {
-      if (this.activeCategory === 'all') {
-        return this.humans
-      } else if (this.activeCategory === 'my') {
-        return this.humans.filter(human => human.id <= 2) // 模拟用户自己的数字人
-      } else if (this.activeCategory === 'preset') {
-        return this.humans.filter(human => human.id > 2) // 模拟预设模板
-      } else if (this.activeCategory === 'training') {
-        return this.humans.filter(human => human.status === 'training')
-      }
-      return this.humans
-    }
   },
   methods: {
     triggerFileUpload(e) {
@@ -277,7 +164,6 @@ export default {
       }
     },
     validateAndProcessImage(file) {
-      // 检查文件大小（10MB = 10 * 1024 * 1024 bytes）
       if (file.size > 10 * 1024 * 1024) {
         alert('图片大小不能超过10MB');
         return;
@@ -288,14 +174,12 @@ export default {
       const objectUrl = URL.createObjectURL(file);
       
       img.onload = () => {
-        // 检查尺寸
         if (img.width > 300 || img.height > 300) {
           alert('图片尺寸不能大于300px');
           URL.revokeObjectURL(objectUrl);
           return;
         }
         
-        // 检查宽高比 (2:3 至 3:2)
         const ratio = img.width / img.height;
         if (ratio < 2/3 || ratio > 3/2) {
           alert('图片宽高比必须在2:3至3:2之间');
@@ -303,10 +187,7 @@ export default {
           return;
         }
         
-        // 图片验证通过
         this.uploadedImage = objectUrl;
-        console.log('图片上传成功:', file.name);
-        // 这里可以添加上传到服务器的逻辑
       };
       
       img.onerror = () => {
@@ -319,39 +200,7 @@ export default {
     setActiveCategory(categoryId) {
       this.activeCategory = categoryId
     },
-    previewHuman(human) {
-      console.log('预览数字人:', human.name)
-    },
-    editHuman(human) {
-      console.log('编辑数字人:', human.name)
-    },
-    deleteHuman(human) {
-      if (confirm(`确定要删除数字人 "${human.name}" 吗？`)) {
-        const index = this.humans.findIndex(h => h.id === human.id)
-        if (index > -1) {
-          this.humans.splice(index, 1)
-        }
-      }
-    },
-    uploadTrainingData() {
-      console.log('上传训练数据')
-    },
-    getTrainingTime() {
-      const times = {
-        fast: '30分钟',
-        standard: '2小时',
-        high: '6小时'
-      }
-      return times[this.newHuman.trainingQuality] || '2小时'
-    },
-    getStatusText(status) {
-      const statusMap = {
-        available: '可用',
-        training: '训练中',
-        offline: '离线'
-      }
-      return statusMap[status] || status
-    },
+
     formatDate(dateString) {
       return new Date(dateString).toLocaleDateString('zh-CN')
     }
