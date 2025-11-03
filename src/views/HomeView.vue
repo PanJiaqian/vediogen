@@ -5,7 +5,7 @@
       <h1 class="main-title">今天有什么可以帮到您？</h1>
       <!-- 功能标签 -->
       <div class="feature-tags">
-        <button 
+        <button
           class="feature-tag"
           :class="{ active: activeFeature === 'script' }"
           @click="setActiveFeature('script')"
@@ -15,7 +15,7 @@
           </svg>
           剧本创作
         </button>
-        <button 
+        <button
           class="feature-tag"
           :class="{ active: activeFeature === 'video' }"
           @click="setActiveFeature('video')"
@@ -64,7 +64,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- 搜索建议 -->
         <div class="search-suggestions">
           <button
@@ -85,7 +85,7 @@
     <!-- 推荐内容 -->
     <div class="recommendations-section">
       <h2 class="recommendations-title">灵感广场</h2>
-      
+
       <div class="recommendations-grid">
         <div
           v-for="item in recommendations"
@@ -142,7 +142,8 @@ export default {
       this.handleSearch()
     },
     openRecommendation(item) {
-      // 实现打开推荐内容逻辑
+      // 跳转到灵感详情页面
+      this.$router.push(`/inspiration/${item.id}`)
     },
     setActiveFeature(feature) {
       this.activeFeature = feature
@@ -476,40 +477,40 @@ export default {
     padding: 1.5rem 1rem;
     max-width: 100%;
   }
-  
+
   .recommendations-section {
     padding: 1.5rem 1rem 2rem;
   }
-  
+
   .recommendations-grid {
     flex-direction: column;
     max-width: 400px;
   }
-  
+
   .search-container {
     max-width: 100%;
   }
-  
+
   .feature-tags {
     margin-bottom: 1.5rem;
   }
-  
+
   .feature-tag {
     font-size: 0.8rem;
     padding: 0.6rem 1.2rem;
   }
-  
+
   .search-box {
     padding: 0.6rem 0.8rem;
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .search-input {
     order: -1;
     text-align: center;
   }
-  
+
   .search-actions {
     width: 100%;
     justify-content: center;
@@ -520,27 +521,27 @@ export default {
   .home-content {
     padding: 1rem;
   }
-  
+
   .search-suggestions {
     gap: 0.5rem;
     margin-top: 1rem;
   }
-  
+
   .suggestion-tag {
     font-size: 0.75rem;
     padding: 0.5rem 0.75rem;
   }
-  
+
   .feature-tag {
     font-size: 0.75rem;
     padding: 0.5rem 1rem;
   }
-  
+
   .feature-icon {
     width: 14px;
     height: 14px;
   }
-  
+
   .action-btn {
     font-size: 0.7rem;
     padding: 0.4rem 0.6rem;

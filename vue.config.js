@@ -2,10 +2,10 @@ const { defineConfig } = require('@vue/cli-service')
 
 module.exports = defineConfig({
   transpileDependencies: true,
-  
+
   // 生产环境优化
   productionSourceMap: false,
-  
+
   // 性能优化配置
   configureWebpack: {
     optimization: {
@@ -15,7 +15,7 @@ module.exports = defineConfig({
           vendor: {
             test: /[\\/]node_modules[\\/]/,
             name: 'vendors',
-            chunks: 'all',
+            chunks: 'all'
           },
           common: {
             name: 'common',
@@ -27,7 +27,7 @@ module.exports = defineConfig({
       }
     }
   },
-  
+
   // 开发服务器配置
   devServer: {
     port: 8080,
@@ -41,13 +41,13 @@ module.exports = defineConfig({
     // 启用gzip压缩
     compress: true
   },
-  
+
   // CSS优化
   css: {
     extract: process.env.NODE_ENV === 'production',
     sourceMap: false
   },
-  
+
   // 链式操作配置
   chainWebpack: config => {
     // 删除默认的preload和prefetch插件以避免配置冲突

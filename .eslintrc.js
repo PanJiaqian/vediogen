@@ -18,7 +18,7 @@ module.exports = {
     // 生产环境规则
     'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
     'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
-    
+
     // Vue特定规则
     'vue/multi-word-component-names': 'off',
     'vue/no-unused-vars': 'warn',
@@ -27,14 +27,14 @@ module.exports = {
     'vue/no-use-v-if-with-v-for': 'error',
     'vue/require-prop-types': 'warn',
     'vue/require-default-prop': 'warn',
-    
+
     // 性能相关规则
     'no-unused-vars': 'warn',
     'no-unreachable': 'error',
     'no-duplicate-imports': 'error',
     'prefer-const': 'warn',
     'no-var': 'error',
-    
+
     // 代码质量规则
     'eqeqeq': 'warn',
     'no-eval': 'error',
@@ -47,7 +47,7 @@ module.exports = {
     'no-useless-concat': 'warn',
     'no-useless-return': 'warn',
     'prefer-template': 'warn',
-    
+
     // 代码风格规则
     'indent': ['warn', 2],
     'quotes': ['warn', 'single'],
@@ -62,7 +62,7 @@ module.exports = {
     'no-multiple-empty-lines': ['warn', { max: 2 }],
     'eol-last': 'warn'
   },
-  
+
   // 忽略特定文件的规则
   overrides: [
     {

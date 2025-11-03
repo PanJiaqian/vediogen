@@ -35,9 +35,19 @@ const routes = [
     component: () => import(/* webpackChunkName: "project-detail" */ '../views/ProjectDetailView.vue')
   },
   {
+    path: '/generation-steps/:id',
+    name: 'GenerationSteps',
+    component: () => import(/* webpackChunkName: "generation-steps" */ '../views/GenerationStepsView.vue')
+  },
+  {
     path: '/video-edit/:id',
     name: 'VideoEdit',
     component: () => import(/* webpackChunkName: "video-edit" */ '../views/VideoEditView.vue')
+  },
+  {
+    path: '/inspiration/:id',
+    name: 'InspirationDetail',
+    component: () => import(/* webpackChunkName: "inspiration-detail" */ '../views/InspirationDetailView.vue')
   }
 ]
 

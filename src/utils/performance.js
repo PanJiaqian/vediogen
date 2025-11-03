@@ -49,9 +49,9 @@ export function lazyLoadImages(selector = 'img[data-src]', options = {}) {
     rootMargin: '50px',
     threshold: 0.1
   }
-  
+
   const config = { ...defaultOptions, ...options }
-  
+
   if ('IntersectionObserver' in window) {
     const imageObserver = new IntersectionObserver((entries, observer) => {
       entries.forEach(entry => {
@@ -64,7 +64,7 @@ export function lazyLoadImages(selector = 'img[data-src]', options = {}) {
         }
       })
     }, config)
-    
+
     document.querySelectorAll(selector).forEach(img => {
       imageObserver.observe(img)
     })
@@ -90,19 +90,19 @@ export class VirtualScroll {
     this.visibleCount = Math.ceil(container.clientHeight / itemHeight) + 2
     this.startIndex = 0
     this.endIndex = this.visibleCount
-    
+
     this.init()
   }
-  
+
   init() {
     this.container.style.position = 'relative'
     this.container.style.overflow = 'auto'
-    
+
     // 创建虚拟容器
     this.virtualContainer = document.createElement('div')
     this.virtualContainer.style.height = `${this.items.length * this.itemHeight}px`
     this.container.appendChild(this.virtualContainer)
-    
+
     // 创建可见区域容器
     this.visibleContainer = document.createElement('div')
     this.visibleContainer.style.position = 'absolute'
@@ -110,15 +110,15 @@ export class VirtualScroll {
     this.visibleContainer.style.left = '0'
     this.visibleContainer.style.right = '0'
     this.virtualContainer.appendChild(this.visibleContainer)
-    
+
     this.render()
     this.bindEvents()
   }
-  
+
   render() {
     const visibleItems = this.items.slice(this.startIndex, this.endIndex)
     this.visibleContainer.innerHTML = ''
-    
+
     visibleItems.forEach((item, index) => {
       const element = this.renderItem(item, this.startIndex + index)
       element.style.position = 'absolute'
@@ -129,7 +129,7 @@ export class VirtualScroll {
       this.visibleContainer.appendChild(element)
     })
   }
-  
+
   bindEvents() {
     this.container.addEventListener('scroll', throttle(() => {
       const scrollTop = this.container.scrollTop
@@ -138,7 +138,7 @@ export class VirtualScroll {
       this.render()
     }, 16))
   }
-  
+
   updateItems(newItems) {
     this.items = newItems
     this.virtualContainer.style.height = `${this.items.length * this.itemHeight}px`
@@ -154,7 +154,7 @@ export class PerformanceMonitor {
     this.metrics = {}
     this.observers = []
   }
-  
+
   // 监控页面加载性能
   measurePageLoad() {
     if ('performance' in window) {
@@ -168,7 +168,7 @@ export class PerformanceMonitor {
       })
     }
   }
-  
+
   // 监控首次内容绘制
   measureFCP() {
     if ('PerformanceObserver' in window) {
@@ -183,7 +183,7 @@ export class PerformanceMonitor {
       this.observers.push(observer)
     }
   }
-  
+
   // 监控最大内容绘制
   measureLCP() {
     if ('PerformanceObserver' in window) {
@@ -196,7 +196,7 @@ export class PerformanceMonitor {
       this.observers.push(observer)
     }
   }
-  
+
   // 监控累积布局偏移
   measureCLS() {
     if ('PerformanceObserver' in window) {
@@ -213,12 +213,12 @@ export class PerformanceMonitor {
       this.observers.push(observer)
     }
   }
-  
+
   // 获取所有性能指标
   getMetrics() {
     return this.metrics
   }
-  
+
   // 清理观察者
   cleanup() {
     this.observers.forEach(observer => observer.disconnect())
@@ -241,7 +241,7 @@ export const MemoryUtils = {
       })
     }
   },
-  
+
   // 检查内存使用情况
   checkMemoryUsage() {
     if ('memory' in performance) {
@@ -253,7 +253,7 @@ export const MemoryUtils = {
     }
     return null
   },
-  
+
   // 强制垃圾回收（仅在开发环境）
   forceGC() {
     if (process.env.NODE_ENV === 'development' && window.gc) {
@@ -270,7 +270,7 @@ export class CacheManager {
     this.cache = new Map()
     this.maxSize = maxSize
   }
-  
+
   get(key) {
     if (this.cache.has(key)) {
       // 移动到最后（LRU策略）
@@ -281,7 +281,7 @@ export class CacheManager {
     }
     return null
   }
-  
+
   set(key, value) {
     if (this.cache.has(key)) {
       this.cache.delete(key)
@@ -292,11 +292,11 @@ export class CacheManager {
     }
     this.cache.set(key, value)
   }
-  
+
   clear() {
     this.cache.clear()
   }
-  
+
   size() {
     return this.cache.size
   }

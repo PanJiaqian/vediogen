@@ -20,7 +20,7 @@ export function generatePlaceholder(width = 300, height = 200, bgColor = '4A90E2
             fill="#${textColor}" text-anchor="middle" dominant-baseline="middle">${text}</text>
     </svg>
   `
-  
+
   return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
 }
 
@@ -39,7 +39,7 @@ export function generateAvatarPlaceholder(size = 40, text = 'U', bgColor = '1890
             fill="white" text-anchor="middle" dominant-baseline="middle" font-weight="bold">${text}</text>
     </svg>
   `
-  
+
   return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
 }
 
@@ -95,16 +95,16 @@ export const digitalHumanPlaceholders = {
  */
 export function getPlaceholderByType(type, category = 'default') {
   switch (type) {
-    case 'project':
-      return projectPlaceholders[category] || projectPlaceholders.space
-    case 'user':
-      return userAvatars[category] || userAvatars.default
-    case 'asset':
-      return assetPlaceholders[category] || assetPlaceholders.video
-    case 'digital-human':
-      return digitalHumanPlaceholders[category] || digitalHumanPlaceholders.male
-    default:
-      return generatePlaceholder(300, 200, '95A5A6', 'ffffff', '占位图')
+  case 'project':
+    return projectPlaceholders[category] || projectPlaceholders.space
+  case 'user':
+    return userAvatars[category] || userAvatars.default
+  case 'asset':
+    return assetPlaceholders[category] || assetPlaceholders.video
+  case 'digital-human':
+    return digitalHumanPlaceholders[category] || digitalHumanPlaceholders.male
+  default:
+    return generatePlaceholder(300, 200, '95A5A6', 'ffffff', '占位图')
   }
 }
 
@@ -131,7 +131,7 @@ export function generateGradientPlaceholder(width = 300, height = 200, color1 = 
             fill="white" text-anchor="middle" dominant-baseline="middle" font-weight="500">${text}</text>
     </svg>
   `
-  
+
   return `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
 }
 

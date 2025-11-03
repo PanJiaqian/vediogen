@@ -133,8 +133,8 @@
       <!-- 固定在底部的输入框 -->
       <div class="input-section">
         <div class="input-container">
-          <input 
-            v-model="userInput" 
+          <input
+            v-model="userInput"
             placeholder="输入你的想法"
             class="user-input"
           />
@@ -190,7 +190,7 @@ export default {
   methods: {
     generateVideo() {
       const projectId = this.$route.params.id
-      this.$router.push(`/video-edit/${projectId}`)
+      this.$router.push(`/generation-steps/${projectId}`)
     },
     saveProject() {
       console.log('保存项目')

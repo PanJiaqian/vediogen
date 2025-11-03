@@ -2,8 +2,8 @@
   <div class="my-projects">
     <!-- 标签页导航 -->
     <div class="tab-navigation">
-      <button 
-        v-for="tab in tabs" 
+      <button
+        v-for="tab in tabs"
         :key="tab.id"
         class="tab-button"
         :class="{ 'tab-button--active': activeTab === tab.id }"
@@ -15,8 +15,8 @@
 
     <!-- 项目网格 -->
     <div class="projects-grid">
-      <div 
-        v-for="project in currentTabProjects" 
+      <div
+        v-for="project in currentTabProjects"
         :key="project.id"
         class="project-card"
         @click="openProject(project)"
@@ -237,16 +237,16 @@ export default {
   .my-projects {
     padding: 15px;
   }
-  
+
   .tab-navigation {
     margin-bottom: 20px;
   }
-  
+
   .projects-grid {
     grid-template-columns: 1fr;
     gap: 15px;
   }
-  
+
   .tab-button {
     padding: 10px 20px;
     font-size: 14px;
@@ -257,11 +257,11 @@ export default {
   .my-projects {
     padding: 10px;
   }
-  
+
   .projects-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .project-card {
     margin-bottom: 15px;
   }

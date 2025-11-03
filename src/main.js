@@ -29,13 +29,13 @@ app.mount('#app')
 document.addEventListener('DOMContentLoaded', () => {
   // 启用图片懒加载
   lazyLoadImages('img[data-src]')
-  
+
   // 预加载关键资源
   const criticalResources = [
     '/api/user/profile',
     '/api/projects/recent'
   ]
-  
+
   criticalResources.forEach(url => {
     const link = document.createElement('link')
     link.rel = 'prefetch'

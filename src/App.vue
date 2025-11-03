@@ -1,30 +1,30 @@
 <template>
   <div id="app">
     <!-- 侧边栏 -->
-    <Sidebar 
-      :isCollapsed="sidebarCollapsed" 
+    <Sidebar
+      :isCollapsed="sidebarCollapsed"
       @toggle="toggleSidebar"
       class="sidebar"
       :class="{ 'sidebar--collapsed': sidebarCollapsed }"
     />
-    
+
     <!-- 主要内容区域 -->
     <div class="main-layout" :class="{ 'main-layout--expanded': sidebarCollapsed }">
       <!-- 顶部导航 -->
-      <Header 
+      <Header
         @toggle-mobile-menu="toggleMobileMenu"
         class="header"
       />
-      
+
       <!-- 页面内容 -->
       <main class="main-content">
         <router-view/>
       </main>
     </div>
-    
+
     <!-- 移动端遮罩 -->
-    <div 
-      v-if="mobileMenuOpen" 
+    <div
+      v-if="mobileMenuOpen"
       class="mobile-overlay"
       @click="toggleMobileMenu"
     ></div>
@@ -131,20 +131,20 @@ export default {
   .sidebar {
     transform: translateX(-100%);
   }
-  
+
   .sidebar--collapsed {
     transform: translateX(0);
   }
-  
+
   .main-layout {
     margin-left: 0;
     margin-top: 56px;
   }
-  
+
   .main-layout--expanded {
     margin-left: 0;
   }
-  
+
   .main-content {
     padding: 0;
     min-height: calc(100vh - 56px);
@@ -156,20 +156,20 @@ export default {
   .sidebar {
     transform: translateX(-100%);
   }
-  
+
   .sidebar--collapsed {
     transform: translateX(0);
   }
-  
+
   .main-layout {
     margin-left: 0;
     margin-top: 60px;
   }
-  
+
   .main-layout--expanded {
     margin-left: 0;
   }
-  
+
   .main-content {
     padding: 0;
     min-height: calc(100vh - 60px);
@@ -182,11 +182,11 @@ export default {
     margin-left: 240px;
     margin-top: var(--header-height);
   }
-  
+
   .main-layout--expanded {
     margin-left: 60px;
   }
-  
+
   .main-content {
     padding: 0;
     min-height: calc(100vh - var(--header-height));
@@ -199,11 +199,11 @@ export default {
     margin-left: 260px;
     margin-top: var(--header-height);
   }
-  
+
   .main-layout--expanded {
     margin-left: 64px;
   }
-  
+
   .main-content {
     padding: 0;
     min-height: calc(100vh - var(--header-height));
@@ -216,11 +216,11 @@ export default {
     margin-left: 280px;
     margin-top: var(--header-height);
   }
-  
+
   .main-layout--expanded {
     margin-left: 64px;
   }
-  
+
   .main-content {
     padding: 0;
     min-height: calc(100vh - var(--header-height));
@@ -239,7 +239,7 @@ export default {
   .main-layout {
     margin-top: 48px;
   }
-  
+
   .main-content {
     padding: 0;
     min-height: calc(100vh - 48px);
@@ -253,11 +253,11 @@ export default {
   .mobile-overlay {
     display: none !important;
   }
-  
+
   .main-layout {
     margin: 0 !important;
   }
-  
+
   .main-content {
     padding: 0 !important;
     min-height: auto !important;

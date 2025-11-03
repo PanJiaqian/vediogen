@@ -4,8 +4,8 @@
     <nav class="sidebar__nav">
       <ul class="nav-list">
         <li class="nav-item">
-          <router-link 
-            to="/" 
+          <router-link
+            to="/"
             class="nav-link"
             active-class="nav-link--active"
           >
@@ -18,8 +18,8 @@
         </li>
 
         <li class="nav-item">
-          <router-link 
-            to="/my-projects" 
+          <router-link
+            to="/my-projects"
             class="nav-link"
             active-class="nav-link--active"
           >
@@ -35,8 +35,8 @@
         </li>
 
         <li class="nav-item">
-          <router-link 
-            to="/asset-library" 
+          <router-link
+            to="/asset-library"
             class="nav-link"
             active-class="nav-link--active"
           >
@@ -49,8 +49,8 @@
         </li>
 
         <li class="nav-item nav-item--with-badge">
-          <router-link 
-            to="/digital-human" 
+          <router-link
+            to="/digital-human"
             class="nav-link"
             active-class="nav-link--active"
           >

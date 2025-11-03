@@ -8,7 +8,7 @@
           <span class="logo-text">织梦</span>
         </div>
       </div>
-      
+
       <!-- 右侧功能区 -->
       <div class="header__right">
         <div class="header-items">
@@ -152,7 +152,7 @@ export default {
     left: 0;
     padding: 0 1rem;
   }
-  
+
 }
   .user-name {
     display: none;

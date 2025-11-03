@@ -2,8 +2,8 @@
   <div class="asset-library">
     <!-- 顶部标签导航 -->
     <div class="tab-navigation">
-      <button 
-        v-for="tab in tabs" 
+      <button
+        v-for="tab in tabs"
         :key="tab.id"
         :class="['tab-button', { 'tab-button--active': activeTab === tab.id }]"
         @click="setActiveTab(tab.id)"
@@ -23,7 +23,7 @@
             <option value="image">其他</option>
           </select>
         </div>
-        
+
         <div class="filter-dropdown">
           <select v-model="timeFilter">
             <option value="">性别</option>
@@ -32,7 +32,7 @@
             <option value="month">女</option>
           </select>
         </div>
-        
+
         <div class="filter-dropdown">
           <select v-model="gradeFilter">
             <option value="">年龄</option>
@@ -44,17 +44,17 @@
             <option value="high">老年</option>
           </select>
         </div>
-        
+
         <div class="search-box">
-          <input 
-            type="text" 
-            placeholder="输入主体名称进行搜索" 
+          <input
+            type="text"
+            placeholder="输入主体名称进行搜索"
             v-model="searchQuery"
             @input="handleSearch"
           />
           <img src="/zhuti_search.svg" class="search-icon" alt="search" />
         </div>
-        
+
         <button v-if="activeTab === 'personal'" class="create-subject-btn" @click="createNewSubject">
           <span class="plus-icon">+</span>
           创建新主体
@@ -65,8 +65,8 @@
     <!-- 资产网格 -->
     <div class="assets-container">
       <div class="assets-grid">
-        <div 
-          v-for="asset in filteredAssets" 
+        <div
+          v-for="asset in filteredAssets"
           :key="asset.id"
           class="asset-card"
           @click="selectAsset(asset)"
@@ -74,13 +74,13 @@
           <div class="asset-preview">
             <img :src="asset.thumbnail" :alt="asset.title" />
           </div>
-          
+
           <div class="asset-info">
             <h3 class="asset-title">{{ asset.title }}</h3>
           </div>
         </div>
       </div>
-      
+
       <!-- 暂无更多内容 -->
       <div class="empty-message">
         暂无更多内容
@@ -106,7 +106,7 @@
           <div class="image-container">
             <img :src="selectedAsset.thumbnail" :alt="selectedAsset.title" />
           </div>
-          
+
           <!-- 图片下方输入框 -->
           <div v-if="showInputBox" class="input-box-container">
             <div class="input-box">
@@ -115,7 +115,7 @@
                   @{{ selectedAsset.title }}
                   <span class="tag-close">×</span>
                 </span>
-                <textarea 
+                <textarea
                   v-model="inputText"
                   placeholder="输入你的想法，小梦会帮你自动为你创作"
                   class="text-input"
@@ -138,28 +138,28 @@
             <span class="info-label">类别</span>
             <span class="info-value">动物</span>
           </div>
-          
+
           <div class="info-row">
             <span class="info-label">性别</span>
             <span class="info-value">无</span>
             <span class="info-label">年龄</span>
             <span class="info-value">无</span>
           </div>
-          
+
           <div class="info-row">
             <span class="info-label">主体描述</span>
           </div>
-          
+
           <div class="description-text">
             皮克斯版，皮克斯版，卡通风格，全身，正面回视，
             独头鹰，动物，绿色的毛，人眼睛，黄色嘴，橙
             色脚，我有白色头毛
           </div>
-          
+
           <div class="info-footer">
             <span class="creator-info">内容由 AI 生成</span>
           </div>
-          
+
           <!-- 使用主体按钮 -->
           <button class="use-subject-btn" @click="toggleInputBox">
             <span class="plus-icon">+</span>
@@ -176,7 +176,7 @@
           <h2 class="modal-title">添加新主体</h2>
           <button class="modal-close-btn" @click="closeCreateModal">×</button>
         </div>
-        
+
         <div class="modal-content">
           <!-- 左侧图片上传区域 -->
           <div class="image-upload-section">
@@ -187,11 +187,11 @@
               </div>
               <img v-else :src="newSubject.image" alt="预览图" class="preview-image" />
             </div>
-            <input 
-              ref="imageInput" 
-              type="file" 
-              accept="image/*" 
-              @change="handleImageUpload" 
+            <input
+              ref="imageInput"
+              type="file"
+              accept="image/*"
+              @change="handleImageUpload"
               style="display: none;"
             />
           </div>
@@ -201,10 +201,10 @@
             <!-- 形象名称 -->
             <div class="form-group">
               <label class="form-label">形象名称</label>
-              <input 
-                v-model="newSubject.name" 
-                type="text" 
-                placeholder="请输入形象名称" 
+              <input
+                v-model="newSubject.name"
+                type="text"
+                placeholder="请输入形象名称"
                 class="form-input"
               />
             </div>
@@ -214,8 +214,8 @@
               <div class="form-group half">
                 <label class="form-label">类别</label>
                 <div class="button-group">
-                  <button 
-                    v-for="category in ['人类', '动物', '其他']" 
+                  <button
+                    v-for="category in ['人类', '动物', '其他']"
                     :key="category"
                     :class="['option-btn', { 'active': newSubject.category === category }]"
                     @click="newSubject.category = category"
@@ -224,12 +224,12 @@
                   </button>
                 </div>
               </div>
-              
+
               <div class="form-group half">
                 <label class="form-label">性别</label>
                 <div class="button-group">
-                  <button 
-                    v-for="gender in ['男性', '女性']" 
+                  <button
+                    v-for="gender in ['男性', '女性']"
                     :key="gender"
                     :class="['option-btn', { 'active': newSubject.gender === gender }]"
                     @click="newSubject.gender = gender"
@@ -244,8 +244,8 @@
             <div class="form-group">
               <label class="form-label">年龄</label>
               <div class="button-group">
-                <button 
-                  v-for="age in ['儿童', '少年', '青年', '中年', '老年']" 
+                <button
+                  v-for="age in ['儿童', '少年', '青年', '中年', '老年']"
                   :key="age"
                   :class="['option-btn', { 'active': newSubject.age === age }]"
                   @click="newSubject.age = age"
@@ -258,9 +258,9 @@
             <!-- 主体描述 -->
             <div class="form-group">
               <label class="form-label">主体描述</label>
-              <textarea 
-                v-model="newSubject.description" 
-                placeholder="请输入主体描述" 
+              <textarea
+                v-model="newSubject.description"
+                placeholder="请输入主体描述"
                 class="form-textarea"
                 rows="4"
               ></textarea>
@@ -362,7 +362,7 @@ export default {
       // 按搜索关键词筛选
       if (this.searchQuery) {
         const query = this.searchQuery.toLowerCase()
-        filtered = filtered.filter(asset => 
+        filtered = filtered.filter(asset =>
           asset.title.toLowerCase().includes(query)
         )
       }
@@ -417,13 +417,13 @@ export default {
         alert('请输入形象名称')
         return
       }
-      
+
       // 这里可以添加提交到后端的逻辑
       console.log('提交新主体:', this.newSubject)
-      
+
       // 关闭弹窗
       this.closeCreateModal()
-      
+
       // 可以显示成功提示
       alert('主体创建成功！')
     },
