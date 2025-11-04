@@ -1,5 +1,9 @@
 <template>
   <div v-if="visible" class="modal-overlay" @click="handleOverlayClick">
+    <!-- 消息提示 -->
+    <div v-if="message.show" :class="['message-toast', message.type]">
+      {{ message.text }}
+    </div>
     <div class="create-modal" @click.stop>
       <div class="modal-header">
         <h2 class="modal-title">添加新主体</h2>
@@ -14,7 +18,7 @@
               <div class="upload-icon">📷</div>
               <p class="upload-text">点击/拖拽从本地上传<br/>用图描述生成</p>
             </div>
-            <img v-else :src="newSubject.image" alt="预览图" class="preview-image" />
+            <img v-else :src="imagePreview" alt="预览图" class="preview-image" />
           </div>
           <input
             ref="imageInput"
@@ -130,6 +134,12 @@ export default {
         age: '青年',
         description: '',
         image: null
+      },
+      imageFile: null,
+      message: {
+        show: false,
+        text: '',
+        type: 'success' // success, error
       }
     }
   },
@@ -148,6 +158,17 @@ export default {
     handleOverlayClick() {
       this.closeModal()
     },
+    showMessage(text, type = 'success') {
+      this.message = {
+        show: true,
+        text,
+        type
+      }
+      // 3秒后自动隐藏
+      setTimeout(() => {
+        this.message.show = false
+      }, 3000)
+    },
     resetForm() {
       this.newSubject = {
         name: '',
@@ -157,6 +178,7 @@ export default {
         description: '',
         image: null
       }
+      this.imageFile = null
     },
     triggerImageUpload() {
       this.$refs.imageInput.click()
@@ -164,25 +186,73 @@ export default {
     handleImageUpload(event) {
       const file = event.target.files[0]
       if (file) {
+        // 保存文件对象用于上传
+        this.imageFile = file
+        
         const reader = new FileReader()
         reader.onload = (e) => {
-          this.newSubject.image = e.target.result
+          this.imagePreview = e.target.result
+          this.newSubject.image = file
         }
         reader.readAsDataURL(file)
       }
     },
-    submitNewSubject() {
+    async submitNewSubject() {
       // 验证必填字段
       if (!this.newSubject.name.trim()) {
-        alert('请输入形象名称')
+        this.showMessage('请输入形象名称', 'error')
         return
       }
 
-      // 发送提交事件
-      this.$emit('submit', { ...this.newSubject })
-      
-      // 关闭弹窗
-      this.closeModal()
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          this.showMessage('请先登录', 'error')
+          return
+        }
+        
+        const myHeaders = new Headers()
+        myHeaders.append("Authorization", token)
+        
+        const formdata = new FormData()
+        formdata.append("name", this.newSubject.name)
+        formdata.append("category", this.newSubject.category)
+        formdata.append("gender", this.newSubject.gender === '男性' ? '男' : '女')
+        formdata.append("ageRange", this.newSubject.age)
+        formdata.append("themeDescription", this.newSubject.description || '')
+        
+        // 如果有图片文件，添加到formdata
+        if (this.imageFile) {
+          formdata.append("imagefile", this.imageFile)
+        }
+        
+        const requestOptions = {
+          method: 'POST',
+          headers: myHeaders,
+          body: formdata,
+          redirect: 'follow'
+        }
+        
+        const response = await fetch("http://106.12.116.141:1770/material/uploadMaterial", requestOptions)
+        const result = await response.text()
+        const data = JSON.parse(result)
+        
+        console.log('上传素材响应:', data)
+        
+        if (data.code === 0) {
+          this.showMessage('素材上传成功！')
+          // 发送提交事件，通知父组件刷新列表
+          this.$emit('submit', { ...this.newSubject })
+          // 关闭弹窗
+          this.closeModal()
+        } else {
+          this.showMessage('上传失败: ' + data.message, 'error')
+        }
+        
+      } catch (error) {
+        console.error('上传素材失败:', error)
+        this.showMessage('上传失败，请重试', 'error')
+      }
     }
   }
 }
@@ -438,6 +508,42 @@ export default {
 
 .submit-btn:hover {
   background: #2563eb;
+}
+
+/* 消息提示样式 */
+.message-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  z-index: 2000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideDown 0.3s ease;
+}
+
+.message-toast.success {
+  background: #10b981;
+  color: white;
+}
+
+.message-toast.error {
+  background: #ef4444;
+  color: white;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 /* 响应式设计 */

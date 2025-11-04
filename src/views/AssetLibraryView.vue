@@ -262,9 +262,15 @@ export default {
       return filtered
     }
   },
+  mounted() {
+    this.loadPersonalMaterials()
+  },
   methods: {
     setActiveTab(tabId) {
       this.activeTab = tabId
+      if (tabId === 'personal') {
+        this.loadPersonalMaterials()
+      }
     },
     handleSearch() {
       // 搜索逻辑已在computed中处理
@@ -285,13 +291,67 @@ export default {
       // 处理从CreateSubjectModal组件提交的数据
       console.log('提交新主体:', subjectData)
       
-      // 这里可以添加提交到后端的逻辑
-      
       // 关闭弹窗
       this.closeCreateModal()
 
-      // 可以显示成功提示
-      alert('主体创建成功！')
+      // 如果当前在个人标签页，刷新个人素材列表
+      if (this.activeTab === 'personal') {
+        this.loadPersonalMaterials()
+      }
+    },
+    
+    // 获取个人素材列表
+    async loadPersonalMaterials() {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          console.log('未找到token，使用模拟数据')
+          return
+        }
+        
+        const myHeaders = new Headers()
+        myHeaders.append("Authorization", token)
+        
+        const requestOptions = {
+          method: 'GET',
+          headers: myHeaders,
+          redirect: 'follow'
+        }
+        
+        const response = await fetch("http://106.12.116.141:1770/material/getMaterialsList", requestOptions)
+        const result = await response.text()
+        const data = JSON.parse(result)
+        
+        console.log('获取个人素材列表响应:', data)
+        
+        if (data.code === 0 && data.data) {
+          // 将API数据转换为资产卡片格式
+          const personalAssets = data.data.map(item => ({
+            id: item.id,
+            title: item.name,
+            thumbnail: item.fileUrl || generateGradientPlaceholder(item.name, 'E8E8E8', 'F8F9FA'),
+            type: 'personal',
+            category: item.category,
+            gender: item.gender,
+            ageRange: item.ageRange,
+            themeDescription: item.themeDescription,
+            createTime: item.createTime,
+            updateTime: item.updateTime
+          }))
+          
+          // 更新资产列表，保留公共资产，替换个人资产
+          this.assets = [
+            ...this.assets.filter(asset => asset.type === 'public'),
+            ...personalAssets
+          ]
+        } else {
+          console.error('获取个人素材列表失败:', data.message)
+        }
+        
+      } catch (error) {
+        console.error('获取个人素材列表失败:', error)
+        // 保持使用模拟数据
+      }
     },
     toggleInputBox() {
       this.showInputBox = !this.showInputBox

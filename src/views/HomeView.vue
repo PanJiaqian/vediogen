@@ -367,7 +367,6 @@ export default {
   mounted() {
     // 点击外部关闭下拉框
     document.addEventListener('click', this.handleClickOutside)
-    // 加载推荐作品列表
     this.loadCreativeWorks()
   },
   beforeUnmount() {
