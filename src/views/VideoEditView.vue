@@ -387,91 +387,57 @@
 
             <!-- 分镜轨道 - 水平布局 -->
             <div class="timeline-tracks">
-              <!-- 分镜1 -->
-              <div class="timeline-track">
+              <div 
+                v-for="(scene, index) in scenes" 
+                :key="scene.id"
+                class="timeline-track"
+                :class="{ active: index === activeSceneIndex }"
+                draggable="true"
+                @dragstart="handleDragStart(index, $event)"
+                @dragover="handleDragOver($event)"
+                @drop="handleDrop(index, $event)"
+                @dragend="handleDragEnd"
+              >
                 <div class="track-header">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
                     <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
                     <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2"/>
                   </svg>
-                  <span class="track-title">分镜1</span>
+                  <span class="track-title">{{ scene.title }}</span>
+                  
+                  <!-- 操作按钮 -->
+                  <div class="track-actions">
+                    <button 
+                      class="action-btn copy-btn" 
+                      @click="copyScene(index)"
+                      title="复制分镜"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+                      </svg>
+                    </button>
+                    <button 
+                      class="action-btn delete-btn" 
+                      @click="deleteScene(index)"
+                      title="删除分镜"
+                      v-if="scenes.length > 1"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <polyline points="3,6 5,6 21,6" stroke="currentColor" stroke-width="2"/>
+                        <path d="M19,6v14a2,2 0,0,1-2,2H7a2,2 0,0,1-2-2V6m3,0V4a2,2 0,0,1,2-2h4a2,2 0,0,1,2,2v2" stroke="currentColor" stroke-width="2"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <div class="track-clips">
-                  <div v-for="n in 4" :key="n" class="scene-clip">
-                    <img src="/logo.png" alt="分镜1" class="clip-thumbnail" />
+                <div class="track-clips" @click="selectScene(index)">
+                  <div v-for="n in (index === activeSceneIndex ? 16 : 4)" :key="n" class="scene-clip" :class="{ active: index === activeSceneIndex }">
+                    <img :src="scene.thumbnail" :alt="scene.title" class="clip-thumbnail" />
                   </div>
                 </div>
                 <div class="track-audio">
-                  <button class="audio-btn">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2"/>
-                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    配音
-                  </button>
-                  <button class="audio-btn">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="2"/>
-                      <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2"/>
-                      <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    背景音乐
-                  </button>
-                </div>
-              </div>
-
-              <!-- 分镜2 -->
-              <div class="timeline-track">
-                <div class="track-header">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2"/>
-                  </svg>
-                  <span class="track-title">分镜2</span>
-                </div>
-                <div class="track-clips">
-                  <div v-for="n in 4" :key="n" class="scene-clip">
-                    <img src="/logo.png" alt="分镜2" class="clip-thumbnail" />
-                  </div>
-                </div>
-                <div class="track-audio">
-                  <button class="audio-btn">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2"/>
-                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    配音
-                  </button>
-                  <button class="audio-btn">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="2"/>
-                      <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2"/>
-                      <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    背景音乐
-                  </button>
-                </div>
-              </div>
-
-              <!-- 分镜3 - 当前活跃 -->
-              <div class="timeline-track active">
-                <div class="track-header">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2"/>
-                  </svg>
-                  <span class="track-title">分镜3</span>
-                </div>
-                <div class="track-clips">
-                  <div v-for="n in 16" :key="n" class="scene-clip active">
-                    <img src="/logo.png" alt="分镜3" class="clip-thumbnail" />
-                  </div>
-                </div>
-                <div class="track-audio">
-                  <button class="audio-btn add-audio">
+                  <button v-if="index === activeSceneIndex" class="audio-btn add-audio">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
                       <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="2"/>
@@ -479,6 +445,23 @@
                     </svg>
                     添加配音
                   </button>
+                  <template v-else>
+                    <button class="audio-btn">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2"/>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2"/>
+                      </svg>
+                      配音
+                    </button>
+                    <button class="audio-btn">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                        <path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2"/>
+                      </svg>
+                      背景音乐
+                    </button>
+                  </template>
                 </div>
               </div>
             </div>
@@ -540,6 +523,7 @@ export default {
           thumbnail: '/logo.png'
         }
       ],
+      draggedIndex: null,
       // 配音相关数据
       voiceScript: '很久很久以前，玉皇大帝要选十二位守护神。',
       voiceGender: '女性',
@@ -628,6 +612,68 @@ export default {
     toggleLipSyncView() {
       this.showLipSyncView = !this.showLipSyncView
       console.log('切换对口型页面显示状态:', this.showLipSyncView)
+    },
+    // 拖拽相关方法
+    handleDragStart(index, event) {
+      this.draggedIndex = index
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/html', event.target.outerHTML)
+      console.log('开始拖拽分镜:', index)
+    },
+    handleDragOver(event) {
+      event.preventDefault()
+      event.dataTransfer.dropEffect = 'move'
+    },
+    handleDrop(targetIndex, event) {
+      event.preventDefault()
+      if (this.draggedIndex !== null && this.draggedIndex !== targetIndex) {
+        const draggedScene = this.scenes[this.draggedIndex]
+        this.scenes.splice(this.draggedIndex, 1)
+        this.scenes.splice(targetIndex, 0, draggedScene)
+        
+        // 更新活跃场景索引
+        if (this.activeSceneIndex === this.draggedIndex) {
+          this.activeSceneIndex = targetIndex
+        } else if (this.activeSceneIndex === targetIndex) {
+          this.activeSceneIndex = this.draggedIndex > targetIndex ? this.activeSceneIndex + 1 : this.activeSceneIndex - 1
+        }
+        
+        console.log('拖拽完成，从', this.draggedIndex, '移动到', targetIndex)
+      }
+    },
+    handleDragEnd() {
+      this.draggedIndex = null
+      console.log('拖拽结束')
+    },
+    // 复制分镜
+    copyScene(index) {
+      const sceneToCopy = this.scenes[index]
+      const newScene = {
+        ...sceneToCopy,
+        id: Date.now(), // 生成新的ID
+        title: sceneToCopy.title + '_副本'
+      }
+      this.scenes.splice(index + 1, 0, newScene)
+      console.log('复制分镜:', sceneToCopy.title)
+    },
+    // 删除分镜
+    deleteScene(index) {
+      if (this.scenes.length <= 1) {
+        console.log('至少需要保留一个分镜')
+        return
+      }
+      
+      const deletedScene = this.scenes[index]
+      this.scenes.splice(index, 1)
+      
+      // 调整活跃场景索引
+      if (this.activeSceneIndex === index) {
+        this.activeSceneIndex = Math.min(this.activeSceneIndex, this.scenes.length - 1)
+      } else if (this.activeSceneIndex > index) {
+        this.activeSceneIndex--
+      }
+      
+      console.log('删除分镜:', deletedScene.title)
     }
   }
 }
@@ -1387,6 +1433,13 @@ input:checked + .slider:before {
   border: 1px solid #e5e7eb;
   transition: all 0.2s;
   overflow: hidden;
+  cursor: move;
+}
+
+.timeline-track:hover {
+  background: #f3f4f6;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .timeline-track.active {
@@ -1404,10 +1457,41 @@ input:checked + .slider:before {
   font-size: 12px;
   color: #6b7280;
   font-weight: 500;
+  justify-content: space-between;
 }
 
 .track-title {
   font-weight: 600;
+  flex: 1;
+}
+
+.track-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.action-btn {
+  padding: 4px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #e5e7eb;
+}
+
+.copy-btn svg {
+  color: #3b82f6;
+}
+
+.delete-btn svg {
+  color: #ef4444;
 }
 
 .track-clips {

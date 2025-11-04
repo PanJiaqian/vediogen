@@ -42,18 +42,97 @@
           </div>
           <div class="search-actions-container">
             <div class="left-actions">
-              <button class="action-btn">
-                <div class="action-icon-wrapper">
-                  <span class="at-symbol">@</span>
+              <!-- 主体下拉框 -->
+              <div class="dropdown-container">
+                <button class="action-btn" @click="toggleSubjectDropdown">
+                  <div class="action-icon-wrapper">
+                    <span class="at-symbol">@</span>
+                  </div>
+                  <span>主体</span>
+                </button>
+                
+                <!-- 主体下拉菜单 -->
+                <div v-if="showSubjectDropdown" class="dropdown-menu subject-dropdown">
+                  <div class="dropdown-header">
+                    <button 
+                      class="category-tab" 
+                      :class="{ active: activeSubjectCategory === 'all' }"
+                      @click="setSubjectCategory('all')"
+                    >
+                      全部
+                    </button>
+                    <button 
+                      class="category-tab" 
+                      :class="{ active: activeSubjectCategory === 'public' }"
+                      @click="setSubjectCategory('public')"
+                    >
+                      公共
+                    </button>
+                    <button 
+                      class="category-tab" 
+                      :class="{ active: activeSubjectCategory === 'personal' }"
+                      @click="setSubjectCategory('personal')"
+                    >
+                      个人
+                    </button>
+                  </div>
+                  
+                  <div class="dropdown-content">
+                    <!-- 创建新主体按钮（全部和个人分类显示） -->
+                    <div v-if="activeSubjectCategory !== 'public'" class="create-new-item" @click="createNewSubject">
+                      <div class="create-icon">+</div>
+                      <span>创建新主体</span>
+                    </div>
+                    
+                    <!-- 主体列表 -->
+                    <div class="subjects-list">
+                      <div 
+                        v-for="subject in filteredSubjects" 
+                        :key="subject.id"
+                        class="subject-item"
+                        @click="selectSubject(subject)"
+                      >
+                        <img :src="subject.avatar" :alt="subject.name" class="subject-avatar">
+                        <div class="subject-info">
+                          <div class="subject-name">{{ subject.name }}</div>
+                          <div class="subject-tags">
+                            <span v-for="tag in subject.tags" :key="tag" class="subject-tag">{{ tag }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div v-if="filteredSubjects.length === 0" class="empty-state">
+                      暂无更多内容
+                    </div>
+                  </div>
                 </div>
-                <span>主体</span>
-              </button>
-              <button class="action-btn">
-                <div class="action-icon-wrapper">
-                  <img src="/home_draw.svg" alt="draw" />
+              </div>
+              
+              <!-- 画风下拉框 -->
+              <div class="dropdown-container">
+                <button class="action-btn" @click="toggleStyleDropdown">
+                  <div class="action-icon-wrapper">
+                    <img src="/home_draw.svg" alt="draw" />
+                  </div>
+                  <span>画风</span>
+                </button>
+                
+                <!-- 画风下拉菜单 -->
+                <div v-if="showStyleDropdown" class="dropdown-menu style-dropdown">
+                  <div class="styles-list">
+                    <div 
+                      v-for="style in artStyles" 
+                      :key="style.id"
+                      class="style-item"
+                      @click="selectStyle(style)"
+                    >
+                      <img :src="style.image" :alt="style.name" class="style-image">
+                      <div class="style-name">{{ style.name }}</div>
+                    </div>
+                  </div>
                 </div>
-                <span>画风</span>
-              </button>
+              </div>
             </div>
             <div class="right-actions">
               <button class="search-submit-btn">
@@ -100,18 +179,164 @@
         </div>
       </div>
     </div>
+
+    <!-- 创建新主体弹窗 -->
+    <CreateSubjectModal 
+      :visible="showCreateModal" 
+      @close="closeCreateModal"
+      @submit="handleSubjectSubmit"
+    />
   </div>
 </template>
 
 <script>
 import { projectPlaceholders } from '@/utils/placeholder'
+import CreateSubjectModal from '@/components/CreateSubjectModal.vue'
 
 export default {
   name: 'HomeView',
+  components: {
+    CreateSubjectModal
+  },
   data() {
     return {
       searchQuery: '',
       activeFeature: 'script',
+      // 下拉框状态
+      showSubjectDropdown: false,
+      showStyleDropdown: false,
+      activeSubjectCategory: 'all',
+      // 弹窗状态
+      showCreateModal: false,
+      // 主体数据
+      subjects: [
+        {
+          id: 1,
+          name: '背带裤kitty',
+          avatar: '/api/placeholder/40/40',
+          tags: ['动物'],
+          category: 'public'
+        },
+        {
+          id: 2,
+          name: '多儿',
+          avatar: '/api/placeholder/40/40',
+          tags: ['动物'],
+          category: 'public'
+        },
+        {
+          id: 3,
+          name: 'Chou Chou',
+          avatar: '/api/placeholder/40/40',
+          tags: ['男性', '少年'],
+          category: 'public'
+        },
+        {
+          id: 4,
+          name: 'Mokoko',
+          avatar: '/api/placeholder/40/40',
+          tags: ['其他'],
+          category: 'public'
+        },
+        {
+          id: 5,
+          name: 'Zimomo',
+          avatar: '/api/placeholder/40/40',
+          tags: ['其他'],
+          category: 'public'
+        },
+        {
+          id: 6,
+          name: 'Labubu',
+          avatar: '/api/placeholder/40/40',
+          tags: ['其他'],
+          category: 'public'
+        },
+        {
+          id: 7,
+          name: '三龙子',
+          avatar: '/api/placeholder/40/40',
+          tags: ['男性', '青年'],
+          category: 'public'
+        },
+        {
+          id: 8,
+          name: '沈星回',
+          avatar: '/api/placeholder/40/40',
+          tags: ['男性', '青年'],
+          category: 'public'
+        },
+        {
+          id: 9,
+          name: '秦御',
+          avatar: '/api/placeholder/40/40',
+          tags: ['男性', '青年'],
+          category: 'public'
+        }
+      ],
+      // 画风数据
+      artStyles: [
+        {
+          id: 1,
+          name: '皮克斯',
+          image: '/api/placeholder/120/80'
+        },
+        {
+          id: 2,
+          name: '2D古风',
+          image: '/api/placeholder/120/80'
+        },
+        {
+          id: 3,
+          name: '3D古风',
+          image: '/api/placeholder/120/80'
+        },
+        {
+          id: 4,
+          name: '韩漫二次元',
+          image: '/api/placeholder/120/80'
+        },
+        {
+          id: 5,
+          name: '现代都市',
+          image: '/api/placeholder/120/80'
+        },
+        {
+          id: 6,
+          name: '3D卡通',
+          image: '/api/placeholder/120/80'
+        },
+        {
+          id: 7,
+          name: '日漫二次元',
+          image: '/api/placeholder/120/80'
+        },
+        {
+          id: 8,
+          name: '中国工笔画',
+          image: '/api/placeholder/120/80'
+        },
+        {
+          id: 9,
+          name: '写实',
+          image: '/api/placeholder/120/80'
+        },
+        {
+          id: 10,
+          name: '水彩',
+          image: '/api/placeholder/120/80'
+        },
+        {
+          id: 11,
+          name: '油画',
+          image: '/api/placeholder/120/80'
+        },
+        {
+          id: 12,
+          name: '素描',
+          image: '/api/placeholder/120/80'
+        }
+      ],
       searchSuggestions: [
         { id: 1, text: '小羊介绍新疆伊犁的...' },
         { id: 2, text: '女娲后人与修道者三...' },
@@ -131,14 +356,29 @@ export default {
       ]
     }
   },
+  computed: {
+    filteredSubjects() {
+      if (this.activeSubjectCategory === 'all') {
+        return this.subjects
+      }
+      return this.subjects.filter(subject => subject.category === this.activeSubjectCategory)
+    }
+  },
+  mounted() {
+    // 点击外部关闭下拉框
+    document.addEventListener('click', this.handleClickOutside)
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.handleClickOutside)
+  },
   methods: {
     handleSearch() {
       if (this.searchQuery.trim()) {
         // 实现搜索逻辑
       }
     },
-    selectSuggestion(suggestion) {
-      this.searchQuery = suggestion.text
+    applySuggestion(suggestionText) {
+      this.searchQuery = suggestionText
       this.handleSearch()
     },
     openRecommendation(item) {
@@ -147,6 +387,71 @@ export default {
     },
     setActiveFeature(feature) {
       this.activeFeature = feature
+    },
+    
+    // 下拉框相关方法
+    toggleSubjectDropdown() {
+      this.showSubjectDropdown = !this.showSubjectDropdown
+      this.showStyleDropdown = false
+    },
+    
+    toggleStyleDropdown() {
+      this.showStyleDropdown = !this.showStyleDropdown
+      this.showSubjectDropdown = false
+    },
+    
+    setSubjectCategory(category) {
+      this.activeSubjectCategory = category
+    },
+    
+    createNewSubject() {
+      console.log('创建新主体')
+      this.showSubjectDropdown = false
+      this.showCreateModal = true
+    },
+    
+    selectSubject(subject) {
+      console.log('选择主体:', subject)
+      this.searchQuery += `@${subject.name} `
+      this.showSubjectDropdown = false
+    },
+    
+    selectStyle(style) {
+      console.log('选择画风:', style)
+      this.searchQuery += `画风:${style.name} `
+      this.showStyleDropdown = false
+    },
+    
+    handleClickOutside(event) {
+      const subjectDropdown = this.$el?.querySelector('.subject-dropdown')
+      const styleDropdown = this.$el?.querySelector('.style-dropdown')
+      const subjectBtn = this.$el?.querySelector('.dropdown-container:first-child .action-btn')
+      const styleBtn = this.$el?.querySelector('.dropdown-container:last-child .action-btn')
+      
+      if (subjectDropdown && !subjectDropdown.contains(event.target) && !subjectBtn?.contains(event.target)) {
+        this.showSubjectDropdown = false
+      }
+      
+      if (styleDropdown && !styleDropdown.contains(event.target) && !styleBtn?.contains(event.target)) {
+        this.showStyleDropdown = false
+      }
+    },
+    
+    closeCreateModal() {
+      this.showCreateModal = false
+    },
+    
+    handleSubjectSubmit(subjectData) {
+      // 处理从CreateSubjectModal组件提交的数据
+      console.log('提交新主体:', subjectData)
+      
+      // 这里可以添加提交到后端的逻辑
+      
+      // 关闭弹窗
+      this.closeCreateModal()
+
+      // 可以显示成功提示
+      alert('主体创建成功！')
     }
   }
 }
@@ -469,6 +774,187 @@ export default {
   text-align: left;
   margin: 0;
   line-height: 1.3;
+}
+
+/* 下拉框样式 */
+.dropdown-container {
+  position: relative;
+}
+
+.subject-dropdown,
+.style-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  min-width: 480px;
+  max-height: 500px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.subject-dropdown {
+  min-width: 520px;
+}
+
+.dropdown-header {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.category-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.category-tab {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 16px;
+  background: white;
+  color: #6b7280;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.category-tab.active {
+  color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.category-tab:hover:not(.active) {
+  background: #f9fafb;
+  color: #374151;
+}
+
+.dropdown-content {
+  padding: 12px;
+}
+
+.create-new-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #3b82f6;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.create-new-item:hover {
+  background: #e0f2fe;
+  border-color: #3b82f6;
+}
+
+.create-icon {
+  width: 16px;
+  height: 16px;
+  color: #3b82f6;
+}
+
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 12px;
+}
+
+.subjects-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+  padding: 12px;
+}
+
+.styles-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+  padding: 12px;
+}
+
+.subject-item,
+.style-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.subject-item:hover,
+.style-item:hover {
+  background: #f8fafc;
+}
+
+.subject-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 6px;
+}
+
+.style-image {
+  width: 60px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  margin-bottom: 6px;
+}
+
+.subject-info {
+  width: 100%;
+  text-align: center;
+}
+
+.subject-name,
+.style-name {
+  font-size: 0.75rem;
+  color: #374151;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.subject-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.subject-tag {
+  font-size: 0.625rem;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.load-more {
+  text-align: center;
+  padding: 12px;
+  color: #6b7280;
+  font-size: 0.875rem;
+  cursor: pointer;
+  border-top: 1px solid #f3f4f6;
+  margin-top: 8px;
+}
+
+.load-more:hover {
+  color: #3b82f6;
 }
 
 /* 响应式设计 */
