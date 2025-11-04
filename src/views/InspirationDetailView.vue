@@ -122,10 +122,59 @@ export default {
     goBack() {
       this.$router.push('/')
     },
-    loadInspirationData(id) {
+    async loadInspirationData(id) {
       // 这里可以根据ID加载具体的灵感数据
-      // 目前使用模拟数据
       console.log('Loading inspiration data for ID:', id)
+      
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          console.log('未找到token，使用模拟数据')
+          return
+        }
+        
+        const myHeaders = new Headers()
+        myHeaders.append("Authorization", token)
+        
+        const requestOptions = {
+          method: 'GET',
+          headers: myHeaders,
+          redirect: 'follow'
+        }
+        
+        const response = await fetch(`http://106.12.116.141:1770/creativeWork/getcreativeWorkById?creativeWorkId=${id}`, requestOptions)
+        const result = await response.text()
+        const data = JSON.parse(result)
+        
+        console.log('获取作品详情响应:', data)
+        
+        if (data.code === 0 && data.data) {
+          const item = data.data
+          // 更新页面数据
+          this.inspirationData = {
+            id: item.id,
+            title: item.title,
+            videoUrl: item.videoUrl || '/api/placeholder/video.mp4',
+            thumbnail: item.coverImageUrl || '/api/placeholder/600/400',
+            description: item.description,
+            author: {
+              name: '用户' + item.userId,
+              avatar: '/logo.png'
+            },
+            publishTime: item.createTime,
+            tags: [], // API没有返回标签数据
+            views: 0, // API没有返回观看数
+            likes: item.likeCount || 0,
+            status: item.status
+          }
+        } else {
+          console.error('获取作品详情失败:', data.message)
+        }
+        
+      } catch (error) {
+        console.error('获取作品详情失败:', error)
+        // 保持使用模拟数据
+      }
     },
     formatTime(timeString) {
       // 格式化时间显示

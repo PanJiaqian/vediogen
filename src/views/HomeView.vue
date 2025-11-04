@@ -367,6 +367,8 @@ export default {
   mounted() {
     // 点击外部关闭下拉框
     document.addEventListener('click', this.handleClickOutside)
+    // 加载推荐作品列表
+    this.loadCreativeWorks()
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside)
@@ -452,6 +454,58 @@ export default {
 
       // 可以显示成功提示
       alert('主体创建成功！')
+    },
+    
+    // 获取创意作品列表
+    async loadCreativeWorks() {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          console.log('未找到token，使用模拟数据')
+          return
+        }
+        
+        const myHeaders = new Headers()
+        myHeaders.append("Authorization", token)
+        
+        const requestOptions = {
+          method: 'GET',
+          headers: myHeaders,
+          redirect: 'follow'
+        }
+        
+        const response = await fetch("http://106.12.116.141:1770/creativeWork/getcreativeWorkList", requestOptions)
+        const result = await response.text()
+        const data = JSON.parse(result)
+        
+        console.log('获取作品列表响应:', data)
+        
+        if (data.code === 0 && data.data) {
+          // 将API数据转换为推荐卡片格式
+          this.recommendations = data.data.map(item => ({
+            id: item.id,
+            title: item.title,
+            image: item.coverImageUrl || '/api/placeholder/300/200',
+            videoUrl: item.videoUrl,
+            description: item.description,
+            author: {
+              name: '用户' + item.userId,
+              avatar: '/logo.png'
+            },
+            publishTime: item.createTime,
+            tags: [],
+            views: 0,
+            likes: item.likeCount || 0,
+            status: item.status
+          }))
+        } else {
+          console.error('获取作品列表失败:', data.message)
+        }
+        
+      } catch (error) {
+        console.error('获取作品列表失败:', error)
+        // 保持使用模拟数据
+      }
     }
   }
 }

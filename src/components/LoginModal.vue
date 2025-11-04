@@ -57,7 +57,31 @@
             <span v-if="errors.email" class="error-text">{{ errors.email }}</span>
           </div>
 
-          <!-- 密码 -->
+          <div v-if="loginType === 'email' && !isLogin" class="form-group">
+            <label class="form-label">邮箱验证码</label>
+            <div class="verification-group">
+              <input 
+                v-model="formData.emailCode" 
+                type="text" 
+                class="form-input verification-input" 
+                placeholder="请输入邮箱验证码"
+                :class="{ error: errors.emailCode }"
+                maxlength="6"
+              />
+              <button 
+                type="button" 
+                class="send-code-btn" 
+                @click="sendEmailCode"
+                :disabled="!canSendEmailCode || emailCodeSending"
+              >
+                <span v-if="emailCodeSending">发送中...</span>
+                <span v-else-if="emailCodeCountdown > 0">{{ emailCodeCountdown }}s后重发</span>
+                <span v-else>发送验证码</span>
+              </button>
+            </div>
+            <span v-if="errors.emailCode" class="error-text">{{ errors.emailCode }}</span>
+          </div>
+
           <div class="form-group">
             <label class="form-label">密码</label>
             <div class="password-input">
@@ -65,7 +89,7 @@
                 v-model="formData.password" 
                 :type="showPassword ? 'text' : 'password'" 
                 class="form-input" 
-                placeholder="请输入密码"
+                placeholder="密码须包含字母、数字和特殊字符，不少于6位"
                 :class="{ error: errors.password }"
               />
               <button type="button" class="password-toggle" @click="showPassword = !showPassword">
@@ -82,7 +106,6 @@
             <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
           </div>
 
-          <!-- 确认密码（注册时显示） -->
           <div v-if="!isLogin" class="form-group">
             <label class="form-label">确认密码</label>
             <input 
@@ -121,7 +144,6 @@
           </button>
         </form>
 
-        <!-- 第三方登录 -->
         <div class="divider">
           <span>或</span>
         </div>
@@ -176,14 +198,26 @@ export default {
       showPassword: false,
       loading: false,
       captchaText: '',
+      // 邮箱验证码相关
+      emailCodeSending: false,
+      emailCodeCountdown: 0,
+      emailCodeTimer: null,
       formData: {
         phone: '',
         email: '',
         password: '',
         confirmPassword: '',
-        captcha: ''
+        captcha: '',
+        emailCode: ''
       },
       errors: {}
+    }
+  },
+  computed: {
+    canSendEmailCode() {
+      return this.formData.email && 
+             /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.formData.email) && 
+             this.emailCodeCountdown === 0
     }
   },
   mounted() {
@@ -195,6 +229,13 @@ export default {
         this.generateCaptcha()
         this.resetForm()
       }
+    }
+  },
+  beforeUnmount() {
+    // 清理邮箱验证码定时器
+    if (this.emailCodeTimer) {
+      clearInterval(this.emailCodeTimer)
+      this.emailCodeTimer = null
     }
   },
   methods: {
@@ -210,10 +251,18 @@ export default {
         email: '',
         password: '',
         confirmPassword: '',
-        captcha: ''
+        captcha: '',
+        emailCode: ''
       }
       this.errors = {}
       this.loading = false
+      // 重置邮箱验证码相关状态
+      this.emailCodeSending = false
+      this.emailCodeCountdown = 0
+      if (this.emailCodeTimer) {
+        clearInterval(this.emailCodeTimer)
+        this.emailCodeTimer = null
+      }
     },
     validateForm() {
       this.errors = {}
@@ -247,6 +296,15 @@ export default {
         } else if (this.formData.password !== this.formData.confirmPassword) {
           this.errors.confirmPassword = '两次密码输入不一致'
         }
+        
+        // 验证邮箱验证码（邮箱注册时）
+        if (this.loginType === 'email') {
+          if (!this.formData.emailCode) {
+            this.errors.emailCode = '请输入邮箱验证码'
+          } else if (!/^[A-Za-z0-9]{6}$/.test(this.formData.emailCode)) {
+            this.errors.emailCode = '验证码必须是6位数字和字母组合'
+          }
+        }
       }
       
       // 验证验证码
@@ -266,30 +324,129 @@ export default {
       this.loading = true
       
       try {
-        // 模拟API调用
-        await new Promise(resolve => setTimeout(resolve, 1500))
-        
-        // 这里应该调用实际的登录/注册API
-        console.log('提交表单:', {
-          type: this.isLogin ? 'login' : 'register',
-          loginType: this.loginType,
-          data: this.formData
-        })
-        
-        // 成功后关闭弹窗并触发事件
-        this.$emit('success', {
-          type: this.isLogin ? 'login' : 'register',
-          user: {
-            id: Date.now(),
-            [this.loginType]: this.formData[this.loginType],
-            loginTime: new Date()
+        if (this.isLogin && this.loginType === 'email') {
+          const raw = JSON.stringify({
+            "email": this.formData.email,
+            "password": this.formData.password
+          })
+          
+          const requestOptions = {
+            method: 'POST',
+            body: raw,
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            redirect: 'follow'
           }
-        })
+          
+          const response = await fetch("http://106.12.116.141:1770/user/emailLogin", requestOptions)
+          const result = await response.text()
+          const data = JSON.parse(result)
+          
+          console.log('邮箱登录响应:', data)
+          
+          if (data.code === 200) {
+            console.log('登录成功:', data.message)
+            if (data.token) {
+              localStorage.setItem('token', data.token)
+            }
+            this.$emit('success', {
+              type: 'login',
+              user: {
+                id: data.userId || Date.now(),
+                email: this.formData.email,
+                loginTime: new Date(),
+                token: data.token
+              }
+            })
+            
+            this.closeModal()
+          } else {
+            console.error('登录失败:', data.message)
+            if (data.message.includes('密码')) {
+              this.errors.password = data.message
+            } else if (data.message.includes('邮箱')) {
+              this.errors.email = data.message
+            } else {
+              this.errors.email = data.message || '登录失败，请重试'
+            }
+          }
+        }
+        else if (!this.isLogin && this.loginType === 'email') {
+          const raw = JSON.stringify({
+            "email": this.formData.email,
+            "password": this.formData.password,
+            "checkCode": this.formData.emailCode
+          })
+          
+          const requestOptions = {
+            method: 'POST',
+            body: raw,
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            redirect: 'follow'
+          }
+          
+          const response = await fetch("http://106.12.116.141:1770/user/emailregister", requestOptions)
+          const result = await response.text()
+          const data = JSON.parse(result)
+          
+          console.log('邮箱注册响应:', data)
+          
+          if (data.code === 200) {
+            // 注册成功
+            console.log('注册成功:', data.message)
+            
+            // 成功后关闭弹窗并触发事件
+            this.$emit('success', {
+              type: 'register',
+              user: {
+                id: Date.now(),
+                email: this.formData.email,
+                loginTime: new Date()
+              }
+            })
+            
+            this.closeModal()
+          } else {
+            // 注册失败，显示错误信息
+            console.error('注册失败:', data.message)
+            // 可以根据具体错误设置相应的错误提示
+            if (data.message.includes('验证码')) {
+              this.errors.emailCode = data.message
+            } else if (data.message.includes('邮箱')) {
+              this.errors.email = data.message
+            } else {
+              this.errors.email = data.message || '注册失败，请重试'
+            }
+          }
+        } else {
+          // 其他登录方式保持原有逻辑（模拟API调用）
+          await new Promise(resolve => setTimeout(resolve, 1500))
+          
+          console.log('提交表单:', {
+            type: this.isLogin ? 'login' : 'register',
+            loginType: this.loginType,
+            data: this.formData
+          })
+          
+          // 成功后关闭弹窗并触发事件
+          this.$emit('success', {
+            type: this.isLogin ? 'login' : 'register',
+            user: {
+              id: Date.now(),
+              [this.loginType]: this.formData[this.loginType],
+              loginTime: new Date()
+            }
+          })
+          
+          this.closeModal()
+        }
         
-        this.closeModal()
       } catch (error) {
-        console.error('登录/注册失败:', error)
-        // 这里可以显示错误提示
+        console.error('操作失败:', error)
+        this.errors.email = '网络错误，请检查网络连接后重试'
       } finally {
         this.loading = false
       }
@@ -372,6 +529,54 @@ export default {
       console.log('Google登录')
       // 这里应该调用Google登录SDK
       this.$emit('social-login', { type: 'google' })
+    },
+    // 发送邮箱验证码
+    async sendEmailCode() {
+      if (!this.canSendEmailCode) return
+      
+      this.emailCodeSending = true
+      
+      try {
+        // 调用实际的发送邮箱验证码API
+        const requestOptions = {
+          method: 'POST',
+          redirect: 'follow'
+        }
+        
+        const response = await fetch(`http://106.12.116.141:1770/user/sendCheckCodeByEmail?email=${encodeURIComponent(this.formData.email)}`, requestOptions)
+        const result = await response.text()
+        const data = JSON.parse(result)
+        
+        console.log('发送邮箱验证码响应:', data)
+        
+        if (data.code === 0) {
+          // 发送成功，开始倒计时
+          this.startEmailCodeCountdown()
+          // 可以在这里显示成功提示
+          console.log('验证码发送成功')
+        } else {
+          // 发送失败，显示错误信息
+          console.error('验证码发送失败:', data.message)
+          this.errors.emailCode = data.message || '验证码发送失败，请重试'
+        }
+        
+      } catch (error) {
+        console.error('发送邮箱验证码失败:', error)
+        this.errors.emailCode = '网络错误，请检查网络连接后重试'
+      } finally {
+        this.emailCodeSending = false
+      }
+    },
+    // 开始邮箱验证码倒计时
+    startEmailCodeCountdown() {
+      this.emailCodeCountdown = 60
+      this.emailCodeTimer = setInterval(() => {
+        this.emailCodeCountdown--
+        if (this.emailCodeCountdown <= 0) {
+          clearInterval(this.emailCodeTimer)
+          this.emailCodeTimer = null
+        }
+      }, 1000)
     }
   }
 }
@@ -400,6 +605,14 @@ export default {
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  /* 隐藏滚动条但保持滚动功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+/* 隐藏 Webkit 浏览器的滚动条 */
+.modal-container::-webkit-scrollbar {
+  display: none;
 }
 
 .modal-header {
@@ -554,6 +767,39 @@ export default {
 
 .captcha-image:hover .refresh-hint {
   opacity: 1;
+}
+
+.verification-group {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.verification-input {
+  flex: 1;
+}
+
+.send-code-btn {
+  padding: 12px 16px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  min-width: 100px;
+}
+
+.send-code-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.send-code-btn:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
 }
 
 .error-text {
@@ -712,6 +958,15 @@ export default {
   
   .captcha-image {
     align-self: flex-start;
+  }
+  
+  .verification-group {
+    flex-direction: column;
+  }
+  
+  .send-code-btn {
+    align-self: flex-start;
+    min-width: 120px;
   }
 }
 </style>
