@@ -18,14 +18,14 @@
             :class="{ active: loginType === 'phone' }" 
             @click="loginType = 'phone'"
           >
-            手机号登录
+            {{ isLogin ? '手机号登录' : '手机号注册' }}
           </button>
           <button 
             class="tab-btn" 
             :class="{ active: loginType === 'email' }" 
             @click="loginType = 'email'"
           >
-            邮箱登录
+            {{ isLogin ? '邮箱登录' : '邮箱注册' }}
           </button>
         </div>
 
