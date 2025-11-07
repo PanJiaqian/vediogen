@@ -1,5 +1,7 @@
 <template>
   <div class="home">
+    <!-- 页面内消息提示 -->
+    <div v-if="message.show" :class="['message-toast', message.type]">{{ message.text }}</div>
     <!-- 主要内容区域 -->
     <div class="home-content">
       <h1 class="main-title">今天有什么可以帮到您？</h1>
@@ -353,7 +355,13 @@ export default {
           title: '城市风光',
           image: projectPlaceholders.city
         }
-      ]
+      ],
+      // 页面消息
+      message: {
+        show: false,
+        text: '',
+        type: 'success'
+      }
     }
   },
   computed: {
@@ -373,6 +381,10 @@ export default {
     document.removeEventListener('click', this.handleClickOutside)
   },
   methods: {
+    showMessage(text, type = 'success') {
+      this.message = { show: true, text, type }
+      setTimeout(() => { this.message.show = false }, 3000)
+    },
     handleSearch() {
       if (this.searchQuery.trim()) {
         // 实现搜索逻辑
@@ -394,6 +406,10 @@ export default {
     toggleSubjectDropdown() {
       this.showSubjectDropdown = !this.showSubjectDropdown
       this.showStyleDropdown = false
+      // 打开主体下拉时加载个人主体
+      if (this.showSubjectDropdown && this.activeSubjectCategory !== 'public') {
+        this.loadPersonalSubjects()
+      }
     },
     
     toggleStyleDropdown() {
@@ -450,6 +466,8 @@ export default {
       
       // 关闭弹窗
       this.closeCreateModal()
+      // 页面消息提示
+      this.showMessage('主体创建成功！')
 
       // 可以显示成功提示
       alert('主体创建成功！')
@@ -511,6 +529,21 @@ export default {
 </script>
 
 <style scoped>
+/* 页面消息样式 */
+.message-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  z-index: 2000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+.message-toast.success { background: #10b981; color: #fff; }
+.message-toast.error { background: #ef4444; color: #fff; }
 .home {
   width: 100%;
   max-width: 1200px;
