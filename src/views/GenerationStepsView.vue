@@ -111,7 +111,6 @@ export default {
           if (this.progress > 100) this.progress = 100
         }
       }, 200)
-
       // 步骤切换逻辑 - 总共15秒，每步3秒
       this.stepTimer = setTimeout(() => {
         this.nextStep()

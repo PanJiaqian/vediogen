@@ -137,7 +137,7 @@
               </div>
             </div>
             <div class="right-actions">
-              <button class="search-submit-btn">
+              <button class="search-submit-btn" @click="handleSearch">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path d="M5 12l5 5L20 7"/>
                 </svg>
@@ -210,6 +210,8 @@ export default {
       activeSubjectCategory: 'all',
       // 弹窗状态
       showCreateModal: false,
+      // 已选择的主体ID（用于 materialId）
+      selectedSubjectId: null,
       // 主体数据
       subjects: [
         {
@@ -386,9 +388,51 @@ export default {
       setTimeout(() => { this.message.show = false }, 3000)
     },
     handleSearch() {
-      if (this.searchQuery.trim()) {
-        // 实现搜索逻辑
+      if (!this.searchQuery.trim()) {
+        this.showMessage('请输入提示词后再提交', 'error')
+        return
       }
+
+      const stageDirections = this.searchQuery.trim()
+      const category = this.activeFeature === 'script' ? '0' : '1'
+      const materialId = this.selectedSubjectId ? String(this.selectedSubjectId) : ''
+
+      // 构建请求
+      const myHeaders = new Headers()
+      myHeaders.append('Accept', 'text/event-stream')
+      // 使用用户提供的授权令牌
+      myHeaders.append('Authorization', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjbGFpbXMiOnsiaWQiOjE3NjIxMDI1OTU4NTV9LCJleHAiOjE3NjI5Njk2MDZ9.AZwM7hJ5ii4_gAT190Rt0CYh14qinzA2zZsXP8cJ-eo')
+
+      const requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        redirect: 'follow'
+      }
+
+      const apiUrl = `http://106.12.116.141:1770/api/agent/Script_gen?stageDirections=${encodeURIComponent(stageDirections)}&materialId=${encodeURIComponent(materialId)}&category=${encodeURIComponent(category)}`
+
+      // 发送请求并在完成后跳转到项目详情
+      fetch(apiUrl, requestOptions)
+        .then(response => response.text())
+        .then(result => {
+          console.log('剧本生成结果:', result)
+          // 将结果暂存到本地，供详情页使用（如有需要）
+          const projectId = Date.now().toString()
+          try {
+            localStorage.setItem(`project:script:${projectId}`, result)
+            localStorage.setItem(`project:prompt:${projectId}`, stageDirections)
+            localStorage.setItem(`project:category:${projectId}`, category)
+            if (materialId) localStorage.setItem(`project:materialId:${projectId}`, materialId)
+          } catch (e) {
+            console.warn('本地存储失败:', e)
+          }
+          // 跳转到项目详情页面
+          this.$router.push({ name: 'ProjectDetail', params: { id: projectId } })
+        })
+        .catch(error => {
+          console.log('error', error)
+          this.showMessage('接口调用失败，请稍后重试', 'error')
+        })
     },
     applySuggestion(suggestionText) {
       this.searchQuery = suggestionText
@@ -430,6 +474,7 @@ export default {
     selectSubject(subject) {
       console.log('选择主体:', subject)
       this.searchQuery += `@${subject.name} `
+      this.selectedSubjectId = subject.id
       this.showSubjectDropdown = false
     },
     

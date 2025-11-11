@@ -8,50 +8,66 @@
         <p class="project-time">创建于 {{ project.createdAt }}</p>
       </div>
 
-      <!-- 策划摘要 -->
-      <div class="planning-summary">
-        <h3 class="section-title">策划摘要</h3>
-        <div class="summary-item">
-          <span class="summary-bullet">•</span>
-          <span class="summary-label">视频类型：</span>
-          <span class="summary-content">{{ project.videoType }}</span>
-        </div>
-        <div class="summary-item">
-          <span class="summary-bullet">•</span>
-          <span class="summary-label">内容概述：</span>
-          <span class="summary-content">{{ project.contentSummary }}</span>
-        </div>
-      </div>
+      <!-- 原左侧块移除，下面以六部分展示内容 -->
 
-      <!-- 创作亮点 -->
-      <div class="creative-highlights">
-        <h3 class="section-title">创作亮点</h3>
-        <div class="highlight-item" v-for="(highlight, index) in project.highlights" :key="index">
-          <span class="highlight-icon">💡</span>
-          <span class="highlight-label">亮点{{ index + 1 }}：</span>
-          <span class="highlight-content">{{ highlight }}</span>
-        </div>
-      </div>
-
-      <!-- 场景描述 -->
-      <div class="scene-description">
-        <h3 class="section-title">场景描述</h3>
-        <div class="scene-item" v-for="(scene, index) in project.scenes" :key="index">
-          <div class="scene-header">
-            <span class="scene-label">场景{{ index + 1 }}</span>
+      <!-- 六部分展示：按照接口返回结构显示 -->
+      <div>
+        <h3 class="section-title">艺术指导建议</h3>
+        <div v-if="generated.artDirection">
+          <div>基础风格：{{ toCN(generated.artDirection.base_style || '-') }}</div>
+          <div>整体视觉策略：{{ toCN(generated.artDirection.overall_visual_approach || '-') }}</div>
+          <div v-if="generated.artDirection.color_palette_progression && generated.artDirection.color_palette_progression.length">
+            <div v-for="(palette, idx) in generated.artDirection.color_palette_progression" :key="idx">
+              <div v-for="(desc, key) in palette" :key="key">{{ toCN(key) }}：{{ toCN(desc) }}</div>
+            </div>
           </div>
-          <div class="scene-content">
-            <div class="scene-detail">
-              <span class="scene-detail-label">开场白：</span>
-              <span class="scene-detail-text">{{ scene.opening }}</span>
+        </div>
+
+        <h3 class="section-title">音乐风格</h3>
+        <div v-if="generated.musicStyle && generated.musicStyle.length">
+          <div v-for="(m, idx) in generated.musicStyle" :key="idx">
+            <div>音乐流派：{{ toCN(m.Music_Genre) }}</div>
+            <div>情绪氛围：{{ toCN(m.Emotional_Atmosphere) }}</div>
+            <div>关键乐器：{{ toCN(m.Key_Instruments) }}</div>
+            <div>节奏特征：{{ toCN(m.Rhythmic_Characteristics) }}</div>
+          </div>
+        </div>
+
+        <h3 class="section-title">剧本摘要</h3>
+        <div v-if="generated.scriptSummary" class="section-content" v-html="renderMarkdown(generated.scriptSummary)"></div>
+
+        <h3 class="section-title">人物信息</h3>
+        <div v-if="generated.people && generated.people.length">
+          <div v-for="(p, idx) in generated.people" :key="idx" style="margin-bottom: 10px;">
+            <div>姓名：{{ toCN(p.Character_Name) }}</div>
+            <div>身份：{{ toCN(p.Role_in_Story) }}</div>
+            <div>外观：{{ toCN(p.Appearance) }}</div>
+          </div>
+        </div>
+
+        <h3 class="section-title">场景集合</h3>
+        <div v-if="generated.scenes && generated.scenes.length">
+          <div v-for="(s, idx) in generated.scenes" :key="idx" style="margin-bottom: 10px;">
+            <div>场景名称：{{ toCN(s.Scene_Name) }}</div>
+            <div>场景元素：{{ toCN(s.Scene_Elements) }}</div>
+            <div v-if="s.Scene_picture_url">
+              图片：
+              <img :src="cleanUrl(s.Scene_picture_url)" alt="场景图片" class="scene-image" />
             </div>
-            <div class="scene-detail">
-              <span class="scene-detail-label">生动有趣：</span>
-              <span class="scene-detail-text">{{ scene.vivid }}</span>
-            </div>
-            <div class="scene-detail">
-              <span class="scene-detail-label">动作场景：</span>
-              <span class="scene-detail-text">{{ scene.action }}</span>
+          </div>
+        </div>
+
+        <h3 class="section-title">分镜故事板</h3>
+        <div v-if="generated.storyboard && generated.storyboard.length">
+          <div v-for="(scene, sIdx) in generated.storyboard" :key="sIdx" style="margin-bottom: 10px;">
+            <div>场景：{{ toCN(scene.scene_title) }}</div>
+            <div v-if="scene.shots && scene.shots.length">
+              <div v-for="(shot, idx) in scene.shots" :key="idx" style="margin: 6px 0; padding: 6px 8px; border: 1px solid #eee; border-radius: 6px;">
+                <div>镜头：{{ toCN(shot.shot_title) }}</div>
+                <div>画面：{{ toCN(shot.visual_description) }}</div>
+                <div>机位：{{ toCN(shot.camera_direction) }}</div>
+                <div>旁白：{{ toCN(shot.dialogue_or_narration) }}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -62,61 +78,52 @@
     <div class="right-content">
       <!-- 可滚动内容区域 -->
       <div class="scrollable-content">
-        <!-- 项目信息统计 -->
-        <div class="stats-section">
-          <div class="stat-item">
-            <div class="stat-icon">⏱️</div>
-            <div class="stat-content">
-              <div class="stat-label">预计时长：</div>
-              <div class="stat-value">{{ project.duration }}</div>
-            </div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-icon">📺</div>
-            <div class="stat-content">
-              <div class="stat-label">画面比例：</div>
-              <div class="stat-value">{{ project.aspectRatio }}</div>
-            </div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-icon">📝</div>
-            <div class="stat-content">
-              <div class="stat-label">字数：</div>
-              <div class="stat-value">{{ project.wordCount }}</div>
-            </div>
-          </div>
-        </div>
+        
 
-        <!-- 思考生成步骤 -->
-        <div class="thinking-steps">
-          <h3 class="section-title">思考生成步骤</h3>
-          <div class="step-list">
+      <!-- 思考生成步骤 -->
+      <div class="thinking-steps">
+        <h3 class="section-title">思考生成步骤</h3>
+        <div class="step-list">
             <div class="step-item completed">
               <div class="step-icon">✓</div>
               <div class="step-content">
-                <div class="step-title">策划摘要</div>
-                <div class="step-description">教育意义：教育自信</div>
+                <div class="step-title">剧本摘要</div>
+                <div class="step-description">概述剧本核心内容</div>
               </div>
             </div>
             <div class="step-item completed">
               <div class="step-icon">✓</div>
               <div class="step-content">
-                <div class="step-title">内容策略</div>
-                <div class="step-description">以生动有趣的动物形象，主动性主导大家常见的学习内容，通过十二生肖的故事，激发孩子们对传统文化的兴趣，让孩子在轻松愉快的氛围中学习传统文化。</div>
+                <div class="step-title">艺术指导建议</div>
+                <div class="step-description">设定整体视觉与风格方向</div>
               </div>
             </div>
             <div class="step-item completed">
-              <div class="step-icon">💡</div>
+              <div class="step-icon">✓</div>
               <div class="step-content">
-                <div class="step-title">生成创作亮点</div>
-                <div class="step-description">开篇即吸引眼球，通过可爱的动物形象引入</div>
+                <div class="step-title">音乐风格</div>
+                <div class="step-description">明确音乐基调与节奏</div>
               </div>
             </div>
             <div class="step-item">
               <div class="step-icon">⏳</div>
               <div class="step-content">
-                <div class="step-title">生成场景描述</div>
-                <div class="step-description">生动有趣：动物竞赛大对决</div>
+                <div class="step-title">角色信息</div>
+                <div class="step-description">梳理主要角色信息</div>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-icon">⏳</div>
+              <div class="step-content">
+                <div class="step-title">场景集合</div>
+                <div class="step-description">汇总关键场景要素</div>
+              </div>
+            </div>
+            <div class="step-item">
+              <div class="step-icon">⏳</div>
+              <div class="step-content">
+                <div class="step-title">分镜故事板</div>
+                <div class="step-description">组织分镜与镜头安排</div>
               </div>
             </div>
           </div>
@@ -129,6 +136,7 @@
           <button class="action-btn generate-video" @click="generateVideo">生成视频</button>
         </div>
       </div>
+
 
       <!-- 固定在底部的输入框 -->
       <div class="input-section">
@@ -160,6 +168,17 @@ export default {
   data() {
     return {
       userInput: '',
+      prompt: '',
+      category: '',
+      materialId: '',
+      generated: {
+        scriptSummary: '',
+        artDirection: null,
+        musicStyle: [],
+        storyboard: [],
+        people: [],
+        scenes: []
+      },
       project: {
         title: '十二生肖起源记',
         createdAt: '2023/11/20 02:05',
@@ -206,13 +225,197 @@ export default {
         // 处理用户输入
         this.userInput = ''
       }
+    },
+    cleanUrl(u) {
+      const str = (u || '').toString()
+      return str.replace(/`/g, '').trim()
+    },
+    // 简易 Markdown 渲染：加粗与段落换行
+    renderMarkdown(text) {
+      if (!text) return '';
+      const escaped = String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+      const bold = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      return bold
+        .split(/\n{2,}/)
+        .map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`) 
+        .join('');
+    },
+    // 基础英文到中文映射（不匹配则原样返回）
+    toCN(text) {
+      if (text == null) return '';
+      let s = String(text);
+      const dict = {
+        'ambient': '氛围',
+        'orchestra': '管弦',
+        'orchestral': '管弦',
+        'metal': '金属',
+        'clarinet': '单簧管',
+        'organ': '风琴',
+        'cello': '大提琴',
+        'brass': '铜管',
+        'piano': '钢琴',
+        'melancholy': '忧郁',
+        'calm': '平静',
+        'tense': '紧张',
+        'fast': '快速',
+        'slow': '缓慢',
+        'scene': '场景',
+        'shot': '镜头',
+        'camera': '机位',
+        'narration': '旁白',
+        'dialogue': '对话'
+      };
+      Object.keys(dict).forEach(key => {
+        s = s.replace(new RegExp(`\\b${key}\\b`, 'gi'), dict[key]);
+      });
+      return s;
+    },
+    parseSSEText(text) {
+      const chunks = text.split(/\n\n+/)
+      const objs = []
+      for (const chunk of chunks) {
+        const m = chunk.match(/data:(.*)/s)
+        if (m && m[1]) {
+          const jsonText = m[1].trim()
+          try {
+            const obj = JSON.parse(jsonText)
+            objs.push(obj)
+          } catch (e) {
+            console.warn('JSON 解析失败:', e)
+          }
+        }
+      }
+      return objs
+    },
+    applyParsedData(objs) {
+      for (const o of objs) {
+        if (!o || o.type === 'connected') continue
+        if (o.Art_Direction_Suggestions) {
+          const ads = Array.isArray(o.Art_Direction_Suggestions)
+            ? o.Art_Direction_Suggestions[0]
+            : o.Art_Direction_Suggestions
+          this.generated.artDirection = ads
+        }
+        if (o.Music_Style) {
+          this.generated.musicStyle = Array.isArray(o.Music_Style) ? o.Music_Style : [o.Music_Style]
+        }
+        if (o.Script_Summary) {
+          this.generated.scriptSummary = o.Script_Summary
+          this.project.contentSummary = o.Script_Summary
+        }
+        if (o.Storyboard) {
+          const sb = o.Storyboard.Storyboard || o.Storyboard
+          this.generated.storyboard = Array.isArray(sb) ? sb : []
+        }
+        if (o.people) {
+          this.generated.people = o.people
+        }
+        if (o.Scene) {
+          if (typeof o.Scene === 'string') {
+            try {
+              const cleaned = o.Scene.replace(/\\`/g, '').replace(/`/g, '')
+              const arr = JSON.parse(cleaned)
+              this.generated.scenes = Array.isArray(arr) ? arr : []
+            } catch (e) {
+              console.warn('Scene 解析失败:', e)
+            }
+          } else if (Array.isArray(o.Scene)) {
+            this.generated.scenes = o.Scene
+          }
+        }
+      }
+      // 映射到左侧排版数据
+      if (this.category) {
+        this.project.videoType = this.category
+      }
+      // 合并接口中的 Scene 与 Storyboard 到左侧“场景描述”
+      const mergedScenes = []
+      if (this.generated.scenes && this.generated.scenes.length) {
+        const fromScenes = this.generated.scenes.map(s => ({
+          opening: s.Scene_Name || '',
+          vivid: s.Scene_Elements || '',
+          action: s.Scene_picture_url ? `图片：${this.cleanUrl(s.Scene_picture_url)}` : ''
+        }))
+        mergedScenes.push(...fromScenes)
+      }
+      if (this.generated.storyboard && this.generated.storyboard.length) {
+        const fromStoryboard = this.generated.storyboard.map(sb => {
+          const opening = sb.scene_title || ''
+          let vivid = ''
+          let action = ''
+          if (Array.isArray(sb.shots)) {
+            const visuals = sb.shots.map(sh => sh.visual_description).filter(Boolean)
+            const cameras = sb.shots.map(sh => sh.camera_direction).filter(Boolean)
+            const dialogues = sb.shots.map(sh => sh.dialogue_or_narration).filter(Boolean)
+            if (visuals.length) vivid = visuals.join('；')
+            const parts = []
+            if (cameras.length) parts.push(`镜头：${cameras.join('，')}`)
+            if (dialogues.length) parts.push(`旁白：${dialogues.join('，')}`)
+            if (parts.length) action = parts.join(' | ')
+          }
+          return { opening, vivid, action }
+        })
+        mergedScenes.push(...fromStoryboard)
+      }
+      if (mergedScenes.length) {
+        this.project.scenes = mergedScenes
+      }
+      const highlights = []
+      if (this.generated.artDirection && this.generated.artDirection.base_style) {
+        highlights.push(`艺术风格：${this.generated.artDirection.base_style}`)
+      }
+      if (this.generated.artDirection && this.generated.artDirection.overall_visual_approach) {
+        highlights.push(`视觉策略：${this.generated.artDirection.overall_visual_approach}`)
+      }
+      if (this.generated.musicStyle && this.generated.musicStyle.length) {
+        for (const m of this.generated.musicStyle) {
+          const parts = []
+          if (m.Music_Genre) parts.push(m.Music_Genre)
+          if (m.Emotional_Atmosphere) parts.push(m.Emotional_Atmosphere)
+          if (m.Key_Instruments) parts.push(m.Key_Instruments)
+          if (m.Rhythmic_Characteristics) parts.push(m.Rhythmic_Characteristics)
+          if (parts.length) highlights.push(`音乐风格：${parts.join(' | ')}`)
+        }
+      }
+      if (this.generated.people && this.generated.people.length) {
+        for (const p of this.generated.people) {
+          const extras = []
+          if (p.Role_in_Story) extras.push(p.Role_in_Story)
+          if (p.Appearance) extras.push(p.Appearance)
+          const base = `角色：${p.Character_Name || ''}`
+          highlights.push(extras.length ? `${base}（${extras.join(' | ')}）` : base)
+        }
+      }
+      if (this.generated.storyboard && this.generated.storyboard.length) {
+        highlights.push(`分镜数量：${this.generated.storyboard.length}`)
+      }
+      if (highlights.length) {
+        this.project.highlights = highlights
+      }
     }
   },
   mounted() {
     // 根据路由参数获取项目详情
     const projectId = this.$route.params.id
     console.log('项目ID:', projectId)
-    // 这里可以调用API获取具体的项目数据
+    try {
+      const sseText = localStorage.getItem(`project:script:${projectId}`) || ''
+      this.prompt = localStorage.getItem(`project:prompt:${projectId}`) || ''
+      this.category = localStorage.getItem(`project:category:${projectId}`) || ''
+      this.materialId = localStorage.getItem(`project:materialId:${projectId}`) || ''
+      if (this.prompt) {
+        this.project.title = this.prompt
+      }
+      if (sseText) {
+        const objs = this.parseSSEText(sseText)
+        this.applyParsedData(objs)
+      }
+    } catch (e) {
+      console.warn('读取生成内容失败:', e)
+    }
   }
 }
 </script>
@@ -233,7 +436,8 @@ export default {
 .left-content {
   flex: 1;
   padding: 20px 24px;
-  overflow: hidden; /* 不允许滚动 */
+  overflow-y: auto;
+  overflow-x: hidden; /* 允许上下滚动 */
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
@@ -280,6 +484,60 @@ export default {
   margin-bottom: 12px;
   padding-bottom: 4px;
   border-bottom: 1px solid #e5e7eb;
+}
+
+/* 左右滚动条隐藏（保持可滚动） */
+.left-content::-webkit-scrollbar,
+.scrollable-content::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.left-content {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+.scrollable-content {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* 左侧标题与分块美化 */
+.left-content .section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #222;
+  margin: 18px 0 10px;
+  padding-left: 8px;
+  border-left: 3px solid #3b82f6;
+  border-bottom: none;
+}
+.left-content .section-title + div {
+  margin-bottom: 16px;
+}
+.left-content .section-title + div > div {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #374151;
+}
+
+/* Markdown 文本样式 */
+.left-content .section-content {
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* 场景图片样式 */
+.scene-image {
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  display: block;
+  margin-top: 6px;
 }
 
 /* 策划摘要样式 */
@@ -400,43 +658,7 @@ export default {
   flex: 1;
 }
 
-/* 右侧样式 */
-.stats-section {
-  background: white;
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  margin-bottom: 20px;
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.stat-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-  font-size: 12px;
-}
-
-.stat-icon {
-  margin-right: 8px;
-  font-size: 14px;
-}
-
-.stat-content {
-  display: flex;
-  align-items: center;
-}
-
-.stat-label {
-  color: #666;
-  margin-right: 4px;
-}
-
-.stat-value {
-  color: #333;
-  font-weight: 500;
-}
+/* 右侧样式（去除信息统计相关样式） */
 
 .thinking-steps {
   margin-bottom: 20px;
