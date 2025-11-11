@@ -116,6 +116,7 @@
 </template>
 
 <script>
+import { uploadMaterial } from '@/api'
 export default {
   name: 'CreateSubjectModal',
   props: {
@@ -211,9 +212,6 @@ export default {
           return
         }
         
-        const myHeaders = new Headers()
-        myHeaders.append("Authorization", token)
-        
         const formdata = new FormData()
         formdata.append("name", this.newSubject.name)
         formdata.append("category", this.newSubject.category)
@@ -226,15 +224,8 @@ export default {
           formdata.append("imagefile", this.imageFile)
         }
         
-        const requestOptions = {
-          method: 'POST',
-          headers: myHeaders,
-          body: formdata,
-          redirect: 'follow'
-        }
-        
-        const response = await fetch("http://106.12.116.141:1770/material/uploadMaterial", requestOptions)
-        const result = await response.text()
+        // 使用统一 API 上传素材
+        const result = await uploadMaterial({ token, formData: formdata })
         const data = JSON.parse(result)
         
         console.log('上传素材响应:', data)

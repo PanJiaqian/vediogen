@@ -183,6 +183,7 @@
 </template>
 
 <script>
+import { emailLogin, emailRegister, sendCheckCodeByEmail } from '@/api'
 export default {
   name: 'LoginModal',
   props: {
@@ -325,22 +326,10 @@ export default {
       
       try {
         if (this.isLogin && this.loginType === 'email') {
-          const raw = JSON.stringify({
-            "email": this.formData.email,
-            "password": this.formData.password
+          const result = await emailLogin({
+            email: this.formData.email,
+            password: this.formData.password
           })
-          
-          const requestOptions = {
-            method: 'POST',
-            body: raw,
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            redirect: 'follow'
-          }
-          
-          const response = await fetch("http://106.12.116.141:1770/user/emailLogin", requestOptions)
-          const result = await response.text()
           const data = JSON.parse(result)
           
           console.log('邮箱登录响应:', data)
@@ -373,23 +362,11 @@ export default {
           }
         }
         else if (!this.isLogin && this.loginType === 'email') {
-          const raw = JSON.stringify({
-            "email": this.formData.email,
-            "password": this.formData.password,
-            "checkCode": this.formData.emailCode
+          const result = await emailRegister({
+            email: this.formData.email,
+            password: this.formData.password,
+            checkCode: this.formData.emailCode
           })
-          
-          const requestOptions = {
-            method: 'POST',
-            body: raw,
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            redirect: 'follow'
-          }
-          
-          const response = await fetch("http://106.12.116.141:1770/user/emailregister", requestOptions)
-          const result = await response.text()
           const data = JSON.parse(result)
           
           console.log('邮箱注册响应:', data)
@@ -538,13 +515,7 @@ export default {
       
       try {
         // 调用实际的发送邮箱验证码API
-        const requestOptions = {
-          method: 'POST',
-          redirect: 'follow'
-        }
-        
-        const response = await fetch(`http://106.12.116.141:1770/user/sendCheckCodeByEmail?email=${encodeURIComponent(this.formData.email)}`, requestOptions)
-        const result = await response.text()
+        const result = await sendCheckCodeByEmail({ email: this.formData.email })
         const data = JSON.parse(result)
         
         console.log('发送邮箱验证码响应:', data)

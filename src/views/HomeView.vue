@@ -149,6 +149,7 @@
 </template>
 
 <script>
+import { getCreativeWorkList } from '@/api'
 import { projectPlaceholders } from '@/utils/placeholder'
 import CreateSubjectModal from '@/components/CreateSubjectModal.vue'
 
@@ -464,17 +465,7 @@ export default {
           return
         }
 
-        const myHeaders = new Headers()
-        myHeaders.append("Authorization", token)
-
-        const requestOptions = {
-          method: 'GET',
-          headers: myHeaders,
-          redirect: 'follow'
-        }
-
-        const response = await fetch("http://106.12.116.141:1770/creativeWork/getcreativeWorkList", requestOptions)
-        const result = await response.text()
+        const result = await getCreativeWorkList(token)
         const data = JSON.parse(result)
 
         console.log('获取作品列表响应:', data)

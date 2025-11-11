@@ -89,6 +89,7 @@
 </template>
 
 <script>
+import { getCreativeWorkById } from '@/api'
 export default {
   name: 'InspirationDetailView',
   data() {
@@ -133,17 +134,7 @@ export default {
           return
         }
         
-        const myHeaders = new Headers()
-        myHeaders.append("Authorization", token)
-        
-        const requestOptions = {
-          method: 'GET',
-          headers: myHeaders,
-          redirect: 'follow'
-        }
-        
-        const response = await fetch(`http://106.12.116.141:1770/creativeWork/getcreativeWorkById?creativeWorkId=${id}`, requestOptions)
-        const result = await response.text()
+        const result = await getCreativeWorkById({ id, token })
         const data = JSON.parse(result)
         
         console.log('获取作品详情响应:', data)

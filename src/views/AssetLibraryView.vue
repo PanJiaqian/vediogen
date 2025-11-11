@@ -180,6 +180,7 @@
 </template>
 
 <script>
+import { getMaterialsList } from '@/api'
 import { generateGradientPlaceholder } from '@/utils/placeholder'
 import CreateSubjectModal from '@/components/CreateSubjectModal.vue'
 
@@ -309,17 +310,8 @@ export default {
           return
         }
         
-        const myHeaders = new Headers()
-        myHeaders.append("Authorization", token)
-        
-        const requestOptions = {
-          method: 'GET',
-          headers: myHeaders,
-          redirect: 'follow'
-        }
-        
-        const response = await fetch("http://106.12.116.141:1770/material/getMaterialsList", requestOptions)
-        const result = await response.text()
+        // 使用统一 API 获取素材列表
+        const result = await getMaterialsList(token)
         const data = JSON.parse(result)
         
         console.log('获取个人素材列表响应:', data)

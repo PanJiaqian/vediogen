@@ -42,6 +42,7 @@
 </template>
 
 <script>
+import { scriptGen } from '@/api'
 export default {
   name: 'ConversationView',
   data() {
@@ -77,20 +78,8 @@ export default {
         return
       }
 
-      const myHeaders = new Headers()
-      myHeaders.append('Accept', 'text/event-stream')
-      myHeaders.append('Authorization', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjbGFpbXMiOnsiaWQiOjE3NjIxMDI1OTU4NTV9LCJleHAiOjE3NjI5Njk2MDZ9.AZwM7hJ5ii4_gAT190Rt0CYh14qinzA2zZsXP8cJ-eo')
-
-      const requestOptions = {
-        method: 'POST',
-        headers: myHeaders,
-        redirect: 'follow'
-      }
-
-      const apiUrl = `http://106.12.116.141:1770/api/agent/Script_gen?stageDirections=${encodeURIComponent(stageDirections)}&materialId=${encodeURIComponent(materialId)}&category=${encodeURIComponent(category)}`
-
-      fetch(apiUrl, requestOptions)
-        .then(response => response.text())
+      const authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjbGFpbXMiOnsiaWQiOjE3NjIxMDI1OTU4NTV9LCJleHAiOjE3NjI5Njk2MDZ9.AZwM7hJ5ii4_gAT190Rt0CYh14qinzA2zZsXP8cJ-eo'
+      scriptGen({ stageDirections, materialId, category, token: authToken })
         .then(result => {
           // 标记完成
           this.loading = false
