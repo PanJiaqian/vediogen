@@ -1,33 +1,23 @@
 <template>
   <div id="app">
-    <!-- 侧边栏 -->
-    <Sidebar
-      :isCollapsed="sidebarCollapsed"
-      @toggle="toggleSidebar"
-      class="sidebar"
-      :class="{ 'sidebar--collapsed': sidebarCollapsed }"
-    />
+    <!-- 侧边栏（Conversation 页面隐藏） -->
+    <Sidebar v-if="!hideSidebar" :isCollapsed="sidebarCollapsed" @toggle="toggleSidebar" class="sidebar"
+      :class="{ 'sidebar--collapsed': sidebarCollapsed }" />
 
     <!-- 主要内容区域 -->
-    <div class="main-layout" :class="{ 'main-layout--expanded': sidebarCollapsed }">
+    <div class="main-layout"
+      :class="{ 'main-layout--expanded': sidebarCollapsed, 'main-layout--no-sidebar': hideSidebar }">
       <!-- 顶部导航 -->
-      <Header
-        @toggle-mobile-menu="toggleMobileMenu"
-        class="header"
-      />
+      <Header @toggle-mobile-menu="toggleMobileMenu" class="header" />
 
       <!-- 页面内容 -->
       <main class="main-content">
-        <router-view/>
+        <router-view />
       </main>
     </div>
 
     <!-- 移动端遮罩 -->
-    <div
-      v-if="mobileMenuOpen"
-      class="mobile-overlay"
-      @click="toggleMobileMenu"
-    ></div>
+    <div v-if="mobileMenuOpen" class="mobile-overlay" @click="toggleMobileMenu"></div>
   </div>
 </template>
 
@@ -45,6 +35,11 @@ export default {
     return {
       sidebarCollapsed: false,
       mobileMenuOpen: false
+    }
+  },
+  computed: {
+    hideSidebar() {
+      return this.$route?.meta?.hideSidebar === true
     }
   },
   methods: {
@@ -91,6 +86,11 @@ export default {
 
 .main-layout--expanded {
   margin-left: 60px;
+}
+
+/* 在需要隐藏侧边栏的页面（例如 Conversation）让主区域占满 */
+.main-layout--no-sidebar {
+  margin-left: 0 !important;
 }
 
 /* 顶部导航 */
@@ -248,6 +248,7 @@ export default {
 
 /* 打印样式 */
 @media print {
+
   .sidebar,
   .header,
   .mobile-overlay {

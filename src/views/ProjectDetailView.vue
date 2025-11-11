@@ -7,18 +7,15 @@
         <h1 class="project-title">{{ project.title }}</h1>
         <p class="project-time">创建于 {{ project.createdAt }}</p>
       </div>
-
-      <!-- 原左侧块移除，下面以六部分展示内容 -->
-
-      <!-- 六部分展示：按照接口返回结构显示 -->
       <div>
         <h3 class="section-title">艺术指导建议</h3>
         <div v-if="generated.artDirection">
-          <div>基础风格：{{ toCN(generated.artDirection.base_style || '-') }}</div>
-          <div>整体视觉策略：{{ toCN(generated.artDirection.overall_visual_approach || '-') }}</div>
-          <div v-if="generated.artDirection.color_palette_progression && generated.artDirection.color_palette_progression.length">
+          <div>基础风格：{{ generated.artDirection.base_style || '-' }}</div>
+          <div>整体视觉策略：{{ generated.artDirection.overall_visual_approach || '-' }}</div>
+          <div
+            v-if="generated.artDirection.color_palette_progression && generated.artDirection.color_palette_progression.length">
             <div v-for="(palette, idx) in generated.artDirection.color_palette_progression" :key="idx">
-              <div v-for="(desc, key) in palette" :key="key">{{ toCN(key) }}：{{ toCN(desc) }}</div>
+              <div v-for="(desc, key) in palette" :key="key">{{ key }}：{{ desc }}</div>
             </div>
           </div>
         </div>
@@ -26,30 +23,31 @@
         <h3 class="section-title">音乐风格</h3>
         <div v-if="generated.musicStyle && generated.musicStyle.length">
           <div v-for="(m, idx) in generated.musicStyle" :key="idx">
-            <div>音乐流派：{{ toCN(m.Music_Genre) }}</div>
-            <div>情绪氛围：{{ toCN(m.Emotional_Atmosphere) }}</div>
-            <div>关键乐器：{{ toCN(m.Key_Instruments) }}</div>
-            <div>节奏特征：{{ toCN(m.Rhythmic_Characteristics) }}</div>
+            <div>音乐流派：{{ m.Music_Genre }}</div>
+            <div>情绪氛围：{{ m.Emotional_Atmosphere }}</div>
+            <div>关键乐器：{{ m.Key_Instruments }}</div>
+            <div>节奏特征：{{ m.Rhythmic_Characteristics }}</div>
           </div>
         </div>
 
         <h3 class="section-title">剧本摘要</h3>
-        <div v-if="generated.scriptSummary" class="section-content" v-html="renderMarkdown(generated.scriptSummary)"></div>
+        <div v-if="generated.scriptSummary" class="section-content" v-html="renderMarkdown(generated.scriptSummary)">
+        </div>
 
         <h3 class="section-title">人物信息</h3>
         <div v-if="generated.people && generated.people.length">
           <div v-for="(p, idx) in generated.people" :key="idx" style="margin-bottom: 10px;">
-            <div>姓名：{{ toCN(p.Character_Name) }}</div>
-            <div>身份：{{ toCN(p.Role_in_Story) }}</div>
-            <div>外观：{{ toCN(p.Appearance) }}</div>
+            <div>姓名：{{ p.Character_Name }}</div>
+            <div>身份：{{ p.Role_in_Story }}</div>
+            <div>外观：{{ p.Appearance }}</div>
           </div>
         </div>
 
         <h3 class="section-title">场景集合</h3>
         <div v-if="generated.scenes && generated.scenes.length">
           <div v-for="(s, idx) in generated.scenes" :key="idx" style="margin-bottom: 10px;">
-            <div>场景名称：{{ toCN(s.Scene_Name) }}</div>
-            <div>场景元素：{{ toCN(s.Scene_Elements) }}</div>
+            <div>场景名称：{{ s.Scene_Name }}</div>
+            <div>场景元素：{{ s.Scene_Elements }}</div>
             <div v-if="s.Scene_picture_url">
               图片：
               <img :src="cleanUrl(s.Scene_picture_url)" alt="场景图片" class="scene-image" />
@@ -60,13 +58,14 @@
         <h3 class="section-title">分镜故事板</h3>
         <div v-if="generated.storyboard && generated.storyboard.length">
           <div v-for="(scene, sIdx) in generated.storyboard" :key="sIdx" style="margin-bottom: 10px;">
-            <div>场景：{{ toCN(scene.scene_title) }}</div>
+            <div>场景：{{ scene.scene_title }}</div>
             <div v-if="scene.shots && scene.shots.length">
-              <div v-for="(shot, idx) in scene.shots" :key="idx" style="margin: 6px 0; padding: 6px 8px; border: 1px solid #eee; border-radius: 6px;">
-                <div>镜头：{{ toCN(shot.shot_title) }}</div>
-                <div>画面：{{ toCN(shot.visual_description) }}</div>
-                <div>机位：{{ toCN(shot.camera_direction) }}</div>
-                <div>旁白：{{ toCN(shot.dialogue_or_narration) }}</div>
+              <div v-for="(shot, idx) in scene.shots" :key="idx"
+                style="margin: 6px 0; padding: 6px 8px; border: 1px solid #eee; border-radius: 6px;">
+                <div>镜头：{{ shot.shot_title }}</div>
+                <div>画面：{{ shot.visual_description }}</div>
+                <div>机位：{{ shot.camera_direction }}</div>
+                <div>旁白：{{ shot.dialogue_or_narration }}</div>
               </div>
             </div>
           </div>
@@ -78,12 +77,12 @@
     <div class="right-content">
       <!-- 可滚动内容区域 -->
       <div class="scrollable-content">
-        
 
-      <!-- 思考生成步骤 -->
-      <div class="thinking-steps">
-        <h3 class="section-title">思考生成步骤</h3>
-        <div class="step-list">
+
+        <!-- 思考生成步骤 -->
+        <div class="thinking-steps">
+          <h3 class="section-title">思考生成步骤</h3>
+          <div class="step-list">
             <div class="step-item completed">
               <div class="step-icon">✓</div>
               <div class="step-content">
@@ -141,18 +140,14 @@
       <!-- 固定在底部的输入框 -->
       <div class="input-section">
         <div class="input-container">
-          <input
-            v-model="userInput"
-            placeholder="输入你的想法"
-            class="user-input"
-          />
+          <input v-model="userInput" placeholder="输入你的想法" class="user-input" />
           <button class="submit-btn" @click="submitInput">
             <svg class="submit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M12 19l7-7 3 3-7 7-3-3z"/>
-              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
-              <path d="M2 2l7.586 7.586"/>
-              <circle cx="11" cy="11" r="8"/>
-              <path d="M21 21l-4.35-4.35"/>
+              <path d="M12 19l7-7 3 3-7 7-3-3z" />
+              <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+              <path d="M2 2l7.586 7.586" />
+              <circle cx="11" cy="11" r="8" />
+              <path d="M21 21l-4.35-4.35" />
             </svg>
             ↑
           </button>
@@ -240,38 +235,8 @@ export default {
       const bold = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
       return bold
         .split(/\n{2,}/)
-        .map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`) 
+        .map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`)
         .join('');
-    },
-    // 基础英文到中文映射（不匹配则原样返回）
-    toCN(text) {
-      if (text == null) return '';
-      let s = String(text);
-      const dict = {
-        'ambient': '氛围',
-        'orchestra': '管弦',
-        'orchestral': '管弦',
-        'metal': '金属',
-        'clarinet': '单簧管',
-        'organ': '风琴',
-        'cello': '大提琴',
-        'brass': '铜管',
-        'piano': '钢琴',
-        'melancholy': '忧郁',
-        'calm': '平静',
-        'tense': '紧张',
-        'fast': '快速',
-        'slow': '缓慢',
-        'scene': '场景',
-        'shot': '镜头',
-        'camera': '机位',
-        'narration': '旁白',
-        'dialogue': '对话'
-      };
-      Object.keys(dict).forEach(key => {
-        s = s.replace(new RegExp(`\\b${key}\\b`, 'gi'), dict[key]);
-      });
-      return s;
     },
     parseSSEText(text) {
       const chunks = text.split(/\n\n+/)
@@ -423,21 +388,24 @@ export default {
 <style scoped>
 .project-detail {
   position: fixed;
-  top: 60px; /* 从header下方开始 */
+  top: 60px;
+  /* 从header下方开始 */
   left: 0;
   right: 0;
   bottom: 0;
   background: white;
   z-index: 1500;
   display: flex;
-  height: calc(100vh - 60px); /* 减去header高度 */
+  height: calc(100vh - 60px);
+  /* 减去header高度 */
 }
 
 .left-content {
   flex: 1;
   padding: 20px 24px;
   overflow-y: auto;
-  overflow-x: hidden; /* 允许上下滚动 */
+  overflow-x: hidden;
+  /* 允许上下滚动 */
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
@@ -455,7 +423,8 @@ export default {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
-  padding-bottom: 100px; /* 为固定输入框留出空间 */
+  padding-bottom: 100px;
+  /* 为固定输入框留出空间 */
 }
 
 /* 左侧样式 */
@@ -492,13 +461,19 @@ export default {
   width: 0;
   height: 0;
 }
+
 .left-content {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE/Edge */
 }
+
 .scrollable-content {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE/Edge */
 }
 
 /* 左侧标题与分块美化 */
@@ -511,10 +486,12 @@ export default {
   border-left: 3px solid #3b82f6;
   border-bottom: none;
 }
-.left-content .section-title + div {
+
+.left-content .section-title+div {
   margin-bottom: 16px;
 }
-.left-content .section-title + div > div {
+
+.left-content .section-title+div>div {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 8px;

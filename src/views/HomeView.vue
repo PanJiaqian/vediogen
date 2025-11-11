@@ -7,21 +7,13 @@
       <h1 class="main-title">今天有什么可以帮到您？</h1>
       <!-- 功能标签 -->
       <div class="feature-tags">
-        <button
-          class="feature-tag"
-          :class="{ active: activeFeature === 'script' }"
-          @click="setActiveFeature('script')"
-        >
+        <button class="feature-tag" :class="{ active: activeFeature === 'script' }" @click="setActiveFeature('script')">
           <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
           </svg>
           剧本创作
         </button>
-        <button
-          class="feature-tag"
-          :class="{ active: activeFeature === 'video' }"
-          @click="setActiveFeature('video')"
-        >
+        <button class="feature-tag" :class="{ active: activeFeature === 'video' }" @click="setActiveFeature('video')">
           <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
             <polygon points="23 7 16 12 23 17 23 7"></polygon>
             <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
@@ -34,13 +26,8 @@
       <div class="search-container">
         <div class="search-box">
           <div class="search-input-container">
-            <input
-              v-model="searchQuery"
-              type="text"
-              class="search-input"
-              placeholder="输入你的想法，小梦会帮你自动为你创作"
-              @keyup.enter="handleSearch"
-            />
+            <input v-model="searchQuery" type="text" class="search-input" placeholder="输入你的想法，小梦会帮你自动为你创作"
+              @keyup.enter="handleSearch" />
           </div>
           <div class="search-actions-container">
             <div class="left-actions">
@@ -52,48 +39,35 @@
                   </div>
                   <span>主体</span>
                 </button>
-                
+
                 <!-- 主体下拉菜单 -->
                 <div v-if="showSubjectDropdown" class="dropdown-menu subject-dropdown">
                   <div class="dropdown-header">
-                    <button 
-                      class="category-tab" 
-                      :class="{ active: activeSubjectCategory === 'all' }"
-                      @click="setSubjectCategory('all')"
-                    >
+                    <button class="category-tab" :class="{ active: activeSubjectCategory === 'all' }"
+                      @click="setSubjectCategory('all')">
                       全部
                     </button>
-                    <button 
-                      class="category-tab" 
-                      :class="{ active: activeSubjectCategory === 'public' }"
-                      @click="setSubjectCategory('public')"
-                    >
+                    <button class="category-tab" :class="{ active: activeSubjectCategory === 'public' }"
+                      @click="setSubjectCategory('public')">
                       公共
                     </button>
-                    <button 
-                      class="category-tab" 
-                      :class="{ active: activeSubjectCategory === 'personal' }"
-                      @click="setSubjectCategory('personal')"
-                    >
+                    <button class="category-tab" :class="{ active: activeSubjectCategory === 'personal' }"
+                      @click="setSubjectCategory('personal')">
                       个人
                     </button>
                   </div>
-                  
+
                   <div class="dropdown-content">
                     <!-- 创建新主体按钮（全部和个人分类显示） -->
                     <div v-if="activeSubjectCategory !== 'public'" class="create-new-item" @click="createNewSubject">
                       <div class="create-icon">+</div>
                       <span>创建新主体</span>
                     </div>
-                    
+
                     <!-- 主体列表 -->
                     <div class="subjects-list">
-                      <div 
-                        v-for="subject in filteredSubjects" 
-                        :key="subject.id"
-                        class="subject-item"
-                        @click="selectSubject(subject)"
-                      >
+                      <div v-for="subject in filteredSubjects" :key="subject.id" class="subject-item"
+                        @click="selectSubject(subject)">
                         <img :src="subject.avatar" :alt="subject.name" class="subject-avatar">
                         <div class="subject-info">
                           <div class="subject-name">{{ subject.name }}</div>
@@ -103,14 +77,14 @@
                         </div>
                       </div>
                     </div>
-                    
+
                     <div v-if="filteredSubjects.length === 0" class="empty-state">
                       暂无更多内容
                     </div>
                   </div>
                 </div>
               </div>
-              
+
               <!-- 画风下拉框 -->
               <div class="dropdown-container">
                 <button class="action-btn" @click="toggleStyleDropdown">
@@ -119,16 +93,11 @@
                   </div>
                   <span>画风</span>
                 </button>
-                
+
                 <!-- 画风下拉菜单 -->
                 <div v-if="showStyleDropdown" class="dropdown-menu style-dropdown">
                   <div class="styles-list">
-                    <div 
-                      v-for="style in artStyles" 
-                      :key="style.id"
-                      class="style-item"
-                      @click="selectStyle(style)"
-                    >
+                    <div v-for="style in artStyles" :key="style.id" class="style-item" @click="selectStyle(style)">
                       <img :src="style.image" :alt="style.name" class="style-image">
                       <div class="style-name">{{ style.name }}</div>
                     </div>
@@ -139,7 +108,7 @@
             <div class="right-actions">
               <button class="search-submit-btn" @click="handleSearch">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path d="M5 12l5 5L20 7"/>
+                  <path d="M5 12l5 5L20 7" />
                 </svg>
               </button>
             </div>
@@ -148,14 +117,10 @@
 
         <!-- 搜索建议 -->
         <div class="search-suggestions">
-          <button
-            v-for="suggestion in searchSuggestions"
-            :key="suggestion.id"
-            class="suggestion-tag"
-            @click="applySuggestion(suggestion.text)"
-          >
+          <button v-for="suggestion in searchSuggestions" :key="suggestion.id" class="suggestion-tag"
+            @click="applySuggestion(suggestion.text)">
             <svg class="suggestion-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
             {{ suggestion.text }}
           </button>
@@ -168,12 +133,8 @@
       <h2 class="recommendations-title">灵感广场</h2>
 
       <div class="recommendations-grid">
-        <div
-          v-for="item in recommendations"
-          :key="item.id"
-          class="recommendation-card"
-          @click="openRecommendation(item)"
-        >
+        <div v-for="item in recommendations" :key="item.id" class="recommendation-card"
+          @click="openRecommendation(item)">
           <img :src="item.image" :alt="item.title" class="card-image" />
           <div class="card-content">
             <h3 class="card-title">{{ item.title }}</h3>
@@ -183,11 +144,7 @@
     </div>
 
     <!-- 创建新主体弹窗 -->
-    <CreateSubjectModal 
-      :visible="showCreateModal" 
-      @close="closeCreateModal"
-      @submit="handleSubjectSubmit"
-    />
+    <CreateSubjectModal :visible="showCreateModal" @close="closeCreateModal" @submit="handleSubjectSubmit" />
   </div>
 </template>
 
@@ -411,28 +368,8 @@ export default {
 
       const apiUrl = `http://106.12.116.141:1770/api/agent/Script_gen?stageDirections=${encodeURIComponent(stageDirections)}&materialId=${encodeURIComponent(materialId)}&category=${encodeURIComponent(category)}`
 
-      // 发送请求并在完成后跳转到项目详情
-      fetch(apiUrl, requestOptions)
-        .then(response => response.text())
-        .then(result => {
-          console.log('剧本生成结果:', result)
-          // 将结果暂存到本地，供详情页使用（如有需要）
-          const projectId = Date.now().toString()
-          try {
-            localStorage.setItem(`project:script:${projectId}`, result)
-            localStorage.setItem(`project:prompt:${projectId}`, stageDirections)
-            localStorage.setItem(`project:category:${projectId}`, category)
-            if (materialId) localStorage.setItem(`project:materialId:${projectId}`, materialId)
-          } catch (e) {
-            console.warn('本地存储失败:', e)
-          }
-          // 跳转到项目详情页面
-          this.$router.push({ name: 'ProjectDetail', params: { id: projectId } })
-        })
-        .catch(error => {
-          console.log('error', error)
-          this.showMessage('接口调用失败，请稍后重试', 'error')
-        })
+      // 跳转到对话页面，由对话页发起生成并在完成后跳转详情
+      this.$router.push({ name: 'Conversation', query: { q: stageDirections, category, materialId } })
     },
     applySuggestion(suggestionText) {
       this.searchQuery = suggestionText
@@ -445,7 +382,7 @@ export default {
     setActiveFeature(feature) {
       this.activeFeature = feature
     },
-    
+
     // 下拉框相关方法
     toggleSubjectDropdown() {
       this.showSubjectDropdown = !this.showSubjectDropdown
@@ -455,60 +392,60 @@ export default {
         this.loadPersonalSubjects()
       }
     },
-    
+
     toggleStyleDropdown() {
       this.showStyleDropdown = !this.showStyleDropdown
       this.showSubjectDropdown = false
     },
-    
+
     setSubjectCategory(category) {
       this.activeSubjectCategory = category
     },
-    
+
     createNewSubject() {
       console.log('创建新主体')
       this.showSubjectDropdown = false
       this.showCreateModal = true
     },
-    
+
     selectSubject(subject) {
       console.log('选择主体:', subject)
       this.searchQuery += `@${subject.name} `
       this.selectedSubjectId = subject.id
       this.showSubjectDropdown = false
     },
-    
+
     selectStyle(style) {
       console.log('选择画风:', style)
       this.searchQuery += `画风:${style.name} `
       this.showStyleDropdown = false
     },
-    
+
     handleClickOutside(event) {
       const subjectDropdown = this.$el?.querySelector('.subject-dropdown')
       const styleDropdown = this.$el?.querySelector('.style-dropdown')
       const subjectBtn = this.$el?.querySelector('.dropdown-container:first-child .action-btn')
       const styleBtn = this.$el?.querySelector('.dropdown-container:last-child .action-btn')
-      
+
       if (subjectDropdown && !subjectDropdown.contains(event.target) && !subjectBtn?.contains(event.target)) {
         this.showSubjectDropdown = false
       }
-      
+
       if (styleDropdown && !styleDropdown.contains(event.target) && !styleBtn?.contains(event.target)) {
         this.showStyleDropdown = false
       }
     },
-    
+
     closeCreateModal() {
       this.showCreateModal = false
     },
-    
+
     handleSubjectSubmit(subjectData) {
       // 处理从CreateSubjectModal组件提交的数据
       console.log('提交新主体:', subjectData)
-      
+
       // 这里可以添加提交到后端的逻辑
-      
+
       // 关闭弹窗
       this.closeCreateModal()
       // 页面消息提示
@@ -517,7 +454,7 @@ export default {
       // 可以显示成功提示
       alert('主体创建成功！')
     },
-    
+
     // 获取创意作品列表
     async loadCreativeWorks() {
       try {
@@ -526,22 +463,22 @@ export default {
           console.log('未找到token，使用模拟数据')
           return
         }
-        
+
         const myHeaders = new Headers()
         myHeaders.append("Authorization", token)
-        
+
         const requestOptions = {
           method: 'GET',
           headers: myHeaders,
           redirect: 'follow'
         }
-        
+
         const response = await fetch("http://106.12.116.141:1770/creativeWork/getcreativeWorkList", requestOptions)
         const result = await response.text()
         const data = JSON.parse(result)
-        
+
         console.log('获取作品列表响应:', data)
-        
+
         if (data.code === 0 && data.data) {
           // 将API数据转换为推荐卡片格式
           this.recommendations = data.data.map(item => ({
@@ -563,7 +500,7 @@ export default {
         } else {
           console.error('获取作品列表失败:', data.message)
         }
-        
+
       } catch (error) {
         console.error('获取作品列表失败:', error)
         // 保持使用模拟数据
@@ -587,8 +524,17 @@ export default {
   z-index: 2000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-.message-toast.success { background: #10b981; color: #fff; }
-.message-toast.error { background: #ef4444; color: #fff; }
+
+.message-toast.success {
+  background: #10b981;
+  color: #fff;
+}
+
+.message-toast.error {
+  background: #ef4444;
+  color: #fff;
+}
+
 .home {
   width: 100%;
   max-width: 1200px;
@@ -764,7 +710,8 @@ export default {
   border-radius: 2px;
 }
 
-.paint-icon:before, .paint-icon:after {
+.paint-icon:before,
+.paint-icon:after {
   content: '';
   position: absolute;
   background-color: #f3f4f6;
