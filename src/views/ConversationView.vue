@@ -84,12 +84,13 @@ export default {
           // 标记完成
           this.loading = false
           this.markAllCompleted()
-
-          const projectId = Date.now().toString()
+          const videoId = this.extractVideoIdFromSSE(result)
+          const projectId = videoId ? String(videoId) : Date.now().toString()
           try {
             localStorage.setItem(`project:script:${projectId}`, result)
             localStorage.setItem(`project:prompt:${projectId}`, stageDirections)
             localStorage.setItem(`project:category:${projectId}`, category)
+            if (videoId) localStorage.setItem(`project:videoId:${projectId}`, String(videoId))
             if (materialId) localStorage.setItem(`project:materialId:${projectId}`, materialId)
           } catch (e) {
             console.warn('本地存储失败:', e)
@@ -104,6 +105,26 @@ export default {
           console.error('生成接口调用失败:', error)
           this.loading = false
         })
+    }
+    ,
+    extractVideoIdFromSSE(text) {
+      if (!text) return null
+      const chunks = String(text).split(/\n\n+/)
+      for (const chunk of chunks) {
+        const m = chunk.match(/data:(.*)/s)
+        if (m && m[1]) {
+          const jsonText = m[1].trim()
+          try {
+            const obj = JSON.parse(jsonText)
+            if (obj && (obj.videoId || obj.videoID)) {
+              return obj.videoId || obj.videoID
+            }
+          } catch (e) {
+            // 忽略解析错误，继续尝试下一个片段
+          }
+        }
+      }
+      return null
     }
   }
 }

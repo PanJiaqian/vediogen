@@ -23,6 +23,78 @@ export async function scriptGen({ stageDirections, materialId = '', category = '
   return res.text()
 }
 
+export async function scriptModify({ modificationSuggestions, videoId, token }) {
+  const url = `${BASE_URL}/api/agent/Script_modify?modificationSuggestions=${encodeURIComponent(modificationSuggestions)}&videoId=${encodeURIComponent(videoId)}`
+  const requestOptions = {
+    method: 'POST',
+    headers: buildSSEHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  return res.text()
+}
+
+// 流式读取剧本修改 SSE，逐步返回事件
+export async function scriptModifyStream({ modificationSuggestions, videoId, token, onEvent }) {
+  const url = `${BASE_URL}/api/agent/Script_modify?modificationSuggestions=${encodeURIComponent(modificationSuggestions)}&videoId=${encodeURIComponent(videoId)}`
+  const requestOptions = {
+    method: 'POST',
+    headers: buildSSEHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  const reader = res.body && res.body.getReader ? res.body.getReader() : null
+  if (!reader) {
+    // 回退为非流式
+    const text = await res.text()
+    if (typeof onEvent === 'function') {
+      const chunks = text.split(/\n\n+/)
+      for (const chunk of chunks) {
+        const m = chunk.match(/data:(.*)/s)
+        if (m && m[1]) {
+          try {
+            const obj = JSON.parse(m[1].trim())
+            onEvent(obj)
+          } catch (err) {
+            console.warn('SSE fallback JSON 解析失败:', err)
+          }
+        }
+      }
+    }
+    return
+  }
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const parts = buffer.split(/\n\n+/)
+    buffer = parts.pop() || ''
+    for (const part of parts) {
+      const m = part.match(/data:(.*)/s)
+      if (m && m[1]) {
+        try {
+          const obj = JSON.parse(m[1].trim())
+          if (typeof onEvent === 'function') onEvent(obj)
+        } catch (err) {
+          console.warn('SSE 流式 JSON 解析失败:', err)
+        }
+      }
+    }
+  }
+  // flush the rest
+  const m = buffer.match(/data:(.*)/s)
+  if (m && m[1]) {
+    try {
+      const obj = JSON.parse(m[1].trim())
+      if (typeof onEvent === 'function') onEvent(obj)
+    } catch (err) {
+      console.warn('SSE 最后块 JSON 解析失败:', err)
+    }
+  }
+}
+
 // 获取素材列表
 export async function getMaterialsList(token) {
   const url = `${BASE_URL}/material/getMaterialsList`
@@ -113,6 +185,8 @@ export async function sendCheckCodeByEmail({ email }) {
 
 export default {
   scriptGen,
+  scriptModify,
+  scriptModifyStream,
   getMaterialsList,
   uploadMaterial,
   getCreativeWorkList,

@@ -6,6 +6,7 @@
       <div class="project-header">
         <h1 class="project-title">{{ project.title }}</h1>
         <p class="project-time">创建于 {{ project.createdAt }}</p>
+        <!-- <p class="project-time">视频ID：{{ videoId }}</p> -->
       </div>
       <div>
         <h3 class="section-title">艺术指导建议</h3>
@@ -128,8 +129,16 @@
           </div>
         </div>
 
+        <!-- 问答消息列表 -->
+        <div class="qa-messages">
+          <div v-for="(m, i) in messages" :key="m.id" class="qa-message">
+            <div class="qa-message-text">{{ m.text }}</div>
+            <div class="qa-message-status" v-if="m.status"><span v-if="m.status === '思考中'" class="qa-thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span><span v-else>{{ m.status }}</span></div>
+          </div>
+        </div>
+
         <!-- 操作按钮 -->
-        <div class="action-buttons">
+        <div class="action-buttons" v-show="!isSubmitting">
           <button class="action-btn save-script">保存剧本</button>
           <button class="action-btn add-scene">添加场景</button>
           <button class="action-btn generate-video" @click="generateVideo">生成视频</button>
@@ -141,7 +150,7 @@
       <div class="input-section">
         <div class="input-container">
           <input v-model="userInput" placeholder="输入你的想法" class="user-input" />
-          <button class="submit-btn" @click="submitInput">
+          <button class="submit-btn" @click="submitInput" :disabled="isSubmitting">
             <svg class="submit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M12 19l7-7 3 3-7 7-3-3z" />
               <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
@@ -158,11 +167,15 @@
 </template>
 
 <script>
+import { scriptModifyStream } from '@/api'
 export default {
   name: 'ProjectDetailView',
   data() {
     return {
       userInput: '',
+      videoId: '',
+      messages: [],
+      isSubmitting: false,
       prompt: '',
       category: '',
       materialId: '',
@@ -214,11 +227,37 @@ export default {
       console.log('分享项目')
       // 实现分享项目逻辑
     },
-    submitInput() {
-      if (this.userInput.trim()) {
-        console.log('用户输入:', this.userInput)
-        // 处理用户输入
-        this.userInput = ''
+    async submitInput() {
+      const suggestion = (this.userInput || '').trim()
+      if (!suggestion) return
+      // 追加问答消息
+      const msg = { id: Date.now(), text: suggestion, status: '思考中' }
+      this.messages.push(msg)
+      this.isSubmitting = true
+      // 发送后清空输入框
+      this.userInput = ''
+      const projectId = this.$route.params.id
+      const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+      const authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjbGFpbXMiOnsiaWQiOjE3NjIxMDI1OTU4NTV9LCJleHAiOjE3NjI5Njk2MDZ9.AZwM7hJ5ii4_gAT190Rt0CYh14qinzA2zZsXP8cJ-eo'
+      try {
+        await scriptModifyStream({
+          modificationSuggestions: suggestion,
+          videoId,
+          token: authToken,
+          onEvent: (obj) => {
+            if (!obj || obj.type === 'connected') return
+            this.applyParsedData([obj])
+          }
+        })
+      } catch (e) {
+        console.error('剧本修改接口调用失败:', e)
+      } finally {
+        // 接口完成后在发送内容下添加节点“思考完成”，并恢复按钮显示
+        const lastIndex = this.messages.length - 1
+        if (lastIndex >= 0) {
+          this.messages[lastIndex].status = '思考完成'
+        }
+        this.isSubmitting = false
       }
     },
     cleanUrl(u) {
@@ -368,6 +407,7 @@ export default {
     console.log('项目ID:', projectId)
     try {
       const sseText = localStorage.getItem(`project:script:${projectId}`) || ''
+      this.videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
       this.prompt = localStorage.getItem(`project:prompt:${projectId}`) || ''
       this.category = localStorage.getItem(`project:category:${projectId}`) || ''
       this.materialId = localStorage.getItem(`project:materialId:${projectId}`) || ''
@@ -733,6 +773,59 @@ export default {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
+/* 右侧问答消息气泡样式 */
+.qa-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.qa-message {
+  max-width: 85%;
+  align-self: flex-end; /* 发送者气泡靠右 */
+  background: #e1f0ff;
+  border: 1px solid #cfe3ff;
+  padding: 8px 12px;
+  border-radius: 16px 16px 4px 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.qa-message-text {
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.qa-message-status {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.qa-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qa-thinking .dot {
+  width: 6px;
+  height: 6px;
+  background: #3b82f6;
+  border-radius: 50%;
+  animation: qa-bounce 1.2s infinite;
+  opacity: 0.8;
+}
+
+.qa-thinking .dot:nth-child(2) { animation-delay: 0.2s; }
+.qa-thinking .dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes qa-bounce {
+  0%, 80%, 100% { transform: scale(0.85); opacity: 0.6; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
 .action-btn {
   padding: 10px 16px;
   border: none;
@@ -836,5 +929,11 @@ export default {
 
 .submit-icon {
   display: none;
+}
+
+.submit-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 </style>

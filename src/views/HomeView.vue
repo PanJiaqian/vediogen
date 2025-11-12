@@ -37,7 +37,7 @@
                   <div class="action-icon-wrapper">
                     <span class="at-symbol">@</span>
                   </div>
-                  <span>主体</span>
+                  <span>{{ selectedSubjectName || '主体' }}</span>
                 </button>
 
                 <!-- 主体下拉菜单 -->
@@ -170,6 +170,8 @@ export default {
       showCreateModal: false,
       // 已选择的主体ID（用于 materialId）
       selectedSubjectId: null,
+      // 已选择的主体名称（用于替换“主体”字样）
+      selectedSubjectName: '',
       // 主体数据
       subjects: [
         {
@@ -411,8 +413,9 @@ export default {
 
     selectSubject(subject) {
       console.log('选择主体:', subject)
-      this.searchQuery += `@${subject.name} `
+      // 不再把主体拼接到输入框，直接记录选择并替换按钮文字
       this.selectedSubjectId = subject.id
+      this.selectedSubjectName = subject.name
       this.showSubjectDropdown = false
     },
 
@@ -454,6 +457,17 @@ export default {
 
       // 可以显示成功提示
       alert('主体创建成功！')
+    },
+
+    // 加载个人主体（占位实现，避免方法不存在报错）
+    async loadPersonalSubjects() {
+      try {
+        const list = this.subjects.filter(s => s.category === 'personal')
+        return list.length ? list : this.subjects
+      } catch (e) {
+        console.warn('加载个人主体失败:', e)
+        return this.subjects
+      }
     },
 
     // 获取创意作品列表

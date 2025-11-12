@@ -1,5 +1,4 @@
 <template>
-  <!-- 原始的VideoEditView内容 -->
   <div class="video-edit-container">
     <!-- 顶部导航栏 -->
     <div class="top-navbar">
@@ -432,7 +431,7 @@
                   </div>
                 </div>
                 <div class="track-clips" @click="selectScene(index)">
-                  <div v-for="n in (index === activeSceneIndex ? 16 : 4)" :key="n" class="scene-clip" :class="{ active: index === activeSceneIndex }">
+                  <div v-for="n in 16" :key="n" class="scene-clip" :class="{ active: index === activeSceneIndex }">
                     <img :src="scene.thumbnail" :alt="scene.title" class="clip-thumbnail" />
                   </div>
                 </div>
