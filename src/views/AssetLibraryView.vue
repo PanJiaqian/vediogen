@@ -183,6 +183,7 @@
 import { getMaterialsList } from '@/api'
 import { generateGradientPlaceholder } from '@/utils/placeholder'
 import CreateSubjectModal from '@/components/CreateSubjectModal.vue'
+import { useUserStore } from '@/stores/user'
 
 export default {
   name: 'AssetLibraryView',
@@ -246,6 +247,9 @@ export default {
     }
   },
   computed: {
+    userStore() {
+      return useUserStore()
+    },
     filteredAssets() {
       let filtered = this.assets
 
@@ -304,7 +308,7 @@ export default {
     // 获取个人素材列表
     async loadPersonalMaterials() {
       try {
-        const token = localStorage.getItem('token')
+        const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
           console.log('未找到token，使用模拟数据')
           return

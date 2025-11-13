@@ -20,6 +20,9 @@ export async function scriptGen({ stageDirections, materialId = '', category = '
     redirect: 'follow'
   }
   const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
   return res.text()
 }
 
@@ -31,6 +34,9 @@ export async function scriptModify({ modificationSuggestions, videoId, token }) 
     redirect: 'follow'
   }
   const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
   return res.text()
 }
 
@@ -43,6 +49,9 @@ export async function scriptModifyStream({ modificationSuggestions, videoId, tok
     redirect: 'follow'
   }
   const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
   const reader = res.body && res.body.getReader ? res.body.getReader() : null
   if (!reader) {
     // 回退为非流式
@@ -104,6 +113,9 @@ export async function getMaterialsList(token) {
     redirect: 'follow'
   }
   const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
   return res.text()
 }
 
@@ -117,15 +129,19 @@ export async function uploadMaterial({ token, formData }) {
     redirect: 'follow'
   }
   const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
   return res.text()
 }
 
 // 获取创意作品列表
-export async function getCreativeWorkList(token) {
+export async function getCreativeWorkList() {
   const url = `${BASE_URL}/creativeWork/getcreativeWorkList`
   const requestOptions = {
     method: 'GET',
-    headers: buildAuthHeaders(token),
+    // 此接口无需鉴权
+    headers: new Headers(),
     redirect: 'follow'
   }
   const res = await fetch(url, requestOptions)
@@ -133,11 +149,12 @@ export async function getCreativeWorkList(token) {
 }
 
 // 获取创意作品详情
-export async function getCreativeWorkById({ id, token }) {
+export async function getCreativeWorkById({ id }) {
   const url = `${BASE_URL}/creativeWork/getcreativeWorkById?creativeWorkId=${encodeURIComponent(id)}`
   const requestOptions = {
     method: 'GET',
-    headers: buildAuthHeaders(token),
+    // 此接口无需鉴权
+    headers: new Headers(),
     redirect: 'follow'
   }
   const res = await fetch(url, requestOptions)

@@ -139,9 +139,9 @@
 
         <!-- 操作按钮 -->
         <div class="action-buttons" v-show="!isSubmitting">
-          <button class="action-btn save-script">保存剧本</button>
-          <button class="action-btn add-scene">添加场景</button>
-          <button class="action-btn generate-video" @click="generateVideo">生成视频</button>
+          <!-- <button class="action-btn save-script">保存剧本</button>
+          <button class="action-btn add-scene">添加场景</button> -->
+          <button class="action-btn generate-video" @click="generateVideo">生成分镜</button>
         </div>
       </div>
 
@@ -168,6 +168,7 @@
 
 <script>
 import { scriptModifyStream } from '@/api'
+import { useUserStore } from '@/stores/user'
 export default {
   name: 'ProjectDetailView',
   data() {
@@ -214,6 +215,11 @@ export default {
       }
     }
   },
+  computed: {
+    userStore() {
+      return useUserStore()
+    }
+  },
   methods: {
     generateVideo() {
       const projectId = this.$route.params.id
@@ -238,12 +244,17 @@ export default {
       this.userInput = ''
       const projectId = this.$route.params.id
       const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-      const authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjbGFpbXMiOnsiaWQiOjE3NjIxMDI1OTU4NTV9LCJleHAiOjE3NjI5Njk2MDZ9.AZwM7hJ5ii4_gAT190Rt0CYh14qinzA2zZsXP8cJ-eo'
+      const token = (this.userStore && this.userStore.token) || ''
+      if (!token) {
+        console.warn('未找到token，无法提交修改请求')
+        this.isSubmitting = false
+        return
+      }
       try {
         await scriptModifyStream({
           modificationSuggestions: suggestion,
           videoId,
-          token: authToken,
+          token,
           onEvent: (obj) => {
             if (!obj || obj.type === 'connected') return
             this.applyParsedData([obj])

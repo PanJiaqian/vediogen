@@ -150,6 +150,7 @@
 
 <script>
 import { getCreativeWorkList } from '@/api'
+import { useUserStore } from '@/stores/user'
 import { projectPlaceholders } from '@/utils/placeholder'
 import CreateSubjectModal from '@/components/CreateSubjectModal.vue'
 
@@ -327,6 +328,9 @@ export default {
     }
   },
   computed: {
+    userStore() {
+      return useUserStore()
+    },
     filteredSubjects() {
       if (this.activeSubjectCategory === 'all') {
         return this.subjects
@@ -348,6 +352,12 @@ export default {
       setTimeout(() => { this.message.show = false }, 3000)
     },
     handleSearch() {
+      // 未登录时拦截并弹出登录框
+      if (!this.userStore?.isLoggedIn) {
+        window.dispatchEvent(new CustomEvent('open-login-modal'))
+        return
+      }
+
       if (!this.searchQuery.trim()) {
         this.showMessage('请输入提示词后再提交', 'error')
         return
@@ -360,8 +370,11 @@ export default {
       // 构建请求
       const myHeaders = new Headers()
       myHeaders.append('Accept', 'text/event-stream')
-      // 使用用户提供的授权令牌
-      myHeaders.append('Authorization', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjbGFpbXMiOnsiaWQiOjE3NjIxMDI1OTU4NTV9LCJleHAiOjE3NjI5Njk2MDZ9.AZwM7hJ5ii4_gAT190Rt0CYh14qinzA2zZsXP8cJ-eo')
+      // 使用当前登录返回的 token
+      const token = (this.userStore && this.userStore.token) || ''
+      if (token) {
+        myHeaders.append('Authorization', token)
+      }
 
       const requestOptions = {
         method: 'POST',
@@ -473,13 +486,8 @@ export default {
     // 获取创意作品列表
     async loadCreativeWorks() {
       try {
-        const token = localStorage.getItem('token')
-        if (!token) {
-          console.log('未找到token，使用模拟数据')
-          return
-        }
-
-        const result = await getCreativeWorkList(token)
+        // 接口不需要 token
+        const result = await getCreativeWorkList()
         const data = JSON.parse(result)
 
         console.log('获取作品列表响应:', data)

@@ -43,6 +43,7 @@
 
 <script>
 import { scriptGen } from '@/api'
+import { useUserStore } from '@/stores/user'
 export default {
   name: 'ConversationView',
   data() {
@@ -59,6 +60,11 @@ export default {
         { title: '场景集合', description: '汇总关键场景要素', status: 'loading' },
         { title: '分镜故事板', description: '组织分镜与镜头安排', status: 'loading' }
       ]
+    }
+  },
+  computed: {
+    userStore() {
+      return useUserStore()
     }
   },
   mounted() {
@@ -78,8 +84,13 @@ export default {
         return
       }
 
-      const authToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjbGFpbXMiOnsiaWQiOjE3NjIxMDI1OTU4NTV9LCJleHAiOjE3NjI5Njk2MDZ9.AZwM7hJ5ii4_gAT190Rt0CYh14qinzA2zZsXP8cJ-eo'
-      scriptGen({ stageDirections, materialId, category, token: authToken })
+      const token = (this.userStore && this.userStore.token) || ''
+      if (!token) {
+        console.warn('未找到token，无法调用生成接口')
+        this.loading = false
+        return
+      }
+      scriptGen({ stageDirections, materialId, category, token })
         .then(result => {
           // 标记完成
           this.loading = false

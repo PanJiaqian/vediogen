@@ -1,4 +1,5 @@
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { performanceMonitor, lazyLoadImages } from './utils/performance'
@@ -8,6 +9,17 @@ const app = createApp(App)
 
 // 使用路由
 app.use(router)
+
+const pinia = createPinia()
+app.use(pinia)
+
+try {
+  const { useUserStore } = require('./stores/user')
+  const userStore = useUserStore()
+  userStore.loadFromStorage()
+} catch (e) {
+  console.warn('加载用户存储失败:', e)
+}
 
 // 性能优化配置
 app.config.performance = true

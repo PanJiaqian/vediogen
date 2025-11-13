@@ -62,4 +62,20 @@ const router = createRouter({
   routes
 })
 
+// 全局登录拦截：未登录时点击侧边栏受限页面弹出登录框
+router.beforeEach((to, from, next) => {
+  const protectedNames = ['MyProjects', 'AssetLibrary', 'DigitalHuman']
+  try {
+    const { useUserStore } = require('../stores/user')
+    const userStore = useUserStore()
+    if (!userStore?.isLoggedIn && protectedNames.includes(to.name)) {
+      window.dispatchEvent(new CustomEvent('open-login-modal'))
+      return next(false)
+    }
+  } catch (e) {
+    // store 加载失败时不拦截，避免阻塞导航
+  }
+  next()
+})
+
 export default router

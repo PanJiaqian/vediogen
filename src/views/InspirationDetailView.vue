@@ -90,6 +90,7 @@
 
 <script>
 import { getCreativeWorkById } from '@/api'
+import { useUserStore } from '@/stores/user'
 export default {
   name: 'InspirationDetailView',
   data() {
@@ -111,6 +112,11 @@ export default {
       }
     }
   },
+  computed: {
+    userStore() {
+      return useUserStore()
+    }
+  },
   mounted() {
     // 获取路由参数中的ID
     const id = this.$route.params.id
@@ -128,13 +134,8 @@ export default {
       console.log('Loading inspiration data for ID:', id)
       
       try {
-        const token = localStorage.getItem('token')
-        if (!token) {
-          console.log('未找到token，使用模拟数据')
-          return
-        }
-        
-        const result = await getCreativeWorkById({ id, token })
+        // 接口不需要 token
+        const result = await getCreativeWorkById({ id })
         const data = JSON.parse(result)
         
         console.log('获取作品详情响应:', data)
