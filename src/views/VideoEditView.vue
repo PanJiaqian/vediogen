@@ -52,7 +52,7 @@
         <!-- 顶部标题区域 -->
         <div class="panel-header">
           <div class="scene-title-header">
-            <span class="scene-number">分镜1</span>
+            <span class="scene-number">分镜{{ activeSceneIndex + 1 }}</span>
             <span class="scene-type" v-if="activeTab === 'image'">镜头策划</span>
             <span class="scene-type" v-if="activeTab === 'voice'">配音编辑</span>
           </div>
@@ -116,7 +116,7 @@
 
             <!-- 图片展示 -->
             <div class="image-container">
-              <img src="/logo.png" alt="分镜图片" class="scene-image" />
+              <img :src="scenes[activeSceneIndex]?.thumbnail || '/logo.png'" alt="分镜图片" class="scene-image" />
             </div>
 
             <!-- 底部操作按钮 -->
@@ -316,12 +316,12 @@
         <!-- 画布编辑和对口型 -->
         <div class="edit-controls">
           <button class="control-btn active" @click="toggleCanvasEditMode">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <!-- <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
               <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
               <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            画布编辑
+            </svg> -->
+            裁剪分镜
           </button>
           <button class="control-btn" @click="toggleLipSyncView">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -336,14 +336,14 @@
         <!-- 视频画面 -->
         <div class="video-preview">
           <div class="video-container">
-            <img src="/logo.png" alt="Hello Kitty" class="video-image" />
-            <div class="video-overlay">
+            <img :src="currentPreviewUrl" :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" />
+            <!-- <div class="video-overlay">
               <button class="play-button">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                   <polygon points="5,3 19,12 5,21" fill="currentColor"/>
                 </svg>
               </button>
-            </div>
+            </div> -->
           </div>
         </div>
 
@@ -351,6 +351,12 @@
         <div class="playback-section">
           <!-- 播放控制 -->
           <div class="playback-controls">
+            <!-- 播放按钮放在时长左侧 -->
+            <button class="play-btn-circle" @click="togglePlay" title="播放/暂停">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <polygon points="5,3 19,12 5,21" fill="currentColor"/>
+              </svg>
+            </button>
             <div class="time-display">
               <span class="current-time">00:03</span>
               <span class="separator">/</span>
@@ -431,7 +437,7 @@
                   </div>
                 </div>
                 <div class="track-clips" @click="selectScene(index)">
-                  <div v-for="n in 16" :key="n" class="scene-clip" :class="{ active: index === activeSceneIndex }">
+                  <div v-for="n in 5" :key="n" class="scene-clip" :class="{ active: index === activeSceneIndex }">
                     <img :src="scene.thumbnail" :alt="scene.title" class="clip-thumbnail" />
                   </div>
                 </div>
@@ -547,7 +553,134 @@ export default {
       showLipSyncView: false
     }
   },
+  mounted() {
+    const projectId = this.$route.params.id
+    try {
+      const scenesStr = localStorage.getItem(`video-edit:scenes:${projectId}`)
+      if (scenesStr) {
+        const parsed = JSON.parse(scenesStr)
+        if (Array.isArray(parsed) && parsed.length) {
+          this.scenes = parsed
+          this.activeSceneIndex = 0
+        }
+      }
+      // 解析原始分镜，生成包含clips的场景数据
+      const rawStr = localStorage.getItem(`project:storyboard_raw:${projectId}`)
+      if (rawStr) {
+        const raw = JSON.parse(rawStr)
+        const scenesFromRaw = this.parseStoryboardRawToScenes(raw)
+        if (Array.isArray(scenesFromRaw) && scenesFromRaw.length) {
+          this.scenes = scenesFromRaw
+          this.activeSceneIndex = 0
+        }
+      }
+      const title = localStorage.getItem(`project:prompt:${projectId}`)
+      if (title) this.projectTitle = title
+    } catch (e) {
+      console.warn('读取分镜场景或标题失败:', e)
+    }
+  },
+  computed: {
+    currentPreviewUrl() {
+      const scene = this.scenes[this.activeSceneIndex]
+      if (!scene) return '/logo.png'
+      const clips = this.getSceneClips(scene)
+      const first = clips && clips.length ? clips[0] : null
+      return (first && first.url) || scene.thumbnail || '/logo.png'
+    }
+  },
   methods: {
+    // URL清洗，移除多余反引号和空格
+    cleanUrl(u) {
+      if (!u) return ''
+      return String(u).replace(/[`\s]/g, '').replace(/^"|"$/g, '')
+    },
+    // 估算时长（当接口未提供时使用）
+    estimateDurationMs(text) {
+      const len = String(text || '').trim().length
+      const base = 2000
+      const perChar = 50
+      const dur = base + len * perChar
+      return Math.max(1500, Math.min(10000, dur))
+    },
+    // 解析原始分镜，生成包含clips的场景结构
+    parseStoryboardRawToScenes(raw) {
+      const scenes = []
+      try {
+        if (Array.isArray(raw)) {
+          // 形如 [{ scene_id, scene_title, shots: [...] }, ...]
+          raw.forEach((rec, idx) => {
+            const title = rec.scene_title || `分镜${idx + 1}`
+            const shots = Array.isArray(rec.shots) ? rec.shots : []
+            const clips = []
+            shots.forEach(shot => {
+              const url = this.cleanUrl(shot.scene_picture || '')
+              if (!url) return
+              const dur = shot.duration_ms || shot.duration || this.estimateDurationMs(shot.dialogue_or_narration || '')
+              clips.push({ url, durationMs: Number(dur) || 3000 })
+            })
+            const firstShot = shots[0] || {}
+            const descParts = []
+            if (firstShot.shot_title) descParts.push(firstShot.shot_title)
+            if (firstShot.visual_description) descParts.push(firstShot.visual_description)
+            const description = descParts.length ? descParts.join('：') : '暂无描述'
+            scenes.push({ id: idx + 1, title, description, thumbnail: clips[0]?.url || '/logo.png', clips })
+          })
+        } else if (raw && typeof raw === 'object') {
+          // 形如 { scene_1: { shot_1_1: {...}, shot_1_2: {...}, scene_title: ... }, ... }
+          const sceneKeys = Object.keys(raw).filter(k => /^scene_/i.test(k)).sort((a, b) => {
+            const na = parseInt(String(a).replace(/[^0-9]/g, ''), 10)
+            const nb = parseInt(String(b).replace(/[^0-9]/g, ''), 10)
+            return (isNaN(na) ? 0 : na) - (isNaN(nb) ? 0 : nb)
+          })
+          let id = 1
+          for (const key of sceneKeys) {
+            const s = raw[key] || {}
+            const title = s.scene_title || `分镜${id}`
+            let shots = []
+            if (Array.isArray(s.shots)) {
+              shots = s.shots
+            } else {
+              const shotKeys = Object.keys(s).filter(k => /^shot_/i.test(k)).sort((a, b) => {
+                const na = parseInt(String(a).replace(/[^0-9]/g, ''), 10)
+                const nb = parseInt(String(b).replace(/[^0-9]/g, ''), 10)
+                return (isNaN(na) ? 0 : na) - (isNaN(nb) ? 0 : nb)
+              })
+              shots = shotKeys.map(k => s[k] || {}).filter(x => x)
+            }
+            const clips = []
+            shots.forEach(shot => {
+              const url = this.cleanUrl(shot.scene_picture || '')
+              if (!url) return
+              const dur = shot.duration_ms || shot.duration || this.estimateDurationMs(shot.dialogue_or_narration || '')
+              clips.push({ url, durationMs: Number(dur) || 3000 })
+            })
+            const firstShot = shots[0] || {}
+            const descParts = []
+            if (firstShot.shot_title) descParts.push(firstShot.shot_title)
+            if (firstShot.visual_description) descParts.push(firstShot.visual_description)
+            const description = descParts.length ? descParts.join('：') : '暂无描述'
+            scenes.push({ id: id++, title, description, thumbnail: clips[0]?.url || '/logo.png', clips })
+          }
+        }
+      } catch (e) {
+        console.warn('解析原始分镜失败:', e)
+      }
+      return scenes
+    },
+    // 返回场景的clips，若无则回退到单一缩略图
+    getSceneClips(scene) {
+      if (scene && Array.isArray(scene.clips) && scene.clips.length) return scene.clips
+      const url = this.cleanUrl(scene?.thumbnail || '')
+      return url ? [{ url, durationMs: 3000 }] : []
+    },
+    // 基于时长计算片段在轨的宽度百分比
+    getClipStyle(scene, clip) {
+      const clips = this.getSceneClips(scene)
+      const total = clips.reduce((sum, c) => sum + (Number(c.durationMs) || 3000), 0) || 1
+      const widthPct = Math.max(2, Math.round(((Number(clip.durationMs) || 3000) / total) * 100))
+      return { width: widthPct + '%', minWidth: '28px' }
+    },
     goBack() {
       const projectId = this.$route.params.id
       this.$router.push(`/project/${projectId}`)
@@ -559,7 +692,42 @@ export default {
       this.activeSceneIndex = index
     },
     togglePlay() {
-      this.isPlaying = !this.isPlaying
+      if (this.isPlaying) {
+        this.stopPlayback()
+      } else {
+        this.startPlayback()
+      }
+    },
+    // 播放相关方法：按每个分镜5秒顺序播放
+    startPlayback() {
+      if (!Array.isArray(this.scenes) || this.scenes.length === 0) return
+      this.isPlaying = true
+      // 总时长（毫秒）：每个分镜5秒
+      const stepMs = 5000
+      const totalMs = this.scenes.length * stepMs
+      const start = Date.now()
+      // 清理旧的定时器
+      if (this._playbackInterval) clearInterval(this._playbackInterval)
+      this._playbackInterval = setInterval(() => {
+        const elapsed = Date.now() - start
+        const clamped = Math.min(elapsed, totalMs)
+        const percent = Math.round((clamped / totalMs) * 100)
+        this.playbackPosition = percent
+        // 根据已过时间设置当前分镜索引
+        const idx = Math.min(Math.floor(clamped / stepMs), this.scenes.length - 1)
+        if (idx !== this.activeSceneIndex) this.activeSceneIndex = idx
+        // 到末尾自动停止
+        if (clamped >= totalMs) {
+          this.stopPlayback()
+        }
+      }, 200)
+    },
+    stopPlayback() {
+      this.isPlaying = false
+      if (this._playbackInterval) {
+        clearInterval(this._playbackInterval)
+        this._playbackInterval = null
+      }
     },
     // 图片提示词相关方法
     editPrompt() {
@@ -1338,6 +1506,34 @@ export default {
 .expand-btn:hover {
   background: #f9fafb;
   border-color: #9ca3af;
+}
+
+/* 播放按钮（蓝色背景圆形） */
+.play-btn-circle {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #3b82f6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.play-btn-circle:hover {
+  background: #2563eb;
+}
+
+.play-btn-circle:active {
+  transform: scale(0.96);
+}
+
+.play-btn-circle svg {
+  margin-left: 1px;
 }
 
 /* 时间轴区域 */

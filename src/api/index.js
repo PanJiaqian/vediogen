@@ -104,6 +104,68 @@ export async function scriptModifyStream({ modificationSuggestions, videoId, tok
   }
 }
 
+// 分镜图片生成（SSE，Storyboard_image_gen）：POST，headers 含 Accept: text/event-stream 与 Authorization
+export async function storyboardPictureGenStream({ videoId, token, onEvent }) {
+  const url = `${BASE_URL}/api/agent/Storyboard_image_gen?videoId=${encodeURIComponent(videoId)}`
+  const requestOptions = {
+    method: 'POST',
+    headers: buildSSEHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  const reader = res.body && res.body.getReader ? res.body.getReader() : null
+  if (!reader) {
+    const text = await res.text()
+    if (typeof onEvent === 'function') {
+      const chunks = text.split(/\n\n+/)
+      for (const chunk of chunks) {
+        const m = chunk.match(/data:(.*)/s)
+        if (m && m[1]) {
+          try {
+            const obj = JSON.parse(m[1].trim())
+            onEvent(obj)
+          } catch (err) {
+            console.warn('分镜生成 SSE fallback 解析失败:', err)
+          }
+        }
+      }
+    }
+    return
+  }
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const parts = buffer.split(/\n\n+/)
+    buffer = parts.pop() || ''
+    for (const part of parts) {
+      const m = part.match(/data:(.*)/s)
+      if (m && m[1]) {
+        try {
+          const obj = JSON.parse(m[1].trim())
+          if (typeof onEvent === 'function') onEvent(obj)
+        } catch (err) {
+          console.warn('分镜生成 SSE 流式解析失败:', err)
+        }
+      }
+    }
+  }
+  const m = buffer.match(/data:(.*)/s)
+  if (m && m[1]) {
+    try {
+      const obj = JSON.parse(m[1].trim())
+      if (typeof onEvent === 'function') onEvent(obj)
+    } catch (err) {
+      console.warn('分镜生成 SSE 最后块解析失败:', err)
+    }
+  }
+}
+
 // 获取素材列表
 export async function getMaterialsList(token) {
   const url = `${BASE_URL}/material/getMaterialsList`
@@ -135,6 +197,47 @@ export async function uploadMaterial({ token, formData }) {
   return res.text()
 }
 
+// 图片重新生成（POST）
+export async function regenerateImage({ videoId, type, name, token }) {
+  const url = `${BASE_URL}/api/image/regenerate?videoId=${encodeURIComponent(videoId)}&type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}`
+  const requestOptions = {
+    method: 'POST',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  // 接口返回 JSON
+  try {
+    return await res.json()
+  } catch (e) {
+    console.warn('regenerateImage: 返回解析失败，回退为文本', e)
+    return res.text()
+  }
+}
+
+// 查询-图片重新生成（GET）
+export async function queryRegenerateImage({ videoId, type, name, generateUuid, token }) {
+  const url = `${BASE_URL}/api/image/regenerate/query?videoId=${encodeURIComponent(videoId)}&type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}&generateUuid=${encodeURIComponent(generateUuid)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    console.warn('queryRegenerateImage: 返回解析失败，回退为文本', e)
+    return res.text()
+  }
+}
+
 // 获取创意作品列表
 export async function getCreativeWorkList() {
   const url = `${BASE_URL}/creativeWork/getcreativeWorkList`
@@ -158,6 +261,21 @@ export async function getCreativeWorkById({ id }) {
     redirect: 'follow'
   }
   const res = await fetch(url, requestOptions)
+  return res.text()
+}
+
+// 获取“我的空间”作品列表
+export async function getMyWorksList(token) {
+  const url = `${BASE_URL}/myWorks/getMyWorksList`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
   return res.text()
 }
 
@@ -204,11 +322,15 @@ export default {
   scriptGen,
   scriptModify,
   scriptModifyStream,
+  storyboardPictureGenStream,
   getMaterialsList,
   uploadMaterial,
   getCreativeWorkList,
   getCreativeWorkById,
+  getMyWorksList,
   emailLogin,
   emailRegister,
   sendCheckCodeByEmail
+  ,regenerateImage
+  ,queryRegenerateImage
 }

@@ -37,10 +37,21 @@
 
         <h3 class="section-title">人物信息</h3>
         <div v-if="generated.people && generated.people.length">
-          <div v-for="(p, idx) in generated.people" :key="idx" style="margin-bottom: 10px;">
-            <div>姓名：{{ p.Character_Name }}</div>
-            <div>身份：{{ p.Role_in_Story }}</div>
-            <div>外观：{{ p.Appearance }}</div>
+          <div v-for="(p, idx) in generated.people" :key="idx" class="character-item">
+            <div class="character-header">
+              <img
+                v-if="p.Character_picture && !isGenerateFailed(p.Character_picture)"
+                :src="cleanUrl(p.Character_picture)"
+                alt="人物图片"
+                class="character-avatar"
+              />
+              <div v-else class="character-avatar character-avatar--placeholder" @click="handleRegenerateCharacter(p)">重新生成</div>
+              <div class="character-info">
+                <div class="character-name">姓名：{{ p.Character_Name }}</div>
+                <div>身份：{{ p.Role_in_Story }}</div>
+                <div>外观：{{ p.Appearance }}</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -51,7 +62,10 @@
             <div>场景元素：{{ s.Scene_Elements }}</div>
             <div v-if="s.Scene_picture_url">
               图片：
-              <img :src="cleanUrl(s.Scene_picture_url)" alt="场景图片" class="scene-image" />
+              <template v-if="!isGenerateFailed(s.Scene_picture_url)">
+                <img :src="cleanUrl(s.Scene_picture_url)" alt="场景图片" class="scene-image" />
+              </template>
+              <div v-else class="scene-image-placeholder" @click="handleRegenerateScene(s)">重新生成</div>
             </div>
           </div>
         </div>
@@ -167,7 +181,7 @@
 </template>
 
 <script>
-import { scriptModifyStream } from '@/api'
+import { scriptModifyStream, regenerateImage, queryRegenerateImage } from '@/api'
 import { useUserStore } from '@/stores/user'
 export default {
   name: 'ProjectDetailView',
@@ -221,8 +235,15 @@ export default {
     }
   },
   methods: {
-    generateVideo() {
+    async generateVideo() {
       const projectId = this.$route.params.id
+      const token = (this.userStore && this.userStore.token) || ''
+      if (!token) {
+        console.warn('未登录，无法生成分镜图片')
+        try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
+        return
+      }
+      // 跳转到生成步骤页，流式生成在 GenerationStepsView 中进行
       this.$router.push(`/generation-steps/${projectId}`)
     },
     saveProject() {
@@ -275,6 +296,12 @@ export default {
       const str = (u || '').toString()
       return str.replace(/`/g, '').trim()
     },
+    // 接口生成失败检测：包含“失败/fail/error”则视为失败
+    isGenerateFailed(u) {
+      const s = (u || '').toString().trim()
+      if (!s) return false // 空不视为失败，仅当接口明确返回失败信息时显示占位
+      return /失败|fail|error/i.test(s)
+    },
     // 简易 Markdown 渲染：加粗与段落换行
     renderMarkdown(text) {
       if (!text) return '';
@@ -304,6 +331,62 @@ export default {
         }
       }
       return objs
+    },
+    async handleRegenerateScene(s) {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) {
+          console.warn('未登录，无法重新生成场景图片')
+          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
+          return
+        }
+        const videoId = this.videoId || this.$route.params.id
+        const type = 'scene'
+        const name = (s.Scene_Name || '').toString().trim() || 'scene'
+        const resp = await regenerateImage({ videoId, type, name, token })
+        const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
+        if (!generateUuid) {
+          console.warn('未获取到 generateUuid，无法查询结果', resp)
+          return
+        }
+        const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
+        const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
+        if (url) {
+          s.Scene_picture_url = url
+        } else {
+          console.warn('查询接口未返回图片地址', q)
+        }
+      } catch (e) {
+        console.warn('重新生成场景图片失败:', e)
+      }
+    },
+    async handleRegenerateCharacter(p) {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) {
+          console.warn('未登录，无法重新生成人物图片')
+          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
+          return
+        }
+        const videoId = this.videoId || this.$route.params.id
+        const type = 'character_gen'
+        const name = (p.Character_Name || '').toString().trim() || 'character'
+        const resp = await regenerateImage({ videoId, type, name, token })
+        const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
+        if (!generateUuid) {
+          console.warn('未获取到 generateUuid，无法查询结果', resp)
+          return
+        }
+        const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
+        const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
+        if (url) {
+          p.Character_picture = url
+        } else {
+          console.warn('查询接口未返回图片地址', q)
+        }
+      } catch (e) {
+        console.warn('重新生成人物图片失败:', e)
+      }
     },
     applyParsedData(objs) {
       for (const o of objs) {
@@ -566,6 +649,53 @@ export default {
   border: 1px solid #eee;
   display: block;
   margin-top: 6px;
+}
+
+/* 人物信息样式 */
+.character-item {
+  margin-bottom: 10px;
+}
+.character-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.character-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid #eee;
+  margin-right: 8px;
+}
+.character-avatar--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 12px;
+  cursor: pointer;
+}
+.character-info { flex: 1; }
+.character-name {
+  font-weight: 600;
+  color: #374151;
+}
+
+/* 场景图片失败占位 */
+.scene-image-placeholder {
+  width: 100%;
+  height: 160px;
+  border: 1px dashed #ddd;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  cursor: pointer;
 }
 
 /* 策划摘要样式 */

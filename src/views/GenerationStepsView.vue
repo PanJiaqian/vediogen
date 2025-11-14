@@ -74,6 +74,8 @@
 </template>
 
 <script>
+import { storyboardPictureGenStream } from '@/api'
+import { useUserStore } from '@/stores/user'
 export default {
   name: 'GenerationStepsView',
   data() {
@@ -88,11 +90,16 @@ export default {
         { title: '对白打磨与细节镶嵌' }
       ],
       progressTimer: null,
-      stepTimer: null
+      stepTimer: null,
+      // 每步时长（毫秒）：默认每步约75秒，总计约6分钟，实际跳转仍以接口完成为准
+      stepDurationsMs: [75000, 75000, 75000, 75000, 75000],
+      // 进度刷新间隔（毫秒）
+      progressIntervalMs: 1000
     }
   },
   mounted() {
     this.startGeneration()
+    this.startSSE()
   },
   beforeUnmount() {
     if (this.progressTimer) {
@@ -103,34 +110,114 @@ export default {
     }
   },
   methods: {
+    cleanUrl(u) {
+      const str = (u || '').toString()
+      return str.replace(/`/g, '').trim()
+    },
     startGeneration() {
-      // 开始进度动画
+      // 初始化第一步
+      this.currentStep = 0
+      this.progress = 0
+      this.startStep()
+    },
+    startStep() {
+      const duration = this.stepDurationsMs[this.currentStep] || 60000
+      const interval = this.progressIntervalMs || 1000
+      if (this.progressTimer) clearInterval(this.progressTimer)
+      if (this.stepTimer) clearTimeout(this.stepTimer)
+      // 进度条按时长平滑推进，带微小抖动
       this.progressTimer = setInterval(() => {
         if (this.progress < 100) {
-          this.progress += Math.random() * 15 + 5 // 随机增加5-20%
+          const baseIncrement = 100 / (duration / interval)
+          const jitter = baseIncrement * (Math.random() * 0.2 - 0.1) // ±10%
+          const inc = Math.max(0, baseIncrement + jitter)
+          this.progress += inc
           if (this.progress > 100) this.progress = 100
         }
-      }, 200)
-      // 步骤切换逻辑 - 总共15秒，每步3秒
+      }, interval)
+      // 步骤时长结束后进入下一步
       this.stepTimer = setTimeout(() => {
         this.nextStep()
-      }, 3000) // 每3秒切换到下一步
+      }, duration)
+    },
+    async startSSE() {
+      const projectId = this.$route.params.id
+      const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+      let token = ''
+      try {
+        const store = useUserStore()
+        token = store && store.token || ''
+      } catch (e) { token = '' }
+      if (!token) {
+        try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { console.warn('打开登录弹窗失败:', e) }
+        return
+      }
+      try {
+        await storyboardPictureGenStream({
+          videoId,
+          token,
+          onEvent: (obj) => {
+            if (!obj || obj.type === 'connected') return
+            if (obj.Storyboard_picture) {
+              this.handleStoryboardPicture(obj.Storyboard_picture)
+            }
+          }
+        })
+      } catch (e) {
+        console.error('分镜图片流式生成失败:', e)
+      }
+    },
+    handleStoryboardPicture(sb) {
+      const projectId = this.$route.params.id
+      try {
+        localStorage.setItem(`project:storyboard_raw:${projectId}`, JSON.stringify(sb))
+      } catch (e) { console.warn('保存分镜原始数据失败:', e) }
+      const scenes = this.normalizeStoryboardPicture(sb)
+      try {
+        localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(scenes))
+      } catch (e) { console.warn('保存编辑页场景失败:', e) }
+      // 流式完成后，立即跳转到视频编辑页
+      if (this.progressTimer) clearInterval(this.progressTimer)
+      if (this.stepTimer) clearTimeout(this.stepTimer)
+      this.$router.push(`/video-edit/${projectId}`)
+    },
+    normalizeStoryboardPicture(sb) {
+      const container = Array.isArray(sb) ? sb[0] : sb
+      const scenes = []
+      if (!container || typeof container !== 'object') return scenes
+      const sceneKeys = Object.keys(container).filter(k => /^scene_/i.test(k)).sort((a, b) => {
+        const na = parseInt(String(a).replace(/[^0-9]/g, ''), 10)
+        const nb = parseInt(String(b).replace(/[^0-9]/g, ''), 10)
+        return (isNaN(na) ? 0 : na) - (isNaN(nb) ? 0 : nb)
+      })
+      let id = 1
+      for (const key of sceneKeys) {
+        const s = container[key] || {}
+        const title = s.scene_title || `分镜${id}`
+        const shotKeys = Object.keys(s).filter(k => /^shot_/i.test(k)).sort((a, b) => {
+          const na = parseInt(String(a).replace(/[^0-9]/g, ''), 10)
+          const nb = parseInt(String(b).replace(/[^0-9]/g, ''), 10)
+          return (isNaN(na) ? 0 : na) - (isNaN(nb) ? 0 : nb)
+        })
+        const firstShot = shotKeys.length ? (s[shotKeys[0]] || {}) : {}
+        const thumb = this.cleanUrl(firstShot.scene_picture || '')
+        const descParts = []
+        if (firstShot.shot_title) descParts.push(firstShot.shot_title)
+        if (firstShot.visual_description) descParts.push(firstShot.visual_description)
+        const description = descParts.length ? descParts.join('：') : '暂无描述'
+        scenes.push({ id: id++, title, description, thumbnail: thumb || '/logo.png' })
+      }
+      return scenes
     },
     nextStep() {
       if (this.currentStep < this.steps.length - 1) {
         this.currentStep++
         this.progress = 0
-        
-        // 继续下一步
-        this.stepTimer = setTimeout(() => {
-          this.nextStep()
-        }, 3000)
+        // 开始下一步的进度推进
+        this.startStep()
       } else {
-        // 所有步骤完成，等待最后一步完成后跳转到视频编辑页面
-        setTimeout(() => {
-          const projectId = this.$route.params.id
-          this.$router.push(`/video-edit/${projectId}`)
-        }, 3000) // 最后一步也是3秒，总共15秒
+        // 保留动画结束，但真正跳转由流式完成事件触发
+        setTimeout(() => { console.debug('生成步骤动画结束，等待接口完成跳转') }, 1000)
       }
     },
     getFloatingIconStyle(index) {
