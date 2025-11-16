@@ -279,6 +279,36 @@ export async function getMyWorksList(token) {
   return res.text()
 }
 
+// 查询-分镜图片详情列表（GET）
+export async function getStoryboardImagesDetail({ videoId, token }) {
+  const url = `${BASE_URL}/detail/storyboard/images?videoId=${encodeURIComponent(videoId)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
+// 查询-剧本内容详情-byVideo（GET）
+export async function getScriptDetailByVideo({ videoId, token }) {
+  const url = `${BASE_URL}/detail/script/detail/byVideo?videoId=${encodeURIComponent(videoId)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
 // 邮箱登录
 export async function emailLogin({ email, password }) {
   const url = `${BASE_URL}/user/emailLogin`
@@ -333,4 +363,6 @@ export default {
   sendCheckCodeByEmail
   ,regenerateImage
   ,queryRegenerateImage
+  ,getStoryboardImagesDetail
+  ,getScriptDetailByVideo
 }

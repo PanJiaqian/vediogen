@@ -107,9 +107,13 @@ export default {
             console.warn('本地存储失败:', e)
           }
 
-          // 短暂停留后跳转到详情页
           setTimeout(() => {
-            this.$router.push({ name: 'ProjectDetail', params: { id: projectId } })
+            const route = { name: 'ProjectDetail', params: { id: projectId } }
+            try {
+              const resolved = this.$router.resolve(route)
+              window.history.replaceState({ replaced: true }, '', resolved?.href || `/project/${projectId}`)
+            } catch (e) { /* noop */ }
+            this.$router.replace(route)
           }, 600)
         })
         .catch(error => {

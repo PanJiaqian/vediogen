@@ -181,7 +181,7 @@
 </template>
 
 <script>
-import { scriptModifyStream, regenerateImage, queryRegenerateImage } from '@/api'
+import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo } from '@/api'
 import { useUserStore } from '@/stores/user'
 export default {
   name: 'ProjectDetailView',
@@ -417,11 +417,43 @@ export default {
               const cleaned = o.Scene.replace(/\\`/g, '').replace(/`/g, '')
               const arr = JSON.parse(cleaned)
               this.generated.scenes = Array.isArray(arr) ? arr : []
+              // 若看起来是镜头数组（含 content 字段），转换为 storyboard 结构
+              if (Array.isArray(this.generated.scenes) && this.generated.scenes.length && this.generated.scenes[0] && this.generated.scenes[0].content) {
+                const grouped = {}
+                for (const item of this.generated.scenes) {
+                  const c = item.content || {}
+                  const sceneTitle = c.scene_title || c.scene_id || '未命名场景'
+                  if (!grouped[sceneTitle]) grouped[sceneTitle] = []
+                  grouped[sceneTitle].push({
+                    shot_title: c.shot_title || '',
+                    visual_description: c.visual_description || '',
+                    camera_direction: c.camera_direction || '',
+                    dialogue_or_narration: c.dialogue_or_narration || ''
+                  })
+                }
+                this.generated.storyboard = Object.keys(grouped).map(t => ({ scene_title: t, shots: grouped[t] }))
+              }
             } catch (e) {
               console.warn('Scene 解析失败:', e)
             }
           } else if (Array.isArray(o.Scene)) {
             this.generated.scenes = o.Scene
+            // 若看起来是镜头数组（含 content 字段），转换为 storyboard 结构
+            if (this.generated.scenes.length && this.generated.scenes[0] && this.generated.scenes[0].content) {
+              const grouped = {}
+              for (const item of this.generated.scenes) {
+                const c = item.content || {}
+                const sceneTitle = c.scene_title || c.scene_id || '未命名场景'
+                if (!grouped[sceneTitle]) grouped[sceneTitle] = []
+                grouped[sceneTitle].push({
+                  shot_title: c.shot_title || '',
+                  visual_description: c.visual_description || '',
+                  camera_direction: c.camera_direction || '',
+                  dialogue_or_narration: c.dialogue_or_narration || ''
+                })
+              }
+              this.generated.storyboard = Object.keys(grouped).map(t => ({ scene_title: t, shots: grouped[t] }))
+            }
           }
         }
       }
@@ -495,7 +527,7 @@ export default {
       }
     }
   },
-  mounted() {
+  async mounted() {
     // 根据路由参数获取项目详情
     const projectId = this.$route.params.id
     console.log('项目ID:', projectId)
@@ -511,6 +543,36 @@ export default {
       if (sseText) {
         const objs = this.parseSSEText(sseText)
         this.applyParsedData(objs)
+      }
+
+      // 优先使用从编辑页保存的剧本详情 JSON
+      const detailText = localStorage.getItem(`project:script_detail_json:${projectId}`) || ''
+      if (detailText) {
+        let obj = null
+        try { obj = JSON.parse(detailText) } catch (e) { console.warn('剧本详情JSON解析失败:', e) }
+        const dataObj = obj && obj.data ? obj.data : obj
+        if (dataObj) {
+          if (dataObj.title) this.project.title = dataObj.title
+          this.applyParsedData([dataObj])
+        }
+      } else {
+        // 无缓存时回退调用接口
+        const token = (this.userStore && this.userStore.token) || ''
+        if (token) {
+          try {
+            const text = await getScriptDetailByVideo({ videoId: this.videoId || projectId, token })
+            let obj = null
+            try { obj = JSON.parse(text) } catch (e) { console.warn('剧本详情接口返回解析失败:', e) }
+            const dataObj = obj && obj.data ? obj.data : obj
+            if (dataObj) {
+              try { localStorage.setItem(`project:script_detail_json:${projectId}`, text) } catch (e) { /* no-op */ }
+              if (dataObj.title) this.project.title = dataObj.title
+              this.applyParsedData([dataObj])
+            }
+          } catch (e) {
+            console.error('获取剧本详情失败:', e)
+          }
+        }
       }
     } catch (e) {
       console.warn('读取生成内容失败:', e)

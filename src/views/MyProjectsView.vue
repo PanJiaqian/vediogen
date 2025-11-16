@@ -40,6 +40,8 @@
 
 <script>
 import { generateGradientPlaceholder } from '@/utils/placeholder'
+import { getMyWorksList, getStoryboardImagesDetail } from '@/api/index.js'
+import { useUserStore } from '@/stores/user.js'
 
 export default {
   name: 'MyProjectsView',
@@ -50,38 +52,63 @@ export default {
         { id: 'story', name: '故事' },
         { id: 'avatar', name: '数字人' }
       ],
-      storyProjects: [
-        {
-          id: 1,
-          name: '一生朝朝暮暮记',
-          createdAt: '2023/11/20 02:05',
-          thumbnail: generateGradientPlaceholder(300, 200, '4A90E2', '667eea', '朝暮'),
-          type: 'story'
-        },
-        {
-          id: 2,
-          name: 'Hello Kitty的回忆',
-          createdAt: '2023/10/20 17:14',
-          thumbnail: generateGradientPlaceholder(300, 200, 'FF69B4', 'FFB6C1', 'Kitty'),
-          type: 'story'
-        },
-        {
-          id: 3,
-          name: 'Hello Kitty的回忆',
-          createdAt: '2023/10/20 17:09',
-          thumbnail: generateGradientPlaceholder(300, 200, 'FF1493', 'FF69B4', 'Kitty'),
-          type: 'story'
-        }
-      ],
+      storyProjects: [],
       avatarProjects: []
     }
   },
   computed: {
+    userStore() {
+      return useUserStore()
+    },
     currentTabProjects() {
       return this.activeTab === 'story' ? this.storyProjects : this.avatarProjects
     }
   },
+  mounted() {
+    this.fetchMyWorksList()
+  },
   methods: {
+    async fetchMyWorksList() {
+      try {
+        const token = this.userStore?.token || ''
+        const result = await getMyWorksList(token)
+        const resp = JSON.parse(result)
+
+        if (resp && resp.code === 0 && Array.isArray(resp.data)) {
+          const story = []
+          const avatar = []
+
+          for (const item of resp.data) {
+            const name = item?.name || '未命名作品'
+            const rawCover = String(item?.coverUrl || '').trim().replace(/^`+|`+$/g, '')
+            const isUrl = /^https?:\/\//i.test(rawCover)
+            const thumb = isUrl ? rawCover : generateGradientPlaceholder(300, 200, '667eea', '764ba2', name)
+
+            const mapped = {
+              id: item?.id,
+              name,
+              createdAt: item?.createdAt || '',
+              thumbnail: thumb,
+              type: item?.category === '数字人作品' ? 'avatar' : 'story'
+            }
+
+            if (item?.category === '数字人作品') {
+              avatar.push(mapped)
+            } else {
+              // 默认归入“故事/视频作品”
+              story.push(mapped)
+            }
+          }
+
+          this.storyProjects = story
+          this.avatarProjects = avatar
+        } else {
+          console.error('获取“我的空间”作品列表失败:', resp?.message)
+        }
+      } catch (e) {
+        console.error('获取“我的空间”作品列表错误:', e)
+      }
+    },
     setActiveTab(tabId) {
       this.activeTab = tabId
     },
@@ -91,9 +118,44 @@ export default {
     importProject() {
       // 实现导入项目逻辑
     },
-    openProject(project) {
-      // 跳转到项目详情页面
-      this.$router.push(`/project/${project.id}`)
+    async openProject(project) {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) {
+          console.warn('未登录，无法查询分镜图片详情')
+          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
+          return
+        }
+        // 查询分镜图片详情
+        const text = await getStoryboardImagesDetail({ videoId: project.id, token })
+        let resp = null
+        try { resp = JSON.parse(text) } catch (e) { console.warn('分镜详情返回JSON解析失败，将按文本处理') }
+        const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
+        const scenes = list.map((item, idx) => {
+          const content = (item && item.scene_script && item.scene_script.content) || {}
+          const title = content.shot_title || item.scene_number || `分镜${idx + 1}`
+          const descParts = []
+          if (content.visual_description) descParts.push(content.visual_description)
+          if (content.camera_direction) descParts.push(`机位：${content.camera_direction}`)
+          if (content.dialogue_or_narration) descParts.push(`旁白：${content.dialogue_or_narration}`)
+          const rawUrl = String(item.reference_image_url || '').trim()
+          const cleanedUrl = rawUrl.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
+          return {
+            id: idx + 1,
+            title,
+            description: descParts.join(' | '),
+            thumbnail: cleanedUrl
+          }
+        })
+        try {
+          localStorage.setItem(`video-edit:scenes:${project.id}`, JSON.stringify(scenes))
+          localStorage.setItem(`project:prompt:${project.id}`, String(project.name || ''))
+        } catch (e) { console.warn('保存编辑页场景失败:', e) }
+      } catch (e) {
+        console.error('查询分镜图片详情失败:', e)
+      }
+      // 跳转到视频编辑页面
+      this.$router.push(`/video-edit/${project.id}`)
     },
     editProject(project) {
       // 实现编辑项目逻辑

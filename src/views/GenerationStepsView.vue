@@ -176,10 +176,11 @@ export default {
       try {
         localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(scenes))
       } catch (e) { console.warn('保存编辑页场景失败:', e) }
-      // 流式完成后，立即跳转到视频编辑页
       if (this.progressTimer) clearInterval(this.progressTimer)
       if (this.stepTimer) clearTimeout(this.stepTimer)
-      this.$router.push(`/video-edit/${projectId}`)
+      const dest = `/video-edit/${projectId}`
+      try { window.history.replaceState({ replaced: true }, '', dest) } catch (e) { /* noop */ }
+      this.$router.replace(dest)
     },
     normalizeStoryboardPicture(sb) {
       const container = Array.isArray(sb) ? sb[0] : sb

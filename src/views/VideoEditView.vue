@@ -116,7 +116,7 @@
 
             <!-- 图片展示 -->
             <div class="image-container">
-              <img :src="scenes[activeSceneIndex]?.thumbnail || '/logo.png'" alt="分镜图片" class="scene-image" />
+              <img :src="scenes[activeSceneIndex]?.thumbnail || ''" alt="分镜图片" class="scene-image" />
             </div>
 
             <!-- 底部操作按钮 -->
@@ -316,12 +316,12 @@
         <!-- 画布编辑和对口型 -->
         <div class="edit-controls">
           <button class="control-btn active" @click="toggleCanvasEditMode">
-            <!-- <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
               <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
               <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2"/>
-            </svg> -->
-            裁剪分镜
+            </svg>
+            画布编辑
           </button>
           <button class="control-btn" @click="toggleLipSyncView">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -337,13 +337,6 @@
         <div class="video-preview">
           <div class="video-container">
             <img :src="currentPreviewUrl" :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" />
-            <!-- <div class="video-overlay">
-              <button class="play-button">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <polygon points="5,3 19,12 5,21" fill="currentColor"/>
-                </svg>
-              </button>
-            </div> -->
           </div>
         </div>
 
@@ -358,9 +351,9 @@
               </svg>
             </button>
             <div class="time-display">
-              <span class="current-time">00:03</span>
+              <span class="current-time">{{ currentTimeText }}</span>
               <span class="separator">/</span>
-              <span class="total-time">00:22</span>
+              <span class="total-time">{{ totalTimeText }}</span>
             </div>
             <button class="expand-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -385,8 +378,10 @@
 
             <!-- 时间刻度 -->
             <div class="time-scale">
-              <div class="time-marker" v-for="time in timeMarkers" :key="time">
-                <span class="time-text">{{ time }}</span>
+              <div class="time-scale-inner">
+                <div class="time-marker" v-for="time in timeMarkers" :key="time">
+                  <span class="time-text">{{ time }}</span>
+                </div>
               </div>
             </div>
 
@@ -409,7 +404,7 @@
                     <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
                     <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2"/>
                   </svg>
-                  <span class="track-title">{{ scene.title }}</span>
+                  <span class="track-title">分镜{{ index + 1 }}</span>
                   
                   <!-- 操作按钮 -->
                   <div class="track-actions">
@@ -437,8 +432,14 @@
                   </div>
                 </div>
                 <div class="track-clips" @click="selectScene(index)">
-                  <div v-for="n in 5" :key="n" class="scene-clip" :class="{ active: index === activeSceneIndex }">
-                    <img :src="scene.thumbnail" :alt="scene.title" class="clip-thumbnail" />
+                  <div
+                    v-for="(clip, cidx) in getSceneClips(scene)"
+                    :key="cidx"
+                    class="scene-clip"
+                    :class="{ active: index === activeSceneIndex }"
+                    :style="getClipStyle(scene, clip)"
+                  >
+                    <img :src="clip.url || scene.thumbnail" :alt="'分镜' + (index + 1)" class="clip-thumbnail" />
                   </div>
                 </div>
                 <div class="track-audio">
@@ -472,7 +473,7 @@
             </div>
 
             <!-- 播放进度指示器 -->
-            <div class="playback-indicator" :style="{ left: playbackPosition + '%' }"></div>
+            <div class="playback-indicator" :style="{ left: playbackLeftPx + 'px' }"></div>
           </div>
         </div>
       </div>
@@ -492,6 +493,8 @@
 <script>
 import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
+import { getScriptDetailByVideo } from '@/api'
+import { useUserStore } from '@/stores/user'
 
 export default {
   name: 'VideoEditView',
@@ -501,36 +504,18 @@ export default {
   },
   data() {
     return {
-      projectTitle: 'Hello Kitty动画记',
+      projectTitle: '',
       activeTab: 'image',
       sceneInput: '',
       subtitleEnabled: true,
       activeSceneIndex: 2,
       playbackPosition: 15, // 播放进度百分比
-      timeMarkers: ['00:00', '00:05', '00:10', '00:15', '00:20'],
-      scenes: [
-        {
-          id: 1,
-          title: '分镜1',
-          description: '画面1：卡通、小猫、白色和粉色、可爱的表情为主色调，主体：全身，正面一个，坐着一个小猫咪的房子',
-          thumbnail: '/logo.png'
-        },
-        {
-          id: 2,
-          title: '分镜2',
-          description: '画面2：小猫在房间里玩耍',
-          thumbnail: '/logo.png'
-        },
-        {
-          id: 3,
-          title: '分镜3',
-          description: '画面3：小猫和朋友们一起',
-          thumbnail: '/logo.png'
-        }
-      ],
+      playbackLeftPx: 0, // 红色指针在时间轴中的像素位置
+      timeMarkers: [],
+      scenes: [],
       draggedIndex: null,
       // 配音相关数据
-      voiceScript: '很久很久以前，玉皇大帝要选十二位守护神。',
+      voiceScript: '',
       voiceGender: '女性',
       voiceAge: '中年',
       voiceStyle: '普通话',
@@ -546,7 +531,7 @@ export default {
       isPromptExpanded: true,
       isEditingPrompt: false,
       editingPromptText: '',
-      originalPromptContent: '画面1：卡通、小猫、白色和粉色、可爱的表情为主色调，主体：全身，正面一个，坐着一个小猫咪的房子',
+      originalPromptContent: '',
       // 画布编辑模式
       isCanvasEditMode: false,
       // 对口型页面显示状态
@@ -562,6 +547,7 @@ export default {
         if (Array.isArray(parsed) && parsed.length) {
           this.scenes = parsed
           this.activeSceneIndex = 0
+          this.updateTimeMarkers()
         }
       }
       // 解析原始分镜，生成包含clips的场景数据
@@ -572,6 +558,7 @@ export default {
         if (Array.isArray(scenesFromRaw) && scenesFromRaw.length) {
           this.scenes = scenesFromRaw
           this.activeSceneIndex = 0
+          this.updateTimeMarkers()
         }
       }
       const title = localStorage.getItem(`project:prompt:${projectId}`)
@@ -579,14 +566,46 @@ export default {
     } catch (e) {
       console.warn('读取分镜场景或标题失败:', e)
     }
+    // 同步时间刻度与轨道的水平滚动
+    this.$nextTick(() => {
+      const tracks = this.$el && this.$el.querySelector('.timeline-tracks')
+      const scaleInner = this.$el && this.$el.querySelector('.time-scale-inner')
+      if (tracks && scaleInner) {
+        const sync = () => {
+          // 让时间刻度随轨道左右滑动
+          scaleInner.style.transform = `translateX(${-tracks.scrollLeft}px)`
+          // 根据滚动修正指针的可见位置
+          const pxPerSecond = this.getPxPerSecond()
+          const elapsedSec = (this.playbackPosition / 100) * (this.scenes.length * 5)
+          const absolutePx = elapsedSec * pxPerSecond
+          this.playbackLeftPx = tracks.offsetLeft + absolutePx - tracks.scrollLeft
+        }
+        tracks.addEventListener('scroll', sync)
+        // 初始化一次
+        sync()
+      }
+    })
   },
   computed: {
+    userStore() {
+      return useUserStore()
+    },
     currentPreviewUrl() {
       const scene = this.scenes[this.activeSceneIndex]
       if (!scene) return '/logo.png'
       const clips = this.getSceneClips(scene)
       const first = clips && clips.length ? clips[0] : null
       return (first && first.url) || scene.thumbnail || '/logo.png'
+    },
+    // 动态时间显示：当前播放时间和总时长
+    currentTimeText() {
+      const totalSeconds = (Array.isArray(this.scenes) ? this.scenes.length : 0) * 5
+      const currentSeconds = Math.round((Number(this.playbackPosition) || 0) / 100 * totalSeconds)
+      return this.formatTime(currentSeconds)
+    },
+    totalTimeText() {
+      const totalSeconds = (Array.isArray(this.scenes) ? this.scenes.length : 0) * 5
+      return this.formatTime(totalSeconds)
     }
   },
   methods: {
@@ -603,28 +622,40 @@ export default {
       const dur = base + len * perChar
       return Math.max(1500, Math.min(10000, dur))
     },
+    // 读取每秒对应的像素宽度（与CSS变量保持一致）
+    getPxPerSecond() {
+      const section = this.$el && this.$el.querySelector('.timeline-section')
+      if (!section) return 48
+      const val = getComputedStyle(section).getPropertyValue('--px-per-second') || '48px'
+      const num = parseFloat(val)
+      return Number.isFinite(num) ? num : 48
+    },
+    // 将秒格式化为 mm:ss
+    formatTime(seconds) {
+      const s = Math.max(0, Math.floor(Number(seconds) || 0))
+      const mm = String(Math.floor(s / 60)).padStart(2, '0')
+      const ss = String(s % 60).padStart(2, '0')
+      return `${mm}:${ss}`
+    },
     // 解析原始分镜，生成包含clips的场景结构
     parseStoryboardRawToScenes(raw) {
       const scenes = []
       try {
         if (Array.isArray(raw)) {
           // 形如 [{ scene_id, scene_title, shots: [...] }, ...]
-          raw.forEach((rec, idx) => {
-            const title = rec.scene_title || `分镜${idx + 1}`
+          let id = 1
+          raw.forEach((rec) => {
             const shots = Array.isArray(rec.shots) ? rec.shots : []
-            const clips = []
             shots.forEach(shot => {
               const url = this.cleanUrl(shot.scene_picture || '')
               if (!url) return
-              const dur = shot.duration_ms || shot.duration || this.estimateDurationMs(shot.dialogue_or_narration || '')
-              clips.push({ url, durationMs: Number(dur) || 3000 })
+              const descParts = []
+              if (shot.shot_title) descParts.push(shot.shot_title)
+              if (shot.visual_description) descParts.push(shot.visual_description)
+              const description = descParts.length ? descParts.join('：') : '暂无描述'
+              // 每张图片一个分镜，统一5秒
+              scenes.push({ id: id++, title: `分镜${id - 1}`, description, thumbnail: url, clips: [{ url, durationMs: 5000 }] })
             })
-            const firstShot = shots[0] || {}
-            const descParts = []
-            if (firstShot.shot_title) descParts.push(firstShot.shot_title)
-            if (firstShot.visual_description) descParts.push(firstShot.visual_description)
-            const description = descParts.length ? descParts.join('：') : '暂无描述'
-            scenes.push({ id: idx + 1, title, description, thumbnail: clips[0]?.url || '/logo.png', clips })
           })
         } else if (raw && typeof raw === 'object') {
           // 形如 { scene_1: { shot_1_1: {...}, shot_1_2: {...}, scene_title: ... }, ... }
@@ -636,7 +667,6 @@ export default {
           let id = 1
           for (const key of sceneKeys) {
             const s = raw[key] || {}
-            const title = s.scene_title || `分镜${id}`
             let shots = []
             if (Array.isArray(s.shots)) {
               shots = s.shots
@@ -648,19 +678,15 @@ export default {
               })
               shots = shotKeys.map(k => s[k] || {}).filter(x => x)
             }
-            const clips = []
             shots.forEach(shot => {
               const url = this.cleanUrl(shot.scene_picture || '')
               if (!url) return
-              const dur = shot.duration_ms || shot.duration || this.estimateDurationMs(shot.dialogue_or_narration || '')
-              clips.push({ url, durationMs: Number(dur) || 3000 })
+              const descParts = []
+              if (shot.shot_title) descParts.push(shot.shot_title)
+              if (shot.visual_description) descParts.push(shot.visual_description)
+              const description = descParts.length ? descParts.join('：') : '暂无描述'
+              scenes.push({ id: id++, title: `分镜${id - 1}`, description, thumbnail: url, clips: [{ url, durationMs: 5000 }] })
             })
-            const firstShot = shots[0] || {}
-            const descParts = []
-            if (firstShot.shot_title) descParts.push(firstShot.shot_title)
-            if (firstShot.visual_description) descParts.push(firstShot.visual_description)
-            const description = descParts.length ? descParts.join('：') : '暂无描述'
-            scenes.push({ id: id++, title, description, thumbnail: clips[0]?.url || '/logo.png', clips })
           }
         }
       } catch (e) {
@@ -670,9 +696,24 @@ export default {
     },
     // 返回场景的clips，若无则回退到单一缩略图
     getSceneClips(scene) {
-      if (scene && Array.isArray(scene.clips) && scene.clips.length) return scene.clips
-      const url = this.cleanUrl(scene?.thumbnail || '')
-      return url ? [{ url, durationMs: 3000 }] : []
+      // 将单个图片分镜拆分为若干小片段，在5秒内重复排列
+      let baseUrl = ''
+      let duration = 0
+      if (scene && Array.isArray(scene.clips) && scene.clips.length) {
+        const first = scene.clips[0]
+        baseUrl = this.cleanUrl(first?.url || scene.thumbnail || '')
+        duration = Number(first?.durationMs) || 5000
+      } else {
+        baseUrl = this.cleanUrl(scene?.thumbnail || '')
+        duration = 3000
+      }
+      if (!baseUrl) return []
+      // 每秒2张缩略图，总计10张以覆盖5秒
+      const perSecondFrames = 2
+      const totalSeconds = Math.max(1, Math.round(duration / 1000))
+      const frames = Math.max(1, totalSeconds * perSecondFrames)
+      const seg = Math.max(250, Math.round(duration / frames))
+      return Array.from({ length: frames }, () => ({ url: baseUrl, durationMs: seg }))
     },
     // 基于时长计算片段在轨的宽度百分比
     getClipStyle(scene, clip) {
@@ -681,8 +722,33 @@ export default {
       const widthPct = Math.max(2, Math.round(((Number(clip.durationMs) || 3000) / total) * 100))
       return { width: widthPct + '%', minWidth: '28px' }
     },
-    goBack() {
+    // 根据分镜数量生成时间刻度（每1秒一个刻度）
+    updateTimeMarkers() {
+      const totalSeconds = (Array.isArray(this.scenes) ? this.scenes.length : 0) * 5
+      const markers = []
+      for (let s = 0; s <= totalSeconds; s += 5) {
+        const mm = String(Math.floor(s / 60)).padStart(2, '0')
+        const ss = String(s % 60).padStart(2, '0')
+        markers.push(`${mm}:${ss}`)
+      }
+      this.timeMarkers = markers
+    },
+    async goBack() {
       const projectId = this.$route.params.id
+      const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+      const token = (this.userStore && this.userStore.token) || ''
+      if (token) {
+        try {
+          const text = await getScriptDetailByVideo({ videoId, token })
+          try {
+            localStorage.setItem(`project:script_detail_json:${projectId}`, text)
+          } catch (e) {
+            console.warn('保存剧本详情失败:', e)
+          }
+        } catch (e) {
+          console.error('查询剧本详情失败:', e)
+        }
+      }
       this.$router.push(`/project/${projectId}`)
     },
     saveTitle() {
@@ -690,6 +756,22 @@ export default {
     },
     selectScene(index) {
       this.activeSceneIndex = index
+      // 将指针与预览时间同步到所选分镜的起始处（每个分镜=5秒）
+      const totalScenes = Array.isArray(this.scenes) ? this.scenes.length : 0
+      const totalSeconds = totalScenes * 5
+      if (totalScenes > 0 && totalSeconds > 0) {
+        const targetSec = index * 5
+        // 更新播放进度百分比供时间显示使用
+        this.playbackPosition = (targetSec / totalSeconds) * 100
+        // 计算指针像素位置，考虑滚动与容器偏移
+        const pxPerSecond = this.getPxPerSecond()
+        const section = this.$el && this.$el.querySelector('.timeline-section')
+        const tracks = section && section.querySelector('.timeline-tracks')
+        if (tracks) {
+          const absolutePx = targetSec * pxPerSecond
+          this.playbackLeftPx = tracks.offsetLeft + absolutePx - tracks.scrollLeft
+        }
+      }
     },
     togglePlay() {
       if (this.isPlaying) {
@@ -702,31 +784,46 @@ export default {
     startPlayback() {
       if (!Array.isArray(this.scenes) || this.scenes.length === 0) return
       this.isPlaying = true
-      // 总时长（毫秒）：每个分镜5秒
+      // 每个分镜固定5秒，总时长为分镜数*5秒
       const stepMs = 5000
       const totalMs = this.scenes.length * stepMs
-      const start = Date.now()
-      // 清理旧的定时器
+      const start = performance.now()
+      // 清理旧的定时器/动画帧
       if (this._playbackInterval) clearInterval(this._playbackInterval)
-      this._playbackInterval = setInterval(() => {
-        const elapsed = Date.now() - start
+      if (this._rafId) cancelAnimationFrame(this._rafId)
+      const tick = (now) => {
+        if (!this.isPlaying) return
+        const elapsed = now - start
         const clamped = Math.min(elapsed, totalMs)
-        const percent = Math.round((clamped / totalMs) * 100)
-        this.playbackPosition = percent
-        // 根据已过时间设置当前分镜索引
+        this.playbackPosition = (clamped / totalMs) * 100
         const idx = Math.min(Math.floor(clamped / stepMs), this.scenes.length - 1)
         if (idx !== this.activeSceneIndex) this.activeSceneIndex = idx
-        // 到末尾自动停止
+        // 根据统一比例更新指针像素位置
+        const pxPerSecond = this.getPxPerSecond()
+        const section = this.$el && this.$el.querySelector('.timeline-section')
+        const tracks = section && section.querySelector('.timeline-tracks')
+        if (tracks && section) {
+          const elapsedSec = clamped / 1000
+          const absolutePx = elapsedSec * pxPerSecond
+          this.playbackLeftPx = tracks.offsetLeft + absolutePx - tracks.scrollLeft
+        }
         if (clamped >= totalMs) {
           this.stopPlayback()
+          return
         }
-      }, 200)
+        this._rafId = requestAnimationFrame(tick)
+      }
+      this._rafId = requestAnimationFrame(tick)
     },
     stopPlayback() {
       this.isPlaying = false
       if (this._playbackInterval) {
         clearInterval(this._playbackInterval)
         this._playbackInterval = null
+      }
+      if (this._rafId) {
+        cancelAnimationFrame(this._rafId)
+        this._rafId = null
       }
     },
     // 图片提示词相关方法
@@ -1010,6 +1107,7 @@ export default {
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0; /* 防止被右侧内容挤压 */
   position: relative; /* 为绝对定位的输入框提供定位上下文 */
   height: 100%; /* 确保面板占满高度 */
 }
@@ -1366,6 +1464,8 @@ export default {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0; /* 允许内容在容器内收缩，避免挤压左侧 */
+  overflow: hidden; /* 右侧自身不溢出，内部控件自行滚动 */
   padding: 20px;
 }
 
@@ -1539,6 +1639,10 @@ export default {
 /* 时间轴区域 */
 .timeline-section {
   position: relative;
+  /* 每秒对应的像素宽度，用于控制时间轴比例 */
+  --px-per-second: 48px;
+  /* 分镜卡片之间的水平间距（置零） */
+  --timeline-track-gap: 0px;
 }
 
 .timeline-header {
@@ -1600,10 +1704,19 @@ input:checked + .slider:before {
 }
 
 .time-scale {
-  display: flex;
-  justify-content: space-between;
+  position: relative;
   margin-bottom: 12px;
   padding: 0 8px;
+  overflow: hidden; /* 内层容器随滚动平移 */
+}
+
+.time-scale-inner {
+  display: flex;
+  flex-wrap: nowrap; /* 单行 */
+  white-space: nowrap;
+  gap: calc(var(--px-per-second) * 4.41); /* 刻度间隔=5秒宽度+分镜间距 */
+  will-change: transform;
+  transform: translateX(0);
 }
 
 .time-marker {
@@ -1613,16 +1726,37 @@ input:checked + .slider:before {
 
 .timeline-tracks {
   display: flex;
-  gap: 12px;
+  gap: 0;
   position: relative;
-  overflow-x: auto;
+  overflow-x: scroll; /* 显示横向滚动条 */
+  overflow-y: hidden; /* 仅横向滚动 */
+  scrollbar-width: thin; /* Firefox 显示细滚动条 */
+  scrollbar-color: #cbd5e1 #f1f5f9; /* Firefox 滚动条颜色 */
   padding: 8px 0;
+}
+
+.timeline-tracks::-webkit-scrollbar {
+  height: 8px;
+}
+.timeline-tracks::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.timeline-tracks::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.timeline-tracks::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .timeline-track {
   display: flex;
   flex-direction: column;
-  min-width: 200px;
+  /* 每个分镜固定占用5秒宽度 */
+  flex: 0 0 calc(var(--px-per-second) * 5);
+  width: calc(var(--px-per-second) * 5);
+  min-width: calc(var(--px-per-second) * 5);
   background: #f9fafb;
   border-radius: 6px;
   border: 1px solid #e5e7eb;
@@ -1691,7 +1825,7 @@ input:checked + .slider:before {
 
 .track-clips {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap; /* 单行显示，水平滚动 */
   gap: 2px;
   padding: 8px;
   min-height: 60px;
@@ -1722,7 +1856,8 @@ input:checked + .slider:before {
 .clip-thumbnail {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain; /* 完整显示缩略图 */
+  background: #fff;
 }
 
 .track-audio {
@@ -1781,6 +1916,8 @@ input:checked + .slider:before {
   z-index: 10;
   pointer-events: none;
   left: 15%;
+  transition: left 0.15s linear;
+  will-change: left;
 }
 
 .playback-indicator::before {
