@@ -155,7 +155,7 @@
         <div class="action-buttons" v-show="!isSubmitting">
           <!-- <button class="action-btn save-script">保存剧本</button>
           <button class="action-btn add-scene">添加场景</button> -->
-          <button class="action-btn generate-video" @click="generateVideo">生成分镜</button>
+          <button class="action-btn generate-video" @click="generateVideo" :disabled="!allImagesReady">生成分镜</button>
         </div>
       </div>
 
@@ -183,6 +183,7 @@
 <script>
 import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo } from '@/api'
 import { useUserStore } from '@/stores/user'
+import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
 export default {
   name: 'ProjectDetailView',
   data() {
@@ -232,6 +233,26 @@ export default {
   computed: {
     userStore() {
       return useUserStore()
+    }
+    ,
+    allImagesReady() {
+      try {
+        const scenes = Array.isArray(this.generated?.scenes) ? this.generated.scenes : []
+        const people = Array.isArray(this.generated?.people) ? this.generated.people : []
+        const expectAny = scenes.length > 0 || people.length > 0
+        if (!expectAny) return false
+        const sceneOk = scenes.every(s => {
+          const u = this.cleanUrl(s?.Scene_picture_url || '')
+          return !!u && !this.isGenerateFailed(u)
+        })
+        const peopleOk = people.every(p => {
+          const u = this.cleanUrl(p?.Character_picture || '')
+          return !!u && !this.isGenerateFailed(u)
+        })
+        return sceneOk && peopleOk
+      } catch (e) {
+        return false
+      }
     }
   },
   methods: {
@@ -292,15 +313,16 @@ export default {
         this.isSubmitting = false
       }
     },
+    // 代理到通用工具，方便其他页面统一复用
     cleanUrl(u) {
-      const str = (u || '').toString()
-      return str.replace(/`/g, '').trim()
+      return cleanUrlUtil(u)
     },
     // 接口生成失败检测：包含“失败/fail/error”则视为失败
     isGenerateFailed(u) {
-      const s = (u || '').toString().trim()
-      if (!s) return false // 空不视为失败，仅当接口明确返回失败信息时显示占位
-      return /失败|fail|error/i.test(s)
+      return isGenerateFailedUtil(u)
+    },
+    shouldRenderImage(u) {
+      return shouldRenderImageUtil(u)
     },
     // 简易 Markdown 渲染：加粗与段落换行
     renderMarkdown(text) {
@@ -349,13 +371,21 @@ export default {
           console.warn('未获取到 generateUuid，无法查询结果', resp)
           return
         }
-        const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
-        const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
-        if (url) {
-          s.Scene_picture_url = url
-        } else {
-          console.warn('查询接口未返回图片地址', q)
+        // 每5秒轮询一次查询接口，直到拿到图片地址
+        const poll = async () => {
+          try {
+            const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
+            const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
+            if (url) {
+              s.Scene_picture_url = url
+              try { clearInterval(intervalId) } catch (e) { /* no-op */ }
+            }
+          } catch (e) {
+            console.warn('查询重生成场景图片失败:', e)
+          }
         }
+        const intervalId = setInterval(poll, 5000)
+        await poll()
       } catch (e) {
         console.warn('重新生成场景图片失败:', e)
       }
@@ -377,13 +407,21 @@ export default {
           console.warn('未获取到 generateUuid，无法查询结果', resp)
           return
         }
-        const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
-        const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
-        if (url) {
-          p.Character_picture = url
-        } else {
-          console.warn('查询接口未返回图片地址', q)
+        // 每5秒轮询一次查询接口，直到拿到图片地址
+        const poll = async () => {
+          try {
+            const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
+            const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
+            if (url) {
+              p.Character_picture = url
+              try { clearInterval(intervalId) } catch (e) { /* no-op */ }
+            }
+          } catch (e) {
+            console.warn('查询重生成人物图片失败:', e)
+          }
         }
+        const intervalId = setInterval(poll, 5000)
+        await poll()
       } catch (e) {
         console.warn('重新生成人物图片失败:', e)
       }
@@ -405,8 +443,25 @@ export default {
           this.project.contentSummary = o.Script_Summary
         }
         if (o.Storyboard) {
-          const sb = o.Storyboard.Storyboard || o.Storyboard
-          this.generated.storyboard = Array.isArray(sb) ? sb : []
+          // 兼容返回结构：可能为{ scene_id, scene_title, shots, Storyboard:[...] }或纯数组
+          const raw = o.Storyboard
+          let scenes = []
+          if (Array.isArray(raw)) {
+            scenes = raw
+          } else if (raw && typeof raw === 'object') {
+            // 外层自身有一个场景
+            if (Array.isArray(raw.shots) && raw.shots.length) {
+              scenes.push({
+                scene_title: raw.scene_title || raw.scene_id || '未命名场景',
+                shots: raw.shots
+              })
+            }
+            // 内层 Storyboard 列表再追加
+            if (Array.isArray(raw.Storyboard)) {
+              scenes.push(...raw.Storyboard)
+            }
+          }
+          this.generated.storyboard = scenes
         }
         if (o.people) {
           this.generated.people = o.people
@@ -556,23 +611,8 @@ export default {
           this.applyParsedData([dataObj])
         }
       } else {
-        // 无缓存时回退调用接口
-        const token = (this.userStore && this.userStore.token) || ''
-        if (token) {
-          try {
-            const text = await getScriptDetailByVideo({ videoId: this.videoId || projectId, token })
-            let obj = null
-            try { obj = JSON.parse(text) } catch (e) { console.warn('剧本详情接口返回解析失败:', e) }
-            const dataObj = obj && obj.data ? obj.data : obj
-            if (dataObj) {
-              try { localStorage.setItem(`project:script_detail_json:${projectId}`, text) } catch (e) { /* no-op */ }
-              if (dataObj.title) this.project.title = dataObj.title
-              this.applyParsedData([dataObj])
-            }
-          } catch (e) {
-            console.error('获取剧本详情失败:', e)
-          }
-        }
+        // 不再自动调用 byVideo 接口，改为仅在 VideoEditView 的返回按钮触发并写入缓存
+        console.info('ProjectDetailView: 未找到剧本详情缓存，暂不调用 byVideo 接口')
       }
     } catch (e) {
       console.warn('读取生成内容失败:', e)
@@ -1066,6 +1106,11 @@ export default {
 
 .action-btn.generate-video:hover {
   background: #e9ecef;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .input-section {

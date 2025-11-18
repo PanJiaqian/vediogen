@@ -26,7 +26,7 @@
         </div>
         <div class="project-info">
           <h3 class="project-name">{{ project.name }}</h3>
-          <p class="project-date">{{ project.createdAt }}</p>
+          <p class="project-date">{{ formatDateTime(project.createdAt) }}</p>
         </div>
       </div>
     </div>
@@ -40,7 +40,7 @@
 
 <script>
 import { generateGradientPlaceholder } from '@/utils/placeholder'
-import { getMyWorksList, getStoryboardImagesDetail } from '@/api/index.js'
+import { getMyWorksList, getStoryboardImagesDetail, queryStoryboardVideoStatus } from '@/api/index.js'
 import { useUserStore } from '@/stores/user.js'
 
 export default {
@@ -82,7 +82,7 @@ export default {
             const name = item?.name || '未命名作品'
             const rawCover = String(item?.coverUrl || '').trim().replace(/^`+|`+$/g, '')
             const isUrl = /^https?:\/\//i.test(rawCover)
-            const thumb = isUrl ? rawCover : generateGradientPlaceholder(300, 200, '667eea', '764ba2', name)
+            const thumb = isUrl ? rawCover : generateGradientPlaceholder(300, 200, '667eea', '764ba2', '')
 
             const mapped = {
               id: item?.id,
@@ -122,39 +122,54 @@ export default {
       try {
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
-          console.warn('未登录，无法查询分镜图片详情')
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
+          console.warn('未登录，无法查询分镜状态')
+          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { console.warn('打开登录弹窗失败:', e) }
           return
         }
-        // 查询分镜图片详情
-        const text = await getStoryboardImagesDetail({ videoId: project.id, token })
-        let resp = null
-        try { resp = JSON.parse(text) } catch (e) { console.warn('分镜详情返回JSON解析失败，将按文本处理') }
-        const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
-        const scenes = list.map((item, idx) => {
-          const content = (item && item.scene_script && item.scene_script.content) || {}
-          const title = content.shot_title || item.scene_number || `分镜${idx + 1}`
-          const descParts = []
-          if (content.visual_description) descParts.push(content.visual_description)
-          if (content.camera_direction) descParts.push(`机位：${content.camera_direction}`)
-          if (content.dialogue_or_narration) descParts.push(`旁白：${content.dialogue_or_narration}`)
-          const rawUrl = String(item.reference_image_url || '').trim()
-          const cleanedUrl = rawUrl.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
-          return {
-            id: idx + 1,
-            title,
-            description: descParts.join(' | '),
-            thumbnail: cleanedUrl
-          }
-        })
+        try { localStorage.setItem(`project:videoId:${project.id}`, String(project.id)) } catch (e) { console.warn('保存视频ID失败:', e) }
+        let entryMode = 'canvas'
+        let scenes = []
         try {
+          const statusText = await queryStoryboardVideoStatus({ videoId: project.id, token })
+          let statusJson = null
+          try { statusJson = JSON.parse(statusText) } catch (e) { statusJson = null }
+          const items = statusJson && Array.isArray(statusJson.items) ? statusJson.items : []
+          const succeeded = items.filter(it => it && it.status === 'SUCCEEDED' && it.video_url)
+          if (succeeded.length) {
+            entryMode = 'crop'
+            scenes = succeeded.map((it, idx) => {
+              const url = String(it.video_url || '').trim()
+              return { id: idx + 1, title: `分镜${idx + 1}`, description: '分镜视频', thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number: it.scene_number }
+            })
+          }
+        } catch (e) { console.warn('查询分镜视频状态失败:', e) }
+        if (entryMode === 'canvas') {
+          try {
+            const text = await getStoryboardImagesDetail({ videoId: project.id, token })
+            let resp = null
+            try { resp = JSON.parse(text) } catch (e) { console.warn('分镜图片详情解析失败:', e) }
+            const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
+            scenes = list.map((item, idx) => {
+              const content = (item && item.scene_script && item.scene_script.content) || {}
+              const title = content.shot_title || item.scene_number || `分镜${idx + 1}`
+              const descParts = []
+              if (content.visual_description) descParts.push(content.visual_description)
+              if (content.camera_direction) descParts.push(`机位：${content.camera_direction}`)
+              if (content.dialogue_or_narration) descParts.push(`旁白：${content.dialogue_or_narration}`)
+              const rawUrl = String(item.reference_image_url || '').trim()
+              const cleanedUrl = rawUrl.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
+              return { id: idx + 1, title, description: descParts.join(' | '), thumbnail: cleanedUrl, scene_number: item.scene_number }
+            })
+          } catch (e) { console.warn('查询分镜图片详情失败:', e) }
+        }
+        try {
+          localStorage.setItem(`video-edit:entryMode:${project.id}`, entryMode)
           localStorage.setItem(`video-edit:scenes:${project.id}`, JSON.stringify(scenes))
           localStorage.setItem(`project:prompt:${project.id}`, String(project.name || ''))
-        } catch (e) { console.warn('保存编辑页场景失败:', e) }
+        } catch (e) { console.warn('保存编辑页数据失败:', e) }
       } catch (e) {
-        console.error('查询分镜图片详情失败:', e)
+        console.error('打开项目失败:', e)
       }
-      // 跳转到视频编辑页面
       this.$router.push(`/video-edit/${project.id}`)
     },
     editProject(project) {
@@ -180,6 +195,21 @@ export default {
         month: 'short',
         day: 'numeric'
       })
+    },
+    formatDateTime(str) {
+      const s = String(str || '').trim()
+      const d = new Date(s)
+      if (!isNaN(d.getTime())) {
+        const pad = n => String(n).padStart(2, '0')
+        const y = d.getFullYear()
+        const m = pad(d.getMonth() + 1)
+        const dd = pad(d.getDate())
+        const hh = pad(d.getHours())
+        const mm = pad(d.getMinutes())
+        const ss = pad(d.getSeconds())
+        return `${y}-${m}-${dd} ${hh}:${mm}:${ss}`
+      }
+      return s
     }
   }
 }
@@ -274,11 +304,15 @@ export default {
 }
 
 .project-name {
-  font-size: 16px;
-  font-weight: 500;
-  color: #212529;
-  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 6px;
   line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .project-meta {
@@ -329,3 +363,7 @@ export default {
   }
 }
 </style>
+.project-date {
+  font-size: 12px;
+  color: #6b7280;
+}

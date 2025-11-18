@@ -4,7 +4,7 @@
     <div v-if="message.show" :class="['message-toast', message.type]">{{ message.text }}</div>
     <!-- 主要内容区域 -->
     <div class="home-content">
-      <h1 class="main-title">今天有什么可以帮到您？</h1>
+      <h1 class="main-title">今天有什么新灵感？</h1>
       <!-- 功能标签 -->
       <div class="feature-tags">
         <button class="feature-tag" :class="{ active: activeFeature === 'script' }" @click="setActiveFeature('script')">

@@ -5,19 +5,15 @@
       <div class="navbar-left">
         <button class="back-btn" @click="goBack">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
           </svg>
         </button>
-        <input
-          v-model="projectTitle"
-          class="project-title-input"
-          @blur="saveTitle"
-          @keyup.enter="saveTitle"
-        />
+        <input v-model="projectTitle" class="project-title-input" @blur="saveTitle" @keyup.enter="saveTitle" />
       </div>
       <div class="navbar-right">
         <button class="navbar-btn premium-btn">开通会员</button>
-        <button class="navbar-btn convert-btn">一键转视频</button>
+        <button class="navbar-btn convert-btn" @click="convertToVideo" :disabled="!allImagesReady">一键转视频</button>
         <button class="navbar-btn export-btn">导出视频</button>
       </div>
     </div>
@@ -29,9 +25,9 @@
         <div class="tab-item" :class="{ active: activeTab === 'image' }" @click="activeTab = 'image'">
           <div class="tab-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2"/>
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
             </svg>
           </div>
           <span class="tab-label">画面</span>
@@ -39,8 +35,9 @@
         <div class="tab-item" :class="{ active: activeTab === 'voice' }" @click="activeTab = 'voice'">
           <div class="tab-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2"/>
-              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2"/>
+              <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
+                stroke-width="2" />
             </svg>
           </div>
           <span class="tab-label">配音</span>
@@ -67,28 +64,33 @@
               <div class="prompt-header">
                 <div class="prompt-icon">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2"/>
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
                   </svg>
                 </div>
                 <span class="prompt-title">图片提示词</span>
                 <div class="prompt-actions">
                   <button class="action-btn edit-btn" @click="editPrompt" title="编辑提示词">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2"/>
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor"
+                        stroke-width="2" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor"
+                        stroke-width="2" />
                     </svg>
                   </button>
                   <button class="action-btn copy-btn" @click="copyPrompt" title="复制提示词">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor"
+                        stroke-width="2" />
                     </svg>
                   </button>
-                  <button class="action-btn more-btn" @click="togglePromptExpansion" :title="isPromptExpanded ? '收缩提示词' : '展开提示词'">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" :style="{ transform: isPromptExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }">
-                      <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2"/>
+                  <button class="action-btn more-btn" @click="togglePromptExpansion"
+                    :title="isPromptExpanded ? '收缩提示词' : '展开提示词'">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      :style="{ transform: isPromptExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }">
+                      <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" />
                     </svg>
                   </button>
                 </div>
@@ -100,12 +102,8 @@
                 <p v-if="!isEditingPrompt">{{ scenes[activeSceneIndex]?.description || '暂无描述' }}</p>
                 <!-- 编辑模式 -->
                 <div v-else class="prompt-edit-container">
-                  <textarea
-                    v-model="editingPromptText"
-                    class="prompt-edit-input"
-                    placeholder="请输入图片提示词..."
-                    @keyup.enter.ctrl="savePromptEdit"
-                  ></textarea>
+                  <textarea v-model="editingPromptText" class="prompt-edit-input" placeholder="请输入图片提示词..."
+                    @keyup.enter.ctrl="savePromptEdit"></textarea>
                   <div class="prompt-edit-actions">
                     <button class="prompt-edit-btn save-btn" @click="savePromptEdit">保存</button>
                     <button class="prompt-edit-btn cancel-btn" @click="cancelPromptEdit">取消</button>
@@ -116,29 +114,34 @@
 
             <!-- 图片展示 -->
             <div class="image-container">
-              <img :src="scenes[activeSceneIndex]?.thumbnail || ''" alt="分镜图片" class="scene-image" />
+              <video v-if="isVideo(currentPreviewUrl)"
+                     :src="cleanUrl(currentPreviewUrl)"
+                     class="scene-image" playsinline muted loop controls></video>
+              <img v-else-if="shouldRenderImage(currentPreviewUrl)"
+                     :src="cleanUrl(currentPreviewUrl)"
+                     alt="分镜图片" class="scene-image" />
             </div>
 
             <!-- 底部操作按钮 -->
             <div class="bottom-actions">
               <button class="bottom-btn download-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2"/>
-                  <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2"/>
-                  <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2"/>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" />
+                  <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" />
+                  <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" />
                 </svg>
                 下载
               </button>
               <button class="bottom-btn apply-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <polyline points="20,6 9,17 4,12" stroke="currentColor" stroke-width="2"/>
+                  <polyline points="20,6 9,17 4,12" stroke="currentColor" stroke-width="2" />
                 </svg>
                 应用
               </button>
-              <button class="bottom-btn regenerate-btn">
+              <button v-if="!isVideo(currentPreviewUrl)" class="bottom-btn regenerate-btn" @click="handleRegenerateActiveScene">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2"/>
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2"/>
+                  <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
                 </svg>
                 重新生成
               </button>
@@ -148,14 +151,10 @@
           <!-- 固定的输入框区域 -->
           <div class="input-section">
             <div class="input-container">
-              <textarea
-                v-model="sceneInput"
-                class="scene-input"
-                placeholder="输入你想要对当前画面修改的内容"
-              ></textarea>
+              <textarea v-model="sceneInput" class="scene-input" placeholder="输入你想要对当前画面修改的内容"></textarea>
               <div class="input-actions">
                 <button class="input-action-btn send-btn">
-            ↑
+                  ↑
                 </button>
               </div>
             </div>
@@ -168,7 +167,7 @@
                 <span class="input-count">1</span>
                 <button class="input-arrow">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                    <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2"/>
+                    <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2" />
                   </svg>
                 </button>
               </div>
@@ -186,25 +185,22 @@
                 <span class="voice-script-title">画外音合词</span>
               </div>
               <div class="voice-script-container">
-                <textarea
-                  v-model="voiceScript"
-                  class="voice-script-input"
-                  placeholder="很久很久以前，玉皇大帝要举十二位守护神。"
-                ></textarea>
+                <textarea v-model="voiceScript" class="voice-script-input"
+                  placeholder="很久很久以前，玉皇大帝要举十二位守护神。"></textarea>
                 <div class="voice-script-controls">
                   <button class="voice-control-btn play-btn" @click="togglePlay">
                     <svg v-if="!isPlaying" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <polygon points="5,3 19,12 5,21" fill="currentColor"/>
+                      <polygon points="5,3 19,12 5,21" fill="currentColor" />
                     </svg>
                     <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <rect x="6" y="4" width="4" height="16" fill="currentColor"/>
-                      <rect x="14" y="4" width="4" height="16" fill="currentColor"/>
+                      <rect x="6" y="4" width="4" height="16" fill="currentColor" />
+                      <rect x="14" y="4" width="4" height="16" fill="currentColor" />
                     </svg>
                     {{ isPlaying ? '停止' : '试听' }}
                   </button>
                   <button class="voice-control-btn stop-btn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
                     </svg>
                     停顿
                   </button>
@@ -227,15 +223,17 @@
                   <div class="voice-type-selector">
                     <button class="voice-type-btn active">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" stroke="currentColor" stroke-width="2"/>
-                        <path d="M12 14c-3.87 0-7 3.13-7 7h14c0-3.87-3.13-7-7-7z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" stroke="currentColor"
+                          stroke-width="2" />
+                        <path d="M12 14c-3.87 0-7 3.13-7 7h14c0-3.87-3.13-7-7-7z" stroke="currentColor"
+                          stroke-width="2" />
                       </svg>
                       专业主播
                     </button>
                     <button class="voice-refresh-btn">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M23 4v6h-6" stroke="currentColor" stroke-width="2"/>
-                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2"/>
+                        <path d="M23 4v6h-6" stroke="currentColor" stroke-width="2" />
+                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
                       </svg>
                     </button>
                   </div>
@@ -249,7 +247,7 @@
                     <div class="emotion-dropdown">
                       <span class="selected-emotion">默认</span>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                        <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2"/>
+                        <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" />
                       </svg>
                     </div>
                   </div>
@@ -267,13 +265,7 @@
                 </div>
                 <div class="voice-setting-content">
                   <div class="volume-slider-container">
-                    <input
-                      type="range"
-                      v-model="voiceVolume"
-                      min="0"
-                      max="200"
-                      class="volume-slider"
-                    />
+                    <input type="range" v-model="voiceVolume" min="0" max="200" class="volume-slider" />
                     <span class="volume-value">{{ voiceVolume }}</span>
                   </div>
                 </div>
@@ -290,13 +282,7 @@
                 </div>
                 <div class="voice-setting-content">
                   <div class="speed-slider-container">
-                    <input
-                      type="range"
-                      v-model="voiceSpeed"
-                      min="50"
-                      max="200"
-                      class="speed-slider"
-                    />
+                    <input type="range" v-model="voiceSpeed" min="50" max="200" class="speed-slider" />
                     <span class="speed-value">{{ (voiceSpeed / 100).toFixed(1) }}x</span>
                   </div>
                 </div>
@@ -317,17 +303,17 @@
         <div class="edit-controls">
           <button class="control-btn active" @click="toggleCanvasEditMode">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-              <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            画布编辑
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
+          </svg>
+            {{ entryMode === 'crop' ? '裁剪分镜' : '画布编辑' }}
           </button>
           <button class="control-btn" @click="toggleLipSyncView">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2"/>
-              <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3" stroke="currentColor" stroke-width="2"/>
-              <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3" stroke="currentColor" stroke-width="2"/>
+              <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" />
+              <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3" stroke="currentColor" stroke-width="2" />
+              <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3" stroke="currentColor" stroke-width="2" />
             </svg>
             对口型
           </button>
@@ -336,7 +322,31 @@
         <!-- 视频画面 -->
         <div class="video-preview">
           <div class="video-container">
-            <img :src="currentPreviewUrl" :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" />
+            <video v-if="isVideo(currentPreviewUrl)" ref="previewVideo" :src="cleanUrl(currentPreviewUrl)" class="video-image"></video>
+            <img v-else :src="cleanUrl(currentPreviewUrl)" :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" />
+          </div>
+          <div class="preview-aside">
+            <div v-if="isVideo(sceneDetail.video_url || currentPreviewUrl)" class="thumb-card">
+              <div class="thumb-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" />
+                </svg>
+                <span>视频</span>
+              </div>
+              <video :src="cleanUrl(sceneDetail.video_url || currentPreviewUrl)" class="thumb-image" muted loop playsinline></video>
+            </div>
+            <div v-if="shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" class="thumb-card">
+              <div class="thumb-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                  <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
+                </svg>
+                <span>图片</span>
+              </div>
+              <img :src="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" alt="图片" class="thumb-image" />
+            </div>
           </div>
         </div>
 
@@ -346,8 +356,12 @@
           <div class="playback-controls">
             <!-- 播放按钮放在时长左侧 -->
             <button class="play-btn-circle" @click="togglePlay" title="播放/暂停">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <polygon points="5,3 19,12 5,21" fill="currentColor"/>
+              <svg v-if="!isPlaying" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <polygon points="5,3 19,12 5,21" fill="currentColor" />
+              </svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <rect x="6" y="4" width="4" height="16" fill="currentColor" />
+                <rect x="14" y="4" width="4" height="16" fill="currentColor" />
               </svg>
             </button>
             <div class="time-display">
@@ -357,10 +371,10 @@
             </div>
             <button class="expand-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <polyline points="15,3 21,3 21,9" stroke="currentColor" stroke-width="2"/>
-                <polyline points="9,21 3,21 3,15" stroke="currentColor" stroke-width="2"/>
-                <line x1="21" y1="3" x2="14" y2="10" stroke="currentColor" stroke-width="2"/>
-                <line x1="3" y1="21" x2="10" y2="14" stroke="currentColor" stroke-width="2"/>
+                <polyline points="15,3 21,3 21,9" stroke="currentColor" stroke-width="2" />
+                <polyline points="9,21 3,21 3,15" stroke="currentColor" stroke-width="2" />
+                <line x1="21" y1="3" x2="14" y2="10" stroke="currentColor" stroke-width="2" />
+                <line x1="3" y1="21" x2="10" y2="14" stroke="currentColor" stroke-width="2" />
               </svg>
             </button>
           </div>
@@ -387,83 +401,67 @@
 
             <!-- 分镜轨道 - 水平布局 -->
             <div class="timeline-tracks">
-              <div 
-                v-for="(scene, index) in scenes" 
-                :key="scene.id"
-                class="timeline-track"
-                :class="{ active: index === activeSceneIndex }"
-                draggable="true"
-                @dragstart="handleDragStart(index, $event)"
-                @dragover="handleDragOver($event)"
-                @drop="handleDrop(index, $event)"
-                @dragend="handleDragEnd"
-              >
+              <div v-for="(scene, index) in scenes" :key="scene.id" class="timeline-track"
+                :class="{ active: index === activeSceneIndex }" draggable="true"
+                @dragstart="handleDragStart(index, $event)" @dragover="handleDragOver($event)"
+                @drop="handleDrop(index, $event)" @dragend="handleDragEnd">
                 <div class="track-header">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/>
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2"/>
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
                   </svg>
                   <span class="track-title">分镜{{ index + 1 }}</span>
-                  
+
                   <!-- 操作按钮 -->
                   <div class="track-actions">
-                    <button 
-                      class="action-btn copy-btn" 
-                      @click="copyScene(index)"
-                      title="复制分镜"
-                    >
+                    <button class="action-btn copy-btn" @click="copyScene(index)" title="复制分镜">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2"/>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2"/>
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor"
+                          stroke-width="2" />
                       </svg>
                     </button>
-                    <button 
-                      class="action-btn delete-btn" 
-                      @click="deleteScene(index)"
-                      title="删除分镜"
-                      v-if="scenes.length > 1"
-                    >
+                    <button class="action-btn delete-btn" @click="deleteScene(index)" title="删除分镜"
+                      v-if="scenes.length > 1">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                        <polyline points="3,6 5,6 21,6" stroke="currentColor" stroke-width="2"/>
-                        <path d="M19,6v14a2,2 0,0,1-2,2H7a2,2 0,0,1-2-2V6m3,0V4a2,2 0,0,1,2-2h4a2,2 0,0,1,2,2v2" stroke="currentColor" stroke-width="2"/>
+                        <polyline points="3,6 5,6 21,6" stroke="currentColor" stroke-width="2" />
+                        <path d="M19,6v14a2,2 0,0,1-2,2H7a2,2 0,0,1-2-2V6m3,0V4a2,2 0,0,1,2-2h4a2,2 0,0,1,2,2v2"
+                          stroke="currentColor" stroke-width="2" />
                       </svg>
                     </button>
                   </div>
                 </div>
                 <div class="track-clips" @click="selectScene(index)">
-                  <div
-                    v-for="(clip, cidx) in getSceneClips(scene)"
-                    :key="cidx"
-                    class="scene-clip"
-                    :class="{ active: index === activeSceneIndex }"
-                    :style="getClipStyle(scene, clip)"
-                  >
-                    <img :src="clip.url || scene.thumbnail" :alt="'分镜' + (index + 1)" class="clip-thumbnail" />
+                  <div v-for="(clip, cidx) in getSceneClips(scene)" :key="cidx" class="scene-clip"
+                    :class="{ active: index === activeSceneIndex }" :style="getClipStyle(scene, clip)">
+                    <video v-if="isVideo(clip.url || scene.thumbnail)" :src="cleanUrl(clip.url || scene.thumbnail)" class="clip-thumbnail" muted loop playsinline></video>
+                    <img v-else :src="cleanUrl(clip.url || scene.thumbnail)" :alt="'分镜' + (index + 1)" class="clip-thumbnail" />
                   </div>
                 </div>
                 <div class="track-audio">
                   <button v-if="index === activeSceneIndex" class="audio-btn add-audio">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                      <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="2"/>
-                      <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="2"/>
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                      <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="2" />
+                      <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="2" />
                     </svg>
                     添加配音
                   </button>
                   <template v-else>
                     <button class="audio-btn">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                        <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2"/>
-                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2"/>
+                        <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
+                          stroke-width="2" />
                       </svg>
                       配音
                     </button>
                     <button class="audio-btn">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                        <path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="2"/>
-                        <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2"/>
-                        <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2"/>
+                        <path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="2" />
+                        <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2" />
+                        <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2" />
                       </svg>
                       背景音乐
                     </button>
@@ -493,8 +491,9 @@
 <script>
 import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
-import { getScriptDetailByVideo } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail } from '@/api'
 import { useUserStore } from '@/stores/user'
+import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
 
 export default {
   name: 'VideoEditView',
@@ -508,12 +507,13 @@ export default {
       activeTab: 'image',
       sceneInput: '',
       subtitleEnabled: true,
-      activeSceneIndex: 2,
-      playbackPosition: 15, // 播放进度百分比
+      activeSceneIndex: 0,
+      playbackPosition: 0, // 播放进度百分比
       playbackLeftPx: 0, // 红色指针在时间轴中的像素位置
       timeMarkers: [],
       scenes: [],
       draggedIndex: null,
+      entryMode: 'canvas',
       // 配音相关数据
       voiceScript: '',
       voiceGender: '女性',
@@ -536,10 +536,21 @@ export default {
       isCanvasEditMode: false,
       // 对口型页面显示状态
       showLipSyncView: false
+      ,sceneDetail: { reference_image_url: '', video_url: '' }
+    }
+  },
+  beforeUnmount() {
+    if (this._storyboardQueryInterval) {
+      clearInterval(this._storyboardQueryInterval)
+      this._storyboardQueryInterval = null
     }
   },
   mounted() {
     const projectId = this.$route.params.id
+    try {
+      const mode = localStorage.getItem(`video-edit:entryMode:${projectId}`)
+      if (mode === 'crop' || mode === 'canvas') this.entryMode = mode
+    } catch (e) { console.warn('读取入口模式失败:', e) }
     try {
       const scenesStr = localStorage.getItem(`video-edit:scenes:${projectId}`)
       if (scenesStr) {
@@ -566,6 +577,13 @@ export default {
     } catch (e) {
       console.warn('读取分镜场景或标题失败:', e)
     }
+    // 预计算 shot 顺序（用于接口返回的 scene_number 映射到轨道分镜）
+    try {
+      const projectId = this.$route.params.id
+      this._shotOrder = this.getShotOrderFromRaw(projectId)
+    } catch (e) {
+      this._shotOrder = []
+    }
     // 同步时间刻度与轨道的水平滚动
     this.$nextTick(() => {
       const tracks = this.$el && this.$el.querySelector('.timeline-tracks')
@@ -581,10 +599,10 @@ export default {
           this.playbackLeftPx = tracks.offsetLeft + absolutePx - tracks.scrollLeft
         }
         tracks.addEventListener('scroll', sync)
-        // 初始化一次
         sync()
       }
     })
+    this.fetchCurrentSceneDetail()
   },
   computed: {
     userStore() {
@@ -606,13 +624,78 @@ export default {
     totalTimeText() {
       const totalSeconds = (Array.isArray(this.scenes) ? this.scenes.length : 0) * 5
       return this.formatTime(totalSeconds)
+    },
+    // 只有当全部分镜的图片都有有效URL且能渲染时才可转视频
+    allImagesReady() {
+      if (!Array.isArray(this.scenes) || this.scenes.length === 0) return false
+      return this.scenes.every(sc => {
+        const url = this.cleanUrl(sc?.thumbnail || '')
+        return this.shouldRenderImage(url)
+      })
+    }
+  },
+  watch: {
+    activeSceneIndex() {
+      this.fetchCurrentSceneDetail()
+    },
+    scenes: {
+      deep: true,
+      handler() {
+        this.refreshSidebarFromLocal()
+      }
     }
   },
   methods: {
-    // URL清洗，移除多余反引号和空格
+    // 代理到通用工具，统一图片 URL 处理和失败判断
     cleanUrl(u) {
-      if (!u) return ''
-      return String(u).replace(/[`\s]/g, '').replace(/^"|"$/g, '')
+      return cleanUrlUtil(u)
+    },
+    isVideo(u) {
+      const s = this.cleanUrl(u)
+      return /\.mp4(\?|$)/i.test(s)
+    },
+    isGenerateFailed(u) {
+      return isGenerateFailedUtil(u)
+    },
+    shouldRenderImage(u) {
+      return shouldRenderImageUtil(u)
+    },
+    playVideoSafely(el) {
+      try {
+        const p = el.play()
+        if (p && p.catch) {
+          p.catch(err => {
+            if (!(err && err.name === 'AbortError')) {
+              console.warn('预览播放失败:', err)
+            }
+          })
+        }
+      } catch (e) {
+        console.warn('预览播放失败:', e)
+      }
+    },
+    syncPreviewPlayback() {
+      this.$nextTick(() => {
+        const el = this.$refs.previewVideo
+        if (!el) return
+        if (this.isVideo(this.currentPreviewUrl)) {
+          try { el.pause(); el.currentTime = 0 } catch (e) { console.warn('预览暂停失败:', e) }
+          const tryPlay = () => this.playVideoSafely(el)
+          if (el.readyState >= 2) {
+            requestAnimationFrame(tryPlay)
+          } else {
+            el.addEventListener('loadeddata', () => requestAnimationFrame(tryPlay), { once: true })
+          }
+        } else {
+          try { el.pause(); el.currentTime = 0 } catch (e) { console.warn('预览暂停失败:', e) }
+        }
+      })
+    },
+    pausePreview() {
+      const el = this.$refs.previewVideo
+      if (el) {
+        try { el.pause() } catch (e) { console.warn('预览暂停失败:', e) }
+      }
     },
     // 估算时长（当接口未提供时使用）
     estimateDurationMs(text) {
@@ -654,7 +737,8 @@ export default {
               if (shot.visual_description) descParts.push(shot.visual_description)
               const description = descParts.length ? descParts.join('：') : '暂无描述'
               // 每张图片一个分镜，统一5秒
-              scenes.push({ id: id++, title: `分镜${id - 1}`, description, thumbnail: url, clips: [{ url, durationMs: 5000 }] })
+              const scene_number = shot.scene_number || shot.shot_number || undefined
+              scenes.push({ id: id++, title: `分镜${id - 1}`, description, thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number })
             })
           })
         } else if (raw && typeof raw === 'object') {
@@ -676,7 +760,10 @@ export default {
                 const nb = parseInt(String(b).replace(/[^0-9]/g, ''), 10)
                 return (isNaN(na) ? 0 : na) - (isNaN(nb) ? 0 : nb)
               })
-              shots = shotKeys.map(k => s[k] || {}).filter(x => x)
+              shots = shotKeys.map(k => {
+                const val = s[k] || {}
+                return Object.assign({}, val, { scene_number: k })
+              }).filter(x => x)
             }
             shots.forEach(shot => {
               const url = this.cleanUrl(shot.scene_picture || '')
@@ -685,7 +772,7 @@ export default {
               if (shot.shot_title) descParts.push(shot.shot_title)
               if (shot.visual_description) descParts.push(shot.visual_description)
               const description = descParts.length ? descParts.join('：') : '暂无描述'
-              scenes.push({ id: id++, title: `分镜${id - 1}`, description, thumbnail: url, clips: [{ url, durationMs: 5000 }] })
+              scenes.push({ id: id++, title: `分镜${id - 1}`, description, thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number: shot.scene_number })
             })
           }
         }
@@ -693,6 +780,65 @@ export default {
         console.warn('解析原始分镜失败:', e)
       }
       return scenes
+    },
+    // 从原始分镜推导 shot 顺序，用于接口返回的 scene_number 映射
+    getShotOrderFromRaw(projectId) {
+      const rawStr = localStorage.getItem(`project:storyboard_raw:${projectId}`)
+      if (!rawStr) return []
+      try {
+        const raw = JSON.parse(rawStr)
+        const order = []
+        if (Array.isArray(raw)) {
+          raw.forEach(rec => {
+            const shots = Array.isArray(rec.shots) ? rec.shots : []
+            shots.forEach(shot => {
+              if (shot.scene_number) order.push(String(shot.scene_number))
+              else if (shot.shot_number) order.push(String(shot.shot_number))
+            })
+          })
+        } else if (raw && typeof raw === 'object') {
+          const sceneKeys = Object.keys(raw).filter(k => /^scene_/i.test(k)).sort((a, b) => {
+            const na = parseInt(String(a).replace(/[^0-9]/g, ''), 10)
+            const nb = parseInt(String(b).replace(/[^0-9]/g, ''), 10)
+            return (isNaN(na) ? 0 : na) - (isNaN(nb) ? 0 : nb)
+          })
+          for (const key of sceneKeys) {
+            const s = raw[key] || {}
+            const shotKeys = Object.keys(s).filter(k => /^shot_/i.test(k)).sort((a, b) => {
+              const na = parseInt(String(a).replace(/[^0-9]/g, ''), 10)
+              const nb = parseInt(String(b).replace(/[^0-9]/g, ''), 10)
+              return (isNaN(na) ? 0 : na) - (isNaN(nb) ? 0 : nb)
+            })
+            order.push(...shotKeys)
+          }
+        }
+        return order
+      } catch (e) {
+        return []
+      }
+    },
+    // 将查询结果中的 video_url 替换到轨道 clips 中
+    updateScenesWithQueryItems(items) {
+      if (!Array.isArray(items) || !items.length) return
+      const shotOrder = Array.isArray(this._shotOrder) ? this._shotOrder : []
+      items.forEach(item => {
+        if (!item || item.status !== 'SUCCEEDED' || !item.video_url) return
+        const sceneKey = String(item.scene_number || '').trim()
+        let idx = -1
+        if (sceneKey && shotOrder.length) {
+          idx = shotOrder.indexOf(sceneKey)
+        }
+        // 回退：若无映射，则替换第一个未是 mp4 的分镜
+        if (idx < 0) {
+          idx = this.scenes.findIndex(sc => !Array.isArray(sc.clips) || !sc.clips.length || !/\.mp4($|\?)/i.test(String(sc.clips[0].url || '')))
+        }
+        if (idx >= 0 && idx < this.scenes.length) {
+          const url = this.cleanUrl(item.video_url)
+          const scene = this.scenes[idx]
+          scene.clips = [{ url, durationMs: 5000 }]
+        }
+      })
+      this.refreshSidebarFromLocal()
     },
     // 返回场景的clips，若无则回退到单一缩略图
     getSceneClips(scene) {
@@ -722,6 +868,34 @@ export default {
       const widthPct = Math.max(2, Math.round(((Number(clip.durationMs) || 3000) / total) * 100))
       return { width: widthPct + '%', minWidth: '28px' }
     },
+    refreshSidebarFromLocal() {
+      const img = this.cleanUrl(this.scenes[this.activeSceneIndex]?.thumbnail || '')
+      const vid = this.isVideo(this.currentPreviewUrl) ? this.cleanUrl(this.currentPreviewUrl) : ''
+      this.sceneDetail = { reference_image_url: img, video_url: vid }
+    },
+    async fetchCurrentSceneDetail() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const scene = this.scenes[this.activeSceneIndex] || {}
+        const sceneNumber = String(scene.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : '') || `shot_${this.activeSceneIndex + 1}`)
+        const token = (this.userStore && this.userStore.token) || ''
+        const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
+        let json
+        try { json = JSON.parse(text) } catch { json = null }
+        const data = json && json.data ? json.data : null
+        if (data) {
+          const refImg = this.cleanUrl(data.reference_image_url || scene.thumbnail || '')
+          const vurl = this.cleanUrl(data.video_url || '')
+          const vlocal = this.isVideo(this.currentPreviewUrl) ? this.cleanUrl(this.currentPreviewUrl) : ''
+          this.sceneDetail = { reference_image_url: refImg, video_url: vurl || vlocal }
+        } else {
+          this.refreshSidebarFromLocal()
+        }
+      } catch (e) {
+        this.refreshSidebarFromLocal()
+      }
+    },
     // 根据分镜数量生成时间刻度（每1秒一个刻度）
     updateTimeMarkers() {
       const totalSeconds = (Array.isArray(this.scenes) ? this.scenes.length : 0) * 5
@@ -732,6 +906,58 @@ export default {
         markers.push(`${mm}:${ss}`)
       }
       this.timeMarkers = markers
+    },
+    async handleRegenerateActiveScene() {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) {
+          console.warn('未登录，无法重新生成分镜图片')
+          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
+          return
+        }
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const type = 'shot_img'
+        const currentScene = this.scenes[this.activeSceneIndex] || {}
+        // 使用接口返回的 id，如 shot_1_1；若不存在则回退到按索引生成
+        const nameRaw = String(currentScene.scene_number || '').trim()
+        const name = nameRaw || `shot_${this.activeSceneIndex + 1}`
+        const resp = await regenerateImage({ videoId, type, name, token })
+        const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
+        if (!generateUuid) {
+          console.warn('未获取到 generateUuid，无法查询结果', resp)
+          return
+        }
+        // 每5秒轮询一次查询接口，直到拿到图片地址
+        if (this._regenerateActiveSceneInterval) {
+          try { clearInterval(this._regenerateActiveSceneInterval) } catch (e) { /* no-op */ }
+          this._regenerateActiveSceneInterval = null
+        }
+        const poll = async () => {
+          try {
+            const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
+            const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
+            if (url) {
+              const cleaned = this.cleanUrl(url)
+              // 写回缩略图与轨道片段首帧
+              if (this.activeSceneIndex >= 0 && this.activeSceneIndex < this.scenes.length) {
+                const scene = this.scenes[this.activeSceneIndex]
+                scene.thumbnail = cleaned
+                scene.clips = [{ url: cleaned, durationMs: 5000 }]
+              }
+              try { clearInterval(this._regenerateActiveSceneInterval) } catch (e) { /* no-op */ }
+              this._regenerateActiveSceneInterval = null
+            }
+          } catch (e) {
+            console.warn('查询重生成分镜图片失败:', e)
+          }
+        }
+        // 立即查询一次，然后每5秒轮询
+        await poll()
+        this._regenerateActiveSceneInterval = setInterval(poll, 5000)
+      } catch (e) {
+        console.warn('重新生成分镜图片失败:', e)
+      }
     },
     async goBack() {
       const projectId = this.$route.params.id
@@ -750,6 +976,37 @@ export default {
         }
       }
       this.$router.push(`/project/${projectId}`)
+    },
+    async convertToVideo() {
+      const projectId = this.$route.params.id
+      const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+      const token = (this.userStore && this.userStore.token) || ''
+      const modelName = 'wan2.2-i2v-flash'
+      try {
+        const text = await generateStoryboardVideo({ videoId, modelName, token })
+        let result
+        try { result = JSON.parse(text) } catch { result = { raw: text } }
+        console.log('一键转视频接口返回:', result)
+        const msg = (result && result.message) || '创建任务成功，任务正在生成中'
+        alert(msg)
+        // 每30秒轮询一次分镜视频生成状态（localhost）
+        if (this._storyboardQueryInterval) clearInterval(this._storyboardQueryInterval)
+        this._storyboardQueryInterval = setInterval(async () => {
+          try {
+            const statusText = await queryStoryboardVideoStatus({ videoId, token })
+            let statusJson = null
+            try { statusJson = JSON.parse(statusText) } catch (e) { statusJson = null }
+            if (statusJson && statusJson.success && Array.isArray(statusJson.items)) {
+              this.updateScenesWithQueryItems(statusJson.items)
+            }
+          } catch (e) {
+            console.warn('查询分镜视频生成状态失败:', e)
+          }
+        }, 30000)
+      } catch (err) {
+        console.error('一键转视频失败:', err)
+        alert('一键转视频失败，请稍后重试')
+      }
     },
     saveTitle() {
       console.log('保存标题:', this.projectTitle)
@@ -775,7 +1032,7 @@ export default {
     },
     togglePlay() {
       if (this.isPlaying) {
-        this.stopPlayback()
+        this.pausePlayback()
       } else {
         this.startPlayback()
       }
@@ -784,11 +1041,15 @@ export default {
     startPlayback() {
       if (!Array.isArray(this.scenes) || this.scenes.length === 0) return
       this.isPlaying = true
-      // 每个分镜固定5秒，总时长为分镜数*5秒
       const stepMs = 5000
       const totalMs = this.scenes.length * stepMs
-      const start = performance.now()
-      // 清理旧的定时器/动画帧
+      let priorMs = Math.max(0, Math.min(totalMs, (Number(this.playbackPosition) || 0) / 100 * totalMs))
+      if (priorMs >= totalMs - 1) {
+        priorMs = 0
+        this.playbackPosition = 0
+        this.activeSceneIndex = 0
+      }
+      const start = performance.now() - priorMs
       if (this._playbackInterval) clearInterval(this._playbackInterval)
       if (this._rafId) cancelAnimationFrame(this._rafId)
       const tick = (now) => {
@@ -797,8 +1058,10 @@ export default {
         const clamped = Math.min(elapsed, totalMs)
         this.playbackPosition = (clamped / totalMs) * 100
         const idx = Math.min(Math.floor(clamped / stepMs), this.scenes.length - 1)
-        if (idx !== this.activeSceneIndex) this.activeSceneIndex = idx
-        // 根据统一比例更新指针像素位置
+        if (idx !== this.activeSceneIndex) {
+          this.activeSceneIndex = idx
+          this.syncPreviewPlayback()
+        }
         const pxPerSecond = this.getPxPerSecond()
         const section = this.$el && this.$el.querySelector('.timeline-section')
         const tracks = section && section.querySelector('.timeline-tracks')
@@ -815,8 +1078,21 @@ export default {
       }
       this._rafId = requestAnimationFrame(tick)
     },
+    pausePlayback() {
+      this.isPlaying = false
+      this.pausePreview()
+      if (this._playbackInterval) {
+        try { clearInterval(this._playbackInterval) } catch (e) { console.warn('清理播放定时器失败:', e) }
+        this._playbackInterval = null
+      }
+      if (this._rafId) {
+        try { cancelAnimationFrame(this._rafId) } catch (e) { console.warn('取消动画帧失败:', e) }
+        this._rafId = null
+      }
+    },
     stopPlayback() {
       this.isPlaying = false
+      this.pausePreview()
       if (this._playbackInterval) {
         clearInterval(this._playbackInterval)
         this._playbackInterval = null
@@ -894,14 +1170,14 @@ export default {
         const draggedScene = this.scenes[this.draggedIndex]
         this.scenes.splice(this.draggedIndex, 1)
         this.scenes.splice(targetIndex, 0, draggedScene)
-        
+
         // 更新活跃场景索引
         if (this.activeSceneIndex === this.draggedIndex) {
           this.activeSceneIndex = targetIndex
         } else if (this.activeSceneIndex === targetIndex) {
           this.activeSceneIndex = this.draggedIndex > targetIndex ? this.activeSceneIndex + 1 : this.activeSceneIndex - 1
         }
-        
+
         console.log('拖拽完成，从', this.draggedIndex, '移动到', targetIndex)
       }
     },
@@ -926,17 +1202,17 @@ export default {
         console.log('至少需要保留一个分镜')
         return
       }
-      
+
       const deletedScene = this.scenes[index]
       this.scenes.splice(index, 1)
-      
+
       // 调整活跃场景索引
       if (this.activeSceneIndex === index) {
         this.activeSceneIndex = Math.min(this.activeSceneIndex, this.scenes.length - 1)
       } else if (this.activeSceneIndex > index) {
         this.activeSceneIndex--
       }
-      
+
       console.log('删除分镜:', deletedScene.title)
     }
   }
@@ -1027,6 +1303,12 @@ export default {
   background: #f9fafb;
 }
 
+/* 禁用状态样式 */
+.navbar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .premium-btn {
   background: #f3f4f6;
   color: black;
@@ -1107,9 +1389,12 @@ export default {
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  flex-shrink: 0; /* 防止被右侧内容挤压 */
-  position: relative; /* 为绝对定位的输入框提供定位上下文 */
-  height: 100%; /* 确保面板占满高度 */
+  flex-shrink: 0;
+  /* 防止被右侧内容挤压 */
+  position: relative;
+  /* 为绝对定位的输入框提供定位上下文 */
+  height: 100%;
+  /* 确保面板占满高度 */
 }
 
 /* 顶部标题区域 */
@@ -1142,16 +1427,20 @@ export default {
   height: 100%;
   background: white;
   position: relative;
-  overflow: hidden; /* 防止内容溢出 */
+  overflow: hidden;
+  /* 防止内容溢出 */
 }
 
 .scene-scrollable-content {
   flex: 1;
   padding: 20px;
-  padding-bottom: 200px; /* 增加底部空间，确保底部按钮不被遮挡 */
+  padding-bottom: 200px;
+  /* 增加底部空间，确保底部按钮不被遮挡 */
   overflow-y: auto;
-  height: 0; /* 强制flex子元素计算高度 */
-  min-height: 0; /* 允许flex子元素缩小 */
+  height: 0;
+  /* 强制flex子元素计算高度 */
+  min-height: 0;
+  /* 允许flex子元素缩小 */
 }
 
 
@@ -1464,8 +1753,10 @@ export default {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-width: 0; /* 允许内容在容器内收缩，避免挤压左侧 */
-  overflow: hidden; /* 右侧自身不溢出，内部控件自行滚动 */
+  min-width: 0;
+  /* 允许内容在容器内收缩，避免挤压左侧 */
+  overflow: hidden;
+  /* 右侧自身不溢出，内部控件自行滚动 */
   padding: 20px;
 }
 
@@ -1503,6 +1794,8 @@ export default {
   height: 250px;
   margin-bottom: 20px;
   flex-shrink: 0;
+  display: flex;
+  gap: 12px;
 }
 
 .video-container {
@@ -1515,12 +1808,56 @@ export default {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  flex: 1;
 }
 
 .video-image {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+
+.preview-aside {
+  width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.thumb-card {
+  position: relative;
+  background: #f8f9fa;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  height: calc(50% - 6px);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumb-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumb-label {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.08);
+  color: #374151;
+  font-size: 12px;
+  border-radius: 6px;
+  padding: 4px 8px;
+}
+
+.thumb-label svg {
+  color: #6b7280;
 }
 
 .video-overlay {
@@ -1581,7 +1918,8 @@ export default {
   color: #374151;
 }
 
-.current-time, .total-time {
+.current-time,
+.total-time {
   font-weight: 500;
 }
 
@@ -1695,11 +2033,11 @@ export default {
   border-radius: 50%;
 }
 
-input:checked + .slider {
+input:checked+.slider {
   background-color: #3b82f6;
 }
 
-input:checked + .slider:before {
+input:checked+.slider:before {
   transform: translateX(20px);
 }
 
@@ -1707,14 +2045,17 @@ input:checked + .slider:before {
   position: relative;
   margin-bottom: 12px;
   padding: 0 8px;
-  overflow: hidden; /* 内层容器随滚动平移 */
+  overflow: hidden;
+  /* 内层容器随滚动平移 */
 }
 
 .time-scale-inner {
   display: flex;
-  flex-wrap: nowrap; /* 单行 */
+  flex-wrap: nowrap;
+  /* 单行 */
   white-space: nowrap;
-  gap: calc(var(--px-per-second) * 4.41); /* 刻度间隔=5秒宽度+分镜间距 */
+  gap: calc(var(--px-per-second) * 4.41);
+  /* 刻度间隔=5秒宽度+分镜间距 */
   will-change: transform;
   transform: translateX(0);
 }
@@ -1728,24 +2069,31 @@ input:checked + .slider:before {
   display: flex;
   gap: 0;
   position: relative;
-  overflow-x: scroll; /* 显示横向滚动条 */
-  overflow-y: hidden; /* 仅横向滚动 */
-  scrollbar-width: thin; /* Firefox 显示细滚动条 */
-  scrollbar-color: #cbd5e1 #f1f5f9; /* Firefox 滚动条颜色 */
+  overflow-x: scroll;
+  /* 显示横向滚动条 */
+  overflow-y: hidden;
+  /* 仅横向滚动 */
+  scrollbar-width: thin;
+  /* Firefox 显示细滚动条 */
+  scrollbar-color: #cbd5e1 #f1f5f9;
+  /* Firefox 滚动条颜色 */
   padding: 8px 0;
 }
 
 .timeline-tracks::-webkit-scrollbar {
   height: 8px;
 }
+
 .timeline-tracks::-webkit-scrollbar-track {
   background: #f1f5f9;
   border-radius: 4px;
 }
+
 .timeline-tracks::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
 }
+
 .timeline-tracks::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
@@ -1825,7 +2173,8 @@ input:checked + .slider:before {
 
 .track-clips {
   display: flex;
-  flex-wrap: nowrap; /* 单行显示，水平滚动 */
+  flex-wrap: nowrap;
+  /* 单行显示，水平滚动 */
   gap: 2px;
   padding: 8px;
   min-height: 60px;
@@ -1856,7 +2205,8 @@ input:checked + .slider:before {
 .clip-thumbnail {
   width: 100%;
   height: 100%;
-  object-fit: contain; /* 完整显示缩略图 */
+  object-fit: contain;
+  /* 完整显示缩略图 */
   background: #fff;
 }
 
@@ -1939,16 +2289,20 @@ input:checked + .slider:before {
   background: white;
   height: 100%;
   position: relative;
-  overflow: hidden; /* 防止内容溢出 */
+  overflow: hidden;
+  /* 防止内容溢出 */
 }
 
 .voice-scrollable-content {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
-  padding-bottom: 120px; /* 为固定输入框留出空间 */
-  height: 0; /* 强制flex子元素计算高度 */
-  min-height: 0; /* 允许flex子元素缩小 */
+  padding-bottom: 120px;
+  /* 为固定输入框留出空间 */
+  height: 0;
+  /* 强制flex子元素计算高度 */
+  min-height: 0;
+  /* 允许flex子元素缩小 */
 }
 
 .input-section {

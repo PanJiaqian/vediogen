@@ -104,7 +104,7 @@ export async function scriptModifyStream({ modificationSuggestions, videoId, tok
   }
 }
 
-// 分镜图片生成（SSE，Storyboard_image_gen）：POST，headers 含 Accept: text/event-stream 与 Authorization
+// 分镜图片生成
 export async function storyboardPictureGenStream({ videoId, token, onEvent }) {
   const url = `${BASE_URL}/api/agent/Storyboard_image_gen?videoId=${encodeURIComponent(videoId)}`
   const requestOptions = {
@@ -309,6 +309,48 @@ export async function getScriptDetailByVideo({ videoId, token }) {
   return res.text()
 }
 
+export async function generateStoryboardVideo({ videoId, modelName, token }) {
+  const url = `${BASE_URL}/api/video/storyboard/generate?videoId=${encodeURIComponent(videoId)}&modelName=${encodeURIComponent(modelName)}`
+  const requestOptions = {
+    method: 'POST',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
+export async function queryStoryboardVideoStatus({ videoId, token }) {
+  const url = `${BASE_URL}/api/video/storyboard/query?videoid=${encodeURIComponent(videoId)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
+export async function getStoryboardSceneDetail({ videoId, sceneNumber, token }) {
+  const url = `${BASE_URL}/detail/storyboard/scene?videoId=${encodeURIComponent(videoId)}&sceneNumber=${encodeURIComponent(sceneNumber)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
 // 邮箱登录
 export async function emailLogin({ email, password }) {
   const url = `${BASE_URL}/user/emailLogin`
@@ -365,4 +407,7 @@ export default {
   ,queryRegenerateImage
   ,getStoryboardImagesDetail
   ,getScriptDetailByVideo
+  ,generateStoryboardVideo
+  ,queryStoryboardVideoStatus
+  ,getStoryboardSceneDetail
 }
