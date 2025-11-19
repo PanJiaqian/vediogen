@@ -75,7 +75,7 @@ export default {
     },
     validateAndProcessImage(file) {
       if (file.size > 10 * 1024 * 1024) {
-        alert('图片大小不能超过10MB')
+        console.warn('图片大小不能超过10MB')
         return
       }
 
@@ -85,14 +85,14 @@ export default {
 
       img.onload = () => {
         if (img.width > 300 || img.height > 300) {
-          alert('图片尺寸不能大于300px')
+          console.warn('图片尺寸不能大于300px')
           URL.revokeObjectURL(objectUrl)
           return
         }
 
         const ratio = img.width / img.height
         if (ratio < 2 / 3 || ratio > 3 / 2) {
-          alert('图片宽高比必须在2:3至3:2之间')
+          console.warn('图片宽高比必须在2:3至3:2之间')
           URL.revokeObjectURL(objectUrl)
           return
         }
@@ -101,7 +101,7 @@ export default {
       }
 
       img.onerror = () => {
-        alert('无法加载图片，请检查文件格式')
+        console.warn('无法加载图片，请检查文件格式')
         URL.revokeObjectURL(objectUrl)
       }
 

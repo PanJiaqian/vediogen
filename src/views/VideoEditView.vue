@@ -1007,7 +1007,7 @@ export default {
         try { result = JSON.parse(text) } catch { result = { raw: text } }
         console.log('一键转视频接口返回:', result)
         const msg = (result && result.message) || '创建任务成功，任务正在生成中'
-        alert(msg)
+        
         // 每30秒轮询一次分镜视频生成状态（localhost）
         if (this._storyboardQueryInterval) clearInterval(this._storyboardQueryInterval)
         this._storyboardQueryInterval = setInterval(async () => {
@@ -1024,7 +1024,6 @@ export default {
         }, 30000)
       } catch (err) {
         console.error('一键转视频失败:', err)
-        alert('一键转视频失败，请稍后重试')
       }
     },
     saveTitle() {

@@ -354,8 +354,7 @@ export default {
           }
         })
       } catch (e) {
-        this.errorMessage = (e && e.message) || '接口调用失败'
-        this.errorModalVisible = true
+        console.warn('接口调用失败:', e)
       } finally {
         // 接口完成后在发送内容下添加节点“思考完成”，并恢复按钮显示
         const lastIndex = this.messages.length - 1
