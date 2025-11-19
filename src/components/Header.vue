@@ -85,11 +85,18 @@
           </button>
         </div>
       </div>
-    </div>
+  </div>
 
-    <!-- 登录弹窗 -->
-    <LoginModal :visible="loginModalVisible" @close="hideLoginModal" @success="handleLoginSuccess"
+  <!-- 登录弹窗 -->
+  <LoginModal :visible="loginModalVisible" @close="hideLoginModal" @success="handleLoginSuccess"
       @social-login="handleSocialLogin" />
+
+  <div v-if="centerPromptVisible" class="center-prompt-overlay" @click="closeCenterPrompt">
+    <div class="center-prompt" @click.stop>
+      <div class="prompt-text">{{ centerPromptText }}</div>
+      <button class="prompt-close-btn" @click="closeCenterPrompt">确定</button>
+    </div>
+  </div>
   </header>
 </template>
 
@@ -107,7 +114,9 @@ export default {
     return {
       userAvatars,
       loginModalVisible: false,
-      showUserMenu: false
+      showUserMenu: false,
+      centerPromptVisible: false,
+      centerPromptText: ''
     }
   },
   computed: {
@@ -159,7 +168,7 @@ export default {
         this.userStore.setToken(user.token)
       }
       this.hideLoginModal()
-      this.$message?.success('登录成功！')
+      this.openCenterPrompt('登录成功！')
     },
 
     // 第三方登录处理
@@ -209,19 +218,22 @@ export default {
     logout() {
       this.userStore.logout()
       this.showUserMenu = false
-      this.$message?.success('已退出登录')
+      this.openCenterPrompt('已退出登录')
     }
     ,
     // 处理 401 未授权提示
     handleAuth401() {
-      if (this.$message?.error) {
-        this.$message.error('请重新登录')
-      } else {
-        console.warn('请重新登录')
-      }
+      this.openCenterPrompt('请重新登录')
       this.showLoginModal()
     }
     ,
+    openCenterPrompt(text) {
+      this.centerPromptText = String(text || '').trim() || '提示'
+      this.centerPromptVisible = true
+    },
+    closeCenterPrompt() {
+      this.centerPromptVisible = false
+    },
     goHome() {
       this.$router.push('/')
     }
@@ -357,6 +369,43 @@ export default {
   background: #2563eb;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.center-prompt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2500;
+}
+
+.center-prompt {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  min-width: 280px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  text-align: center;
+}
+
+.prompt-text {
+  font-size: 14px;
+  color: #111827;
+  margin-bottom: 12px;
+}
+
+.prompt-close-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: #ffffff;
+  cursor: pointer;
 }
 
 .login-icon {

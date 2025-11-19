@@ -219,15 +219,28 @@ export async function queryRegenerateImage({ videoId, type, name, generateUuid, 
     headers: buildAuthHeaders(token),
     redirect: 'follow'
   }
-  const res = await fetch(url, requestOptions)
-  if (res.status === 401) {
-    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  const requestOnce = async () => {
+    const res = await fetch(url, requestOptions)
+    if (res.status === 401) {
+      try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+    }
+    try {
+      return await res.json()
+    } catch (e) {
+      try { return JSON.parse(await res.text()) } catch { return null }
+    }
   }
-  try {
-    return await res.json()
-  } catch (e) {
-    console.warn('queryRegenerateImage: 返回解析失败，回退为文本', e)
-    return res.text()
+  for (;;) {
+    let data = null
+    try { data = await requestOnce() } catch (e) { data = null }
+    const urlA = data && data.urls && data.urls[0] && data.urls[0].imageUrl
+    const urlB = data && data.raw && data.raw.data && data.raw.data.images && data.raw.data.images[0] && data.raw.data.images[0].imageUrl
+    const msgText = String((data && (data.message || data.msg || data.meg)) || '').trim()
+    const hasErrorMsg = !!msgText && /失败|异常|error|敏感/i.test(msgText)
+    if (data && (urlA || urlB || hasErrorMsg)) {
+      return data
+    }
+    await new Promise(r => setTimeout(r, 5000))
   }
 }
 

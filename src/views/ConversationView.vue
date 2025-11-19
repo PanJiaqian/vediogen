@@ -66,8 +66,8 @@
         </div>
       </div>
     </div>
-    <ErrorModal :visible="errorModalVisible" :message="errorMessage" @close="errorModalVisible = false" />
   </div>
+  <ErrorModal :visible="errorModalVisible" :message="errorMessage" @close="errorModalVisible = false" />
 </template>
 
 <script>
@@ -97,9 +97,9 @@ export default {
       stepTimer: null,
       stepDurationsMs: [30000, 30000, 30000, 30000, 30000, 30000],
       progressIntervalMs: 1000,
+      isContentComplete: false,
       errorModalVisible: false,
-      errorMessage: '小梦出了点问题，请稍后再试',
-      isContentComplete: false
+      errorMessage: '剧本生成失败，请稍后再试'
     }
   },
   computed: {

@@ -13,7 +13,7 @@
       </div>
       <div class="navbar-right">
         <button class="navbar-btn premium-btn">开通会员</button>
-        <button class="navbar-btn convert-btn" @click="convertToVideo" :disabled="!allImagesReady">一键转视频</button>
+        <button class="navbar-btn convert-btn" @click="convertToVideo" :disabled="!allImagesReady || isVideo(currentPreviewUrl)">一键转视频</button>
         <button class="navbar-btn export-btn">导出视频</button>
       </div>
     </div>
@@ -159,7 +159,7 @@
               </div>
             </div>
             <div class="input-footer">
-              <button class="convert-video-btn">
+              <button class="convert-video-btn" @click="convertToVideo" :disabled="entryMode === 'crop' || isVideo(currentPreviewUrl)">
                 <span>转视频</span>
               </button>
               <div class="input-footer-right">
@@ -380,7 +380,7 @@
           </div>
 
           <!-- 时间轴区域 -->
-          <div class="timeline-section">
+          <div class="timeline-section" ref="timelineSection">
             <!-- 字幕开关 -->
             <div class="timeline-header">
               <span class="timeline-label">字幕</span>
@@ -392,7 +392,7 @@
 
             <!-- 时间刻度 -->
             <div class="time-scale">
-              <div class="time-scale-inner">
+              <div class="time-scale-inner" ref="timeScaleInner">
                 <div class="time-marker" v-for="time in timeMarkers" :key="time">
                   <span class="time-text">{{ time }}</span>
                 </div>
@@ -400,7 +400,7 @@
             </div>
 
             <!-- 分镜轨道 - 水平布局 -->
-            <div class="timeline-tracks">
+            <div class="timeline-tracks" ref="timelineTracks">
               <div v-for="(scene, index) in scenes" :key="scene.id" class="timeline-track"
                 :class="{ active: index === activeSceneIndex }" draggable="true"
                 @dragstart="handleDragStart(index, $event)" @dragover="handleDragOver($event)"
@@ -471,7 +471,7 @@
             </div>
 
             <!-- 播放进度指示器 -->
-            <div class="playback-indicator" :style="{ left: playbackLeftPx + 'px' }"></div>
+            <div class="playback-indicator" :style="{ left: playbackLeftPx + 'px' }" @mousedown="onPointerDown"></div>
           </div>
         </div>
       </div>
@@ -484,6 +484,13 @@
     <!-- 对口型页面覆盖层 -->
     <div v-if="showLipSyncView" class="lip-sync-overlay">
       <LipSyncView @close="toggleLipSyncView" />
+    </div>
+  </div>
+
+  <div v-if="successModalVisible" class="success-modal-overlay" @click="closeSuccessModal">
+    <div class="success-modal" @click.stop>
+      <div class="success-title">任务创建成功</div>
+      <button class="success-close-btn" @click="closeSuccessModal">确定</button>
     </div>
   </div>
 </template>
@@ -509,7 +516,8 @@ export default {
       subtitleEnabled: true,
       activeSceneIndex: 0,
       playbackPosition: 0, // 播放进度百分比
-      playbackLeftPx: 0, // 红色指针在时间轴中的像素位置
+      playbackLeftPx: 0,
+      isDraggingPointer: false,
       timeMarkers: [],
       scenes: [],
       draggedIndex: null,
@@ -535,7 +543,8 @@ export default {
       // 画布编辑模式
       isCanvasEditMode: false,
       // 对口型页面显示状态
-      showLipSyncView: false
+      showLipSyncView: false,
+      successModalVisible: false
       ,sceneDetail: { reference_image_url: '', video_url: '' }
     }
   },
@@ -586,13 +595,11 @@ export default {
     }
     // 同步时间刻度与轨道的水平滚动
     this.$nextTick(() => {
-      const tracks = this.$el && this.$el.querySelector('.timeline-tracks')
-      const scaleInner = this.$el && this.$el.querySelector('.time-scale-inner')
+      const tracks = this.$refs.timelineTracks
+      const scaleInner = this.$refs.timeScaleInner
       if (tracks && scaleInner) {
         const sync = () => {
-          // 让时间刻度随轨道左右滑动
           scaleInner.style.transform = `translateX(${-tracks.scrollLeft}px)`
-          // 根据滚动修正指针的可见位置
           const pxPerSecond = this.getPxPerSecond()
           const elapsedSec = (this.playbackPosition / 100) * (this.scenes.length * 5)
           const absolutePx = elapsedSec * pxPerSecond
@@ -726,7 +733,7 @@ export default {
     },
     // 读取每秒对应的像素宽度（与CSS变量保持一致）
     getPxPerSecond() {
-      const section = this.$el && this.$el.querySelector('.timeline-section')
+      const section = this.$refs.timelineSection
       if (!section) return 48
       const val = getComputedStyle(section).getPropertyValue('--px-per-second') || '48px'
       const num = parseFloat(val)
@@ -892,6 +899,45 @@ export default {
       const vid = this.isVideo(this.currentPreviewUrl) ? this.cleanUrl(this.currentPreviewUrl) : ''
       this.sceneDetail = { reference_image_url: img, video_url: vid }
     },
+    onPointerDown(e) {
+      this.isDraggingPointer = true
+      this.isPlaying = false
+      this.pausePreview()
+      try {
+        document.addEventListener('mousemove', this.onDocumentPointerMove)
+        document.addEventListener('mouseup', this.onDocumentPointerUp)
+      } catch (err) { console.warn('绑定拖动事件失败:', err) }
+      this.updatePointerByClientX(e.clientX)
+    },
+    onDocumentPointerMove(e) {
+      if (!this.isDraggingPointer) return
+      this.updatePointerByClientX(e.clientX)
+    },
+    onDocumentPointerUp() {
+      this.isDraggingPointer = false
+      try {
+        document.removeEventListener('mousemove', this.onDocumentPointerMove)
+        document.removeEventListener('mouseup', this.onDocumentPointerUp)
+      } catch (err) { console.warn('移除拖动事件失败:', err) }
+    },
+    updatePointerByClientX(clientX) {
+      const section = this.$refs.timelineSection
+      const tracks = this.$refs.timelineTracks
+      if (!section || !tracks) return
+      const rect = section.getBoundingClientRect()
+      const relX = clientX - rect.left
+      const pxPerSecond = this.getPxPerSecond()
+      let absolutePx = relX - tracks.offsetLeft + tracks.scrollLeft
+      if (!Number.isFinite(absolutePx)) absolutePx = 0
+      const totalSeconds = (Array.isArray(this.scenes) ? this.scenes.length : 0) * 5
+      let elapsedSec = Math.max(0, Math.min(totalSeconds, absolutePx / pxPerSecond))
+      this.playbackPosition = totalSeconds > 0 ? (elapsedSec / totalSeconds) * 100 : 0
+      this.playbackLeftPx = tracks.offsetLeft + (elapsedSec * pxPerSecond) - tracks.scrollLeft
+      const idx = Math.min(Math.max(0, Math.floor(elapsedSec / 5)), Math.max(0, this.scenes.length - 1))
+      if (idx !== this.activeSceneIndex) {
+        this.activeSceneIndex = idx
+      }
+    },
     async fetchCurrentSceneDetail() {
       try {
         const projectId = this.$route.params.id
@@ -947,33 +993,29 @@ export default {
           console.warn('未获取到 generateUuid，无法查询结果', resp)
           return
         }
-        // 每5秒轮询一次查询接口，直到拿到图片地址
         if (this._regenerateActiveSceneInterval) {
           try { clearInterval(this._regenerateActiveSceneInterval) } catch (e) { /* no-op */ }
           this._regenerateActiveSceneInterval = null
         }
-        const poll = async () => {
-          try {
-            const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
-            const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
-            if (url) {
-              const cleaned = this.cleanUrl(url)
-              // 写回缩略图与轨道片段首帧
-              if (this.activeSceneIndex >= 0 && this.activeSceneIndex < this.scenes.length) {
-                const scene = this.scenes[this.activeSceneIndex]
-                scene.thumbnail = cleaned
-                scene.clips = [{ url: cleaned, durationMs: 5000 }]
-              }
-              try { clearInterval(this._regenerateActiveSceneInterval) } catch (e) { /* no-op */ }
-              this._regenerateActiveSceneInterval = null
-            }
-          } catch (e) {
-            console.warn('查询重生成分镜图片失败:', e)
+        try {
+          const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
+          const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
+          const msgText = String((q && (q.message || q.msg || q.meg)) || '').trim()
+          if (msgText) {
+            console.warn('重生成分镜图片接口返回错误:', msgText)
+            return
           }
+          if (url) {
+            const cleaned = this.cleanUrl(url)
+            if (this.activeSceneIndex >= 0 && this.activeSceneIndex < this.scenes.length) {
+              const scene = this.scenes[this.activeSceneIndex]
+              scene.thumbnail = cleaned
+              scene.clips = [{ url: cleaned, durationMs: 5000 }]
+            }
+          }
+        } catch (e) {
+          console.warn('查询重生成分镜图片失败:', e)
         }
-        // 立即查询一次，然后每5秒轮询
-        await poll()
-        this._regenerateActiveSceneInterval = setInterval(poll, 5000)
       } catch (e) {
         console.warn('重新生成分镜图片失败:', e)
       }
@@ -1006,8 +1048,7 @@ export default {
         let result
         try { result = JSON.parse(text) } catch { result = { raw: text } }
         console.log('一键转视频接口返回:', result)
-        const msg = (result && result.message) || '创建任务成功，任务正在生成中'
-        
+        this.successModalVisible = true
         // 每30秒轮询一次分镜视频生成状态（localhost）
         if (this._storyboardQueryInterval) clearInterval(this._storyboardQueryInterval)
         this._storyboardQueryInterval = setInterval(async () => {
@@ -1026,6 +1067,9 @@ export default {
         console.error('一键转视频失败:', err)
       }
     },
+    closeSuccessModal() {
+      this.successModalVisible = false
+    },
     saveTitle() {
       console.log('保存标题:', this.projectTitle)
     },
@@ -1040,12 +1084,18 @@ export default {
         this.playbackPosition = (targetSec / totalSeconds) * 100
         // 计算指针像素位置，考虑滚动与容器偏移
         const pxPerSecond = this.getPxPerSecond()
-        const section = this.$el && this.$el.querySelector('.timeline-section')
-        const tracks = section && section.querySelector('.timeline-tracks')
+        const section = this.$refs.timelineSection
+        const tracks = this.$refs.timelineTracks
         if (tracks) {
           const absolutePx = targetSec * pxPerSecond
           this.playbackLeftPx = tracks.offsetLeft + absolutePx - tracks.scrollLeft
         }
+      }
+      if (this.isPlaying) {
+        this.$nextTick(() => {
+          this.syncPreviewPlayback()
+          this.startPlayback()
+        })
       }
     },
     togglePlay() {
@@ -1070,6 +1120,10 @@ export default {
       const start = performance.now() - priorMs
       if (this._playbackInterval) clearInterval(this._playbackInterval)
       if (this._rafId) cancelAnimationFrame(this._rafId)
+      const el = this.$refs.previewVideo
+      if (el && this.isVideo(this.currentPreviewUrl)) {
+        this.playVideoSafely(el)
+      }
       const tick = (now) => {
         if (!this.isPlaying) return
         const elapsed = now - start
@@ -1081,8 +1135,8 @@ export default {
           this.syncPreviewPlayback()
         }
         const pxPerSecond = this.getPxPerSecond()
-        const section = this.$el && this.$el.querySelector('.timeline-section')
-        const tracks = section && section.querySelector('.timeline-tracks')
+        const section = this.$refs.timelineSection
+        const tracks = this.$refs.timelineTracks
         if (tracks && section) {
           const elapsedSec = clamped / 1000
           const absolutePx = elapsedSec * pxPerSecond
@@ -1739,6 +1793,11 @@ export default {
   background: #e5e7eb;
 }
 
+.convert-video-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .input-footer-right {
   display: flex;
   align-items: center;
@@ -1990,6 +2049,44 @@ export default {
 
 .play-btn-circle svg {
   margin-left: 1px;
+}
+
+.success-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+.success-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  min-width: 260px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  text-align: center;
+}
+
+.success-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 12px;
+}
+
+.success-close-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: #ffffff;
+  cursor: pointer;
 }
 
 /* 时间轴区域 */
@@ -2282,10 +2379,11 @@ input:checked+.slider:before {
   width: 2px;
   background: #ef4444;
   z-index: 10;
-  pointer-events: none;
+  pointer-events: auto;
   left: 15%;
   transition: left 0.15s linear;
   will-change: left;
+  cursor: col-resize;
 }
 
 .playback-indicator::before {

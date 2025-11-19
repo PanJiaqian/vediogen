@@ -219,17 +219,15 @@
   <div v-if="imagePreviewVisible" class="image-preview-overlay" @click="closeImagePreview">
     <img :src="imagePreviewSrc" class="image-preview-img" @click.stop />
   </div>
-  <ErrorModal :visible="errorModalVisible" :message="errorMessage" @close="errorModalVisible = false" />
 </template>
 
 <script>
 import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
-import ErrorModal from '@/components/ErrorModal.vue'
 export default {
   name: 'ProjectDetailView',
-  components: { ErrorModal },
+  components: { },
   data() {
     return {
       userInput: '',
@@ -241,8 +239,6 @@ export default {
       materialId: '',
       imagePreviewVisible: false,
       imagePreviewSrc: '',
-      errorModalVisible: false,
-      errorMessage: '小梦出了点问题，请稍后再试',
       loadingSections: { art: false, music: false, summary: false, people: false, scene: false, storyboard: false },
       generated: {
         scriptSummary: '',
@@ -443,56 +439,41 @@ export default {
         const resp = await regenerateImage({ videoId, type, name, token })
         const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
         if (!generateUuid) {
-          this.errorMessage = '未获取到生成任务编号'
-          this.errorModalVisible = true
           return
         }
-        // 每5秒轮询一次查询接口，直到拿到图片地址
-          const poll = async () => {
-            try {
-              const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
-              const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
-              if (q && q.success === false) {
-                this.errorMessage = q.message || '接口返回失败'
-                this.errorModalVisible = true
-                try { clearInterval(intervalId) } catch (e) { console.warn('clearInterval error:', e) }
-                return
+        const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
+        const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
+        const msgText = String((q && (q.message || q.msg || q.meg)) || '').trim()
+        if (msgText) {
+          console.warn('重生成场景图片接口返回错误:', msgText)
+          return
+        }
+        if (url) {
+          s.Scene_picture_url = url
+          try {
+            const projectId = this.$route.params.id
+            const key = `video-edit:scenes:${projectId}`
+            const text = localStorage.getItem(key) || ''
+            if (text) {
+              let arr = []
+              try { arr = JSON.parse(text) || [] } catch (e) { arr = [] }
+              const t = s.Scene_Name || s.scene_title || ''
+              let changed = false
+              for (const item of arr) {
+                if (String(item.title || '').trim() === String(t).trim()) {
+                  item.thumbnail = this.cleanUrl(url)
+                  changed = true
+                  break
+                }
               }
-              if (url) {
-                s.Scene_picture_url = url
-                try { clearInterval(intervalId) } catch (e) { /* no-op */ }
-                try {
-                  const projectId = this.$route.params.id
-                  const key = `video-edit:scenes:${projectId}`
-                  const text = localStorage.getItem(key) || ''
-                  if (text) {
-                    let arr = []
-                    try { arr = JSON.parse(text) || [] } catch (e) { arr = [] }
-                    const t = s.Scene_Name || s.scene_title || ''
-                    let changed = false
-                    for (const item of arr) {
-                      if (String(item.title || '').trim() === String(t).trim()) {
-                        item.thumbnail = this.cleanUrl(url)
-                        changed = true
-                        break
-                      }
-                    }
-                    if (changed) {
-                      try { localStorage.setItem(key, JSON.stringify(arr)) } catch (e) { console.warn('更新场景缩略图缓存失败:', e) }
-                    }
-                  }
-                } catch (e) { console.warn('同步场景图到列表失败:', e) }
+              if (changed) {
+                try { localStorage.setItem(key, JSON.stringify(arr)) } catch (e) { console.warn('更新场景缩略图缓存失败:', e) }
               }
-            } catch (e) {
-            this.errorMessage = (e && e.message) || '查询重生成场景图片失败'
-            this.errorModalVisible = true
             }
-          }
-        const intervalId = setInterval(poll, 5000)
-        await poll()
+          } catch (e) { console.warn('同步场景图到列表失败:', e) }
+        }
       } catch (e) {
-        this.errorMessage = (e && e.message) || '重新生成场景图片失败'
-        this.errorModalVisible = true
+        console.warn('重新生成场景图片失败:', e)
       }
     },
     async handleRegenerateCharacter(p) {
@@ -509,35 +490,20 @@ export default {
         const resp = await regenerateImage({ videoId, type, name, token })
         const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
         if (!generateUuid) {
-          this.errorMessage = '未获取到生成任务编号'
-          this.errorModalVisible = true
           return
         }
-        // 每5秒轮询一次查询接口，直到拿到图片地址
-        const poll = async () => {
-          try {
-            const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
-            const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
-            if (q && q.success === false) {
-              this.errorMessage = q.message || '接口返回失败'
-              this.errorModalVisible = true
-              try { clearInterval(intervalId) } catch (e) { console.warn('clearInterval error:', e) }
-              return
-            }
-            if (url) {
-              p.Character_picture = url
-              try { clearInterval(intervalId) } catch (e) { /* no-op */ }
-            }
-          } catch (e) {
-            this.errorMessage = (e && e.message) || '查询重生成人物图片失败'
-            this.errorModalVisible = true
-          }
+        const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
+        const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
+        const msgText = String((q && (q.message || q.msg || q.meg)) || '').trim()
+        if (msgText) {
+          console.warn('重生成人物图片接口返回错误:', msgText)
+          return
         }
-        const intervalId = setInterval(poll, 5000)
-        await poll()
+        if (url) {
+          p.Character_picture = url
+        }
       } catch (e) {
-        this.errorMessage = (e && e.message) || '重新生成人物图片失败'
-        this.errorModalVisible = true
+        console.warn('重新生成人物图片失败:', e)
       }
     },
     applyParsedData(objs) {

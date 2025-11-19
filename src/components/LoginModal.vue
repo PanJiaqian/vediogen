@@ -149,6 +149,12 @@
       </div>
     </div>
   </div>
+  <div v-if="promptVisible" class="center-prompt-overlay" @click="closePrompt">
+    <div class="center-prompt" @click.stop>
+      <div class="prompt-text">{{ promptText }}</div>
+      <button class="prompt-close-btn" @click="closePrompt">确定</button>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -181,7 +187,9 @@ export default {
         captcha: '',
         emailCode: ''
       },
-      errors: {}
+      errors: {},
+      promptVisible: false,
+      promptText: ''
     }
   },
   computed: {
@@ -234,6 +242,13 @@ export default {
         clearInterval(this.emailCodeTimer)
         this.emailCodeTimer = null
       }
+    },
+    showPrompt(text) {
+      this.promptText = String(text || '').trim() || '提示'
+      this.promptVisible = true
+    },
+    closePrompt() {
+      this.promptVisible = false
     },
     validateForm() {
       this.errors = {}
@@ -329,12 +344,11 @@ export default {
             this.closeModal()
           } else {
             console.error('登录失败:', data.message)
-            if (data.message.includes('密码')) {
-              this.errors.password = data.message
-            } else if (data.message.includes('邮箱')) {
-              this.errors.email = data.message
+            const msg = String(data.message || '').trim()
+            if (/密码|password/i.test(msg)) {
+              this.showPrompt('账号或密码错误')
             } else {
-              this.errors.email = data.message || '登录失败，请重试'
+              this.showPrompt(msg || '登录失败，请重试')
             }
           }
         }
@@ -366,14 +380,7 @@ export default {
           } else {
             // 注册失败，显示错误信息
             console.error('注册失败:', data.message)
-            // 可以根据具体错误设置相应的错误提示
-            if (data.message.includes('验证码')) {
-              this.errors.emailCode = data.message
-            } else if (data.message.includes('邮箱')) {
-              this.errors.email = data.message
-            } else {
-              this.errors.email = data.message || '注册失败，请重试'
-            }
+            this.showPrompt(data.message || '注册失败，请重试')
           }
         } else {
           // 其他登录方式保持原有逻辑（模拟API调用）
@@ -400,7 +407,7 @@ export default {
 
       } catch (error) {
         console.error('操作失败:', error)
-        this.errors.email = '网络错误，请检查网络连接后重试'
+        this.showPrompt('网络错误，请检查网络连接后重试')
       } finally {
         this.loading = false
       }
@@ -505,12 +512,12 @@ export default {
         } else {
           // 发送失败，显示错误信息
           console.error('验证码发送失败:', data.message)
-          this.errors.emailCode = data.message || '验证码发送失败，请重试'
+          this.showPrompt(data.message || '验证码发送失败，请重试')
         }
 
       } catch (error) {
         console.error('发送邮箱验证码失败:', error)
-        this.errors.emailCode = '网络错误，请检查网络连接后重试'
+        this.showPrompt('网络错误，请检查网络连接后重试')
       } finally {
         this.emailCodeSending = false
       }
@@ -695,6 +702,43 @@ export default {
   border: 1px solid #d1d5db;
   border-radius: 6px;
   overflow: hidden;
+}
+
+.center-prompt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.center-prompt {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  min-width: 280px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  text-align: center;
+}
+
+.prompt-text {
+  font-size: 14px;
+  color: #111827;
+  margin-bottom: 12px;
+}
+
+.prompt-close-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: #3b82f6;
+  color: #ffffff;
+  cursor: pointer;
 }
 
 .captcha-image canvas {

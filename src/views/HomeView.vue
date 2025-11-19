@@ -26,7 +26,7 @@
       <div class="search-container">
         <div class="search-box">
           <div class="search-input-container">
-            <input v-model="searchQuery" type="text" class="search-input" placeholder="输入你的想法，小梦会帮你自动为你创作"
+            <input v-model="searchQuery" type="text" maxlength="250" class="search-input" placeholder="输入你的想法，小梦会帮你自动为你创作"
               @keyup.enter="handleSearch" />
           </div>
           <div class="search-actions-container">
@@ -106,7 +106,10 @@
               </div>
             </div>
             <div class="right-actions">
-              <button class="search-submit-btn" @click="handleSearch">
+              <div class="input-counter">
+                <span class="count">{{ (searchQuery || '').length }}/250</span>
+              </div>
+              <button class="search-submit-btn" :class="{ active: searchQuery.trim().length > 0 }" @click="handleSearch">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <path d="M5 12l5 5L20 7" />
                 </svg>
@@ -149,7 +152,7 @@
 </template>
 
 <script>
-import { getCreativeWorkList } from '@/api'
+import { getCreativeWorkList, getMaterialsList } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { projectPlaceholders } from '@/utils/placeholder'
 import CreateSubjectModal from '@/components/CreateSubjectModal.vue'
@@ -416,6 +419,9 @@ export default {
 
     setSubjectCategory(category) {
       this.activeSubjectCategory = category
+      if (category !== 'public') {
+        this.loadPersonalSubjects()
+      }
     },
 
     createNewSubject() {
@@ -472,14 +478,29 @@ export default {
       alert('主体创建成功！')
     },
 
-    // 加载个人主体（占位实现，避免方法不存在报错）
+    // 加载个人主体（与主体库保持一致的数据来源）
     async loadPersonalSubjects() {
       try {
-        const list = this.subjects.filter(s => s.category === 'personal')
-        return list.length ? list : this.subjects
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) {
+          return
+        }
+        const result = await getMaterialsList(token)
+        let data
+        try { data = JSON.parse(result) } catch { data = null }
+        if (data && data.code === 0 && Array.isArray(data.data)) {
+          const personalSubjects = data.data.map(item => ({
+            id: item.id,
+            name: item.name,
+            avatar: item.fileUrl || '/api/placeholder/40/40',
+            tags: [item.gender || '全部', item.ageRange || '全部'].filter(Boolean),
+            category: 'personal'
+          }))
+          const publicSubjects = this.subjects.filter(s => s.category === 'public')
+          this.subjects = [...publicSubjects, ...personalSubjects]
+        }
       } catch (e) {
         console.warn('加载个人主体失败:', e)
-        return this.subjects
       }
     },
 
@@ -678,6 +699,18 @@ export default {
   justify-content: flex-end;
 }
 
+.input-counter {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+  color: #6b7280;
+  font-size: 0.675rem;
+}
+
+.input-counter .count {
+  font-weight: 500;
+}
+
 .action-btn {
   height: 30px;
   display: flex;
@@ -752,6 +785,11 @@ export default {
   cursor: pointer;
   transition: all 0.2s ease;
   margin-left: auto;
+}
+
+.search-submit-btn.active {
+  background: #3b82f6;
+  color: #ffffff;
 }
 
 .search-submit-btn:hover {

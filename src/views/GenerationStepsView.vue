@@ -98,9 +98,9 @@ export default {
       stepDurationsMs: [75000, 75000, 75000, 75000, 75000],
       // 进度刷新间隔（毫秒）
       progressIntervalMs: 1000,
+      isContentComplete: false,
       errorModalVisible: false,
-      errorMessage: '小梦出了点问题，请稍后再试',
-      isContentComplete: false
+      errorMessage: '分镜生成失败，请稍后再试'
     }
   },
   mounted() {
