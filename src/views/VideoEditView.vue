@@ -663,6 +663,8 @@ export default {
     currentPreviewUrl() {
       const scene = this.scenes[this.activeSceneIndex]
       if (!scene) return '/logo.png'
+      const fromApi = this.cleanUrl(this.sceneDetail.video_url || this.sceneDetail.reference_image_url || '')
+      if (fromApi) return fromApi
       const clips = this.getSceneClips(scene)
       const first = clips && clips.length ? clips[0] : null
       return (first && first.url) || scene.thumbnail || '/logo.png'
@@ -920,13 +922,25 @@ export default {
       // 将单个图片分镜拆分为若干小片段，在5秒内重复排列
       let baseUrl = ''
       let duration = 0
+      const isActive = scene && this.scenes[this.activeSceneIndex] === scene
+      if (isActive) {
+        const fromApi = this.cleanUrl(this.sceneDetail.video_url || this.sceneDetail.reference_image_url || '')
+        if (fromApi) {
+          baseUrl = fromApi
+          duration = this.sceneDetail.video_url ? 5000 : 3000
+        }
+      }
       if (scene && Array.isArray(scene.clips) && scene.clips.length) {
         const first = scene.clips[0]
-        baseUrl = this.cleanUrl(first?.url || scene.thumbnail || '')
-        duration = Number(first?.durationMs) || 5000
+        if (!baseUrl) {
+          baseUrl = this.cleanUrl(first?.url || scene.thumbnail || '')
+          duration = Number(first?.durationMs) || 5000
+        }
       } else {
-        baseUrl = this.cleanUrl(scene?.thumbnail || '')
-        duration = 3000
+        if (!baseUrl) {
+          baseUrl = this.cleanUrl(scene?.thumbnail || '')
+          duration = 3000
+        }
       }
       if (!baseUrl) return []
       // 每秒2张缩略图，总计10张以覆盖5秒
@@ -944,8 +958,16 @@ export default {
       return { width: widthPct + '%', minWidth: '28px' }
     },
     refreshSidebarFromLocal() {
+      const imgApi = this.cleanUrl(this.sceneDetail.reference_image_url || '')
+      const vidApi = this.cleanUrl(this.sceneDetail.video_url || '')
+      if (imgApi || vidApi) {
+        this.sceneDetail = { reference_image_url: imgApi, video_url: vidApi }
+        return
+      }
       const img = this.cleanUrl(this.scenes[this.activeSceneIndex]?.thumbnail || '')
-      const vid = this.isVideo(this.currentPreviewUrl) ? this.cleanUrl(this.currentPreviewUrl) : ''
+      const clips = this.getSceneClips(this.scenes[this.activeSceneIndex] || {})
+      const first = clips && clips.length ? clips[0] : null
+      const vid = this.isVideo(first?.url || '') ? this.cleanUrl(first?.url || '') : ''
       this.sceneDetail = { reference_image_url: img, video_url: vid }
     },
     onPointerDown(e) {
