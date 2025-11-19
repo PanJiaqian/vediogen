@@ -119,15 +119,24 @@
                   v-model="inputText"
                   placeholder="输入你的想法，小梦会帮你自动为你创作"
                   class="text-input"
+                  :maxlength="250"
+                  @input="handleInputChange"
                   @keyup.enter="sendMessage"
                   @focus="handleInputFocus"
                   rows="3"
                 ></textarea>
               </div>
+              <div class="char-counter">{{ (inputText || '').length }}/250</div>
+              <button
+                class="search-submit-btn input-submit"
+                :class="{ active: inputText.trim().length > 0 }"
+                @click="handleLibrarySubmit"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M5 12l5 5L20 7" />
+                </svg>
+              </button>
             </div>
-            <button class="send-btn" @click="sendMessage">
-              <span class="send-icon">↑</span>
-            </button>
           </div>
         </div>
 
@@ -136,29 +145,21 @@
           <h2 class="info-title">{{ selectedAsset.title }}</h2>
           <div class="info-row">
             <span class="info-label">类别</span>
-            <span class="info-value">动物</span>
+            <span class="info-value">{{ selectedAsset.category || '未知' }}</span>
           </div>
 
           <div class="info-row">
             <span class="info-label">性别</span>
-            <span class="info-value">无</span>
+            <span class="info-value">{{ selectedAsset.gender || '未知' }}</span>
             <span class="info-label">年龄</span>
-            <span class="info-value">无</span>
+            <span class="info-value">{{ selectedAsset.ageRange || '未知' }}</span>
           </div>
 
           <div class="info-row">
             <span class="info-label">主体描述</span>
           </div>
 
-          <div class="description-text">
-            皮克斯版，皮克斯版，卡通风格，全身，正面回视，
-            独头鹰，动物，绿色的毛，人眼睛，黄色嘴，橙
-            色脚，我有白色头毛
-          </div>
-
-          <div class="info-footer">
-            <span class="creator-info">内容由 AI 生成</span>
-          </div>
+          <div class="description-text">{{ selectedAsset.themeDescription || '暂无描述' }}</div>
 
           <!-- 使用主体按钮 -->
           <button class="use-subject-btn" @click="toggleInputBox">
@@ -169,7 +170,6 @@
       </div>
     </div>
 
-    <!-- 创建新主体弹窗 -->
     <!-- 创建新主体弹窗 -->
     <CreateSubjectModal 
       :visible="showCreateModal" 
@@ -322,18 +322,23 @@ export default {
         
         if (data.code === 0 && data.data) {
           // 将API数据转换为资产卡片格式
-          const personalAssets = data.data.map(item => ({
-            id: item.id,
-            title: item.name,
-            thumbnail: item.fileUrl || generateGradientPlaceholder(item.name, 'E8E8E8', 'F8F9FA'),
-            type: 'personal',
-            category: item.category,
-            gender: item.gender,
-            ageRange: item.ageRange,
-            themeDescription: item.themeDescription,
-            createTime: item.createTime,
-            updateTime: item.updateTime
-          }))
+          const personalAssets = data.data.map(item => {
+            const rawUrl = String(item.fileUrl || '').trim().replace(/^`+|`+$/g, '')
+            const isHttp = /^https?:\/\//i.test(rawUrl)
+            const thumb = isHttp ? rawUrl : generateGradientPlaceholder(item.name, 'E8E8E8', 'F8F9FA')
+            return {
+              id: item.id,
+              title: item.name,
+              thumbnail: thumb,
+              type: 'personal',
+              category: item.category,
+              gender: item.gender,
+              ageRange: item.ageRange,
+              themeDescription: item.themeDescription,
+              createTime: item.createTime,
+              updateTime: item.updateTime
+            }
+          })
           
           // 更新资产列表，保留公共资产，替换个人资产
           this.assets = [
@@ -380,6 +385,10 @@ export default {
     handleInputFocus() {
       // 当输入框获得焦点时的处理
     },
+    handleInputChange(e) {
+      const val = String(e && e.target && e.target.value || '')
+      this.inputText = val.length > 250 ? val.slice(0, 250) : val
+    },
     sendMessage() {
       if (this.inputText.trim()) {
         // 处理发送消息的逻辑
@@ -389,6 +398,29 @@ export default {
         // 可以选择隐藏输入框或保持显示
         // this.showInputBox = false
       }
+    },
+    handleLibrarySubmit() {
+      if (!this.userStore?.isLoggedIn) {
+        try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { console.warn('登录弹窗事件触发失败:', e) }
+        return
+      }
+      const text = (this.inputText || '').trim()
+      if (!text) {
+        try { alert('请输入提示词后再提交') } catch (e) { console.warn('提示弹窗触发失败:', e) }
+        return
+      }
+      const stageDirections = text
+      const category = '0'
+      const materialId = this.selectedAsset && this.selectedAsset.id ? String(this.selectedAsset.id) : ''
+      const myHeaders = new Headers()
+      myHeaders.append('Accept', 'text/event-stream')
+      const token = (this.userStore && this.userStore.token) || ''
+      if (token) {
+        myHeaders.append('Authorization', token)
+      }
+      const requestOptions = { method: 'POST', headers: myHeaders, redirect: 'follow' }
+      const apiUrl = `http://106.12.116.141:1770/api/agent/Script_gen?stageDirections=${encodeURIComponent(stageDirections)}&materialId=${encodeURIComponent(materialId)}&category=${encodeURIComponent(category)}`
+      this.$router.push({ name: 'Conversation', query: { q: stageDirections, category, materialId } })
     }
   }
 }
@@ -665,6 +697,34 @@ export default {
   color: #6c757d;
 }
 
+/* 首页提交按钮样式复用 */
+.search-submit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #f3f4f6;
+  border: none;
+  border-radius: 50%;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+.search-submit-btn.active {
+  background: #3b82f6;
+  color: #ffffff;
+}
+.search-submit-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+.search-submit-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 /* 主要内容区域 */
 .detail-content {
   flex: 1;
@@ -761,14 +821,6 @@ export default {
   padding: 16px;
 }
 
-.info-footer {
-  margin-bottom: 30px;
-}
-
-.creator-info {
-  font-size: 12px;
-  color: #6c757d;
-}
 
 /* 使用主体按钮 */
 .use-subject-btn {
@@ -878,32 +930,21 @@ export default {
   color: #999;
 }
 
-/* 发送按钮 */
-.send-btn {
+/* 输入框内字符计数与提交按钮 */
+.char-counter {
   position: absolute;
   bottom: 16px;
-  right: 16px;
-  width: 32px;
-  height: 32px;
-  background: #4dabf7;
-  border: none;
-  border-radius: 50%;
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s;
-  z-index: 1;
+  right: 60px;
+  font-size: 12px;
+  color: #999;
 }
 
-.send-btn:hover {
-  background: #0088FF;
-}
-
-.send-icon {
-  font-size: 16px;
-  font-weight: bold;
+.input-submit {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
 }
 
 /* 创建新主体弹窗样式 */
