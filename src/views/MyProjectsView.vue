@@ -40,7 +40,7 @@
 
 <script>
 import { generateGradientPlaceholder } from '@/utils/placeholder'
-import { getMyWorksList, getStoryboardImagesDetail, queryStoryboardVideoStatus } from '@/api/index.js'
+import { getMyWorksList, getStoryboardImagesDetail, queryStoryboardVideoStatus, getWorksVideoStatus, getScriptDetailByVideo } from '@/api/index.js'
 import { useUserStore } from '@/stores/user.js'
 
 export default {
@@ -126,26 +126,44 @@ export default {
           try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { console.warn('打开登录弹窗失败:', e) }
           return
         }
-        try { localStorage.setItem(`project:videoId:${project.id}`, String(project.id)) } catch (e) { console.warn('保存视频ID失败:', e) }
+        const videoId = String(project.id)
+        try { localStorage.setItem(`project:videoId:${project.id}`, videoId) } catch (e) { console.warn('保存视频ID失败:', e) }
+
+        // 1) 先调用作品创作进度状态接口
+        let status = null
+        try {
+          const text = await getWorksVideoStatus({ videoId, token })
+          try { status = JSON.parse(text) } catch (e) { status = null }
+        } catch (e) {
+          console.warn('查询作品创作进度状态失败:', e)
+        }
+
+        // 2) 根据状态决定后续行为
+        const videoReady = !!(status && (status.video === true || status.data?.video === true))
+        const pictureReady = !!(status && (status.picture === true || status.data?.picture === true))
+        const scriptReady = !!(status && (status.script === true || status.data?.script === true))
+
         let entryMode = 'canvas'
         let scenes = []
-        try {
-          const statusText = await queryStoryboardVideoStatus({ videoId: project.id, token })
-          let statusJson = null
-          try { statusJson = JSON.parse(statusText) } catch (e) { statusJson = null }
-          const items = statusJson && Array.isArray(statusJson.items) ? statusJson.items : []
-          const succeeded = items.filter(it => it && it.status === 'SUCCEEDED' && it.video_url)
-          if (succeeded.length) {
-            entryMode = 'crop'
-            scenes = succeeded.map((it, idx) => {
-              const url = String(it.video_url || '').trim()
-              return { id: idx + 1, title: `分镜${idx + 1}`, description: '分镜视频', thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number: it.scene_number }
-            })
-          }
-        } catch (e) { console.warn('查询分镜视频状态失败:', e) }
-        if (entryMode === 'canvas') {
+
+        if (videoReady) {
           try {
-            const text = await getStoryboardImagesDetail({ videoId: project.id, token })
+            const statusText = await queryStoryboardVideoStatus({ videoId, token })
+            let statusJson = null
+            try { statusJson = JSON.parse(statusText) } catch (e) { statusJson = null }
+            const items = statusJson && Array.isArray(statusJson.items) ? statusJson.items : []
+            const succeeded = items.filter(it => it && it.status === 'SUCCEEDED' && it.video_url)
+            if (succeeded.length) {
+              entryMode = 'crop'
+              scenes = succeeded.map((it, idx) => {
+                const url = String(it.video_url || '').trim()
+                return { id: idx + 1, title: `分镜${idx + 1}`, description: '分镜视频', thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number: it.scene_number }
+              })
+            }
+          } catch (e) { console.warn('查询分镜视频状态失败:', e) }
+        } else if (pictureReady) {
+          try {
+            const text = await getStoryboardImagesDetail({ videoId, token })
             let resp = null
             try { resp = JSON.parse(text) } catch (e) { console.warn('分镜图片详情解析失败:', e) }
             const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
@@ -161,16 +179,58 @@ export default {
               return { id: idx + 1, title, description: descParts.join(' | '), thumbnail: cleanedUrl, scene_number: item.scene_number }
             })
           } catch (e) { console.warn('查询分镜图片详情失败:', e) }
+        } else if (scriptReady) {
+          try {
+            const text = await getScriptDetailByVideo({ videoId, token })
+            try { localStorage.setItem(`project:script_detail_json:${project.id}`, text) } catch (e) { console.warn('保存剧本详情失败:', e) }
+            this.$router.push(`/project/${project.id}`)
+            return
+          } catch (e) {
+            console.warn('查询剧本详情失败:', e)
+          }
+        } else {
+          // 回退：与旧逻辑一致，尝试视频状态->图片详情->默认跳编辑页
+          try {
+            const statusText = await queryStoryboardVideoStatus({ videoId, token })
+            let statusJson = null
+            try { statusJson = JSON.parse(statusText) } catch (e) { statusJson = null }
+            const items = statusJson && Array.isArray(statusJson.items) ? statusJson.items : []
+            const succeeded = items.filter(it => it && it.status === 'SUCCEEDED' && it.video_url)
+            if (succeeded.length) {
+              entryMode = 'crop'
+              scenes = succeeded.map((it, idx) => {
+                const url = String(it.video_url || '').trim()
+                return { id: idx + 1, title: `分镜${idx + 1}`, description: '分镜视频', thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number: it.scene_number }
+              })
+            } else {
+              const text = await getStoryboardImagesDetail({ videoId, token })
+              let resp = null
+              try { resp = JSON.parse(text) } catch (e) { console.warn('分镜图片详情解析失败:', e) }
+              const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
+              scenes = list.map((item, idx) => {
+                const content = (item && item.scene_script && item.scene_script.content) || {}
+                const title = content.shot_title || item.scene_number || `分镜${idx + 1}`
+                const descParts = []
+                if (content.visual_description) descParts.push(content.visual_description)
+                if (content.camera_direction) descParts.push(`机位：${content.camera_direction}`)
+                if (content.dialogue_or_narration) descParts.push(`旁白：${content.dialogue_or_narration}`)
+                const rawUrl = String(item.reference_image_url || '').trim()
+                const cleanedUrl = rawUrl.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
+                return { id: idx + 1, title, description: descParts.join(' | '), thumbnail: cleanedUrl, scene_number: item.scene_number }
+              })
+            }
+          } catch (e) { console.warn('回退查询失败:', e) }
         }
+
         try {
           localStorage.setItem(`video-edit:entryMode:${project.id}`, entryMode)
           localStorage.setItem(`video-edit:scenes:${project.id}`, JSON.stringify(scenes))
           localStorage.setItem(`project:prompt:${project.id}`, String(project.name || ''))
         } catch (e) { console.warn('保存编辑页数据失败:', e) }
+        this.$router.push(`/video-edit/${project.id}`)
       } catch (e) {
         console.error('打开项目失败:', e)
       }
-      this.$router.push(`/video-edit/${project.id}`)
     },
     editProject(project) {
       // 实现编辑项目逻辑

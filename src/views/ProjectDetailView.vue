@@ -193,7 +193,7 @@
         <div class="action-buttons" v-show="!isSubmitting">
           <!-- <button class="action-btn save-script">保存剧本</button>
           <button class="action-btn add-scene">添加场景</button> -->
-          <button class="action-btn generate-video" @click="generateVideo" :disabled="!allImagesReady">生成分镜</button>
+          <button class="action-btn generate-video" @click="handleViewOrGenerate" :disabled="!canViewStoryboard && !allImagesReady">{{ canViewStoryboard ? '查看分镜' : '生成分镜' }}</button>
         </div>
       </div>
 
@@ -222,7 +222,7 @@
 </template>
 
 <script>
-import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo } from '@/api'
+import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo, getWorksVideoStatus, queryStoryboardVideoStatus, getStoryboardImagesDetail } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
 export default {
@@ -248,6 +248,8 @@ export default {
         people: [],
         scenes: []
       },
+      worksStatusVideo: false,
+      worksStatusPicture: false,
       project: {
         title: '十二生肖起源记',
         createdAt: '2023/11/20 02:05',
@@ -280,6 +282,9 @@ export default {
       return useUserStore()
     }
     ,
+    canViewStoryboard() {
+      return this.worksStatusVideo || this.worksStatusPicture
+    },
     allImagesReady() {
       try {
         const scenes = Array.isArray(this.generated?.scenes) ? this.generated.scenes : []
@@ -301,6 +306,76 @@ export default {
     }
   },
   methods: {
+    async fetchWorksStatus() {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return
+        const videoId = this.videoId || this.$route.params.id
+        const text = await getWorksVideoStatus({ videoId, token })
+        let obj = null
+        try { obj = JSON.parse(text) } catch (e) { obj = null }
+        const data = obj && obj.data ? obj.data : obj
+        this.worksStatusVideo = !!(data && data.video === true)
+        this.worksStatusPicture = !!(data && data.picture === true)
+      } catch (e) {
+        console.warn('查询作品状态失败:', e)
+      }
+    },
+    async handleViewOrGenerate() {
+      if (this.canViewStoryboard) {
+        const projectId = this.$route.params.id
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) {
+          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
+          return
+        }
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        let entryMode = 'canvas'
+        let scenes = []
+        if (this.worksStatusVideo) {
+          try {
+            const statusText = await queryStoryboardVideoStatus({ videoId, token })
+            let statusJson = null
+            try { statusJson = JSON.parse(statusText) } catch (e) { statusJson = null }
+            const items = statusJson && Array.isArray(statusJson.items) ? statusJson.items : []
+            const succeeded = items.filter(it => it && it.status === 'SUCCEEDED' && it.video_url)
+            if (succeeded.length) {
+              entryMode = 'crop'
+              scenes = succeeded.map((it, idx) => {
+                const url = String(it.video_url || '').trim()
+                return { id: idx + 1, title: `分镜${idx + 1}`, description: '分镜视频', thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number: it.scene_number }
+              })
+            }
+          } catch (e) { console.warn('查询分镜视频状态失败:', e) }
+        } else if (this.worksStatusPicture) {
+          try {
+            const text = await getStoryboardImagesDetail({ videoId, token })
+            let resp = null
+            try { resp = JSON.parse(text) } catch (e) { console.warn('分镜图片详情解析失败:', e) }
+            const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
+            scenes = list.map((item, idx) => {
+              const content = (item && item.scene_script && item.scene_script.content) || {}
+              const title = content.shot_title || item.scene_number || `分镜${idx + 1}`
+              const descParts = []
+              if (content.visual_description) descParts.push(content.visual_description)
+              if (content.camera_direction) descParts.push(`机位：${content.camera_direction}`)
+              if (content.dialogue_or_narration) descParts.push(`旁白：${content.dialogue_or_narration}`)
+              const rawUrl = String(item.reference_image_url || '').trim()
+              const cleanedUrl = rawUrl.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
+              return { id: idx + 1, title, description: descParts.join(' | '), thumbnail: cleanedUrl, scene_number: item.scene_number }
+            })
+          } catch (e) { console.warn('查询分镜图片详情失败:', e) }
+        }
+        try {
+          localStorage.setItem(`video-edit:entryMode:${projectId}`, entryMode)
+          localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(scenes))
+          localStorage.setItem(`project:prompt:${projectId}`, String(this.project.title || this.prompt || ''))
+        } catch (e) { console.warn('保存编辑页数据失败:', e) }
+        this.$router.push(`/video-edit/${projectId}`)
+      } else {
+        await this.generateVideo()
+      }
+    },
     async generateVideo() {
       const projectId = this.$route.params.id
       const token = (this.userStore && this.userStore.token) || ''
@@ -711,8 +786,9 @@ export default {
     const projectId = this.$route.params.id
     console.log('项目ID:', projectId)
     try {
-      const sseText = localStorage.getItem(`project:script:${projectId}`) || ''
       this.videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+      await this.fetchWorksStatus()
+      const sseText = localStorage.getItem(`project:script:${projectId}`) || ''
       this.prompt = localStorage.getItem(`project:prompt:${projectId}`) || ''
       this.category = localStorage.getItem(`project:category:${projectId}`) || ''
       this.materialId = localStorage.getItem(`project:materialId:${projectId}`) || ''

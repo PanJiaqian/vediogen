@@ -55,6 +55,16 @@
           </div>
         </div>
 
+        <template v-if="isConverting">
+          <div class="skeleton-block">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-image" style="height:200px;"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+        </template>
+        <template v-else>
         <!-- 分镜内容 - 画面模式 -->
         <div class="scene-content" v-if="activeTab === 'image'">
           <!-- 可滚动内容区域 -->
@@ -295,6 +305,7 @@
             <button class="voice-apply-btn">应用修改</button>
           </div>
         </div>
+        </template>
       </div>
 
       <!-- 右侧区域 -->
@@ -322,31 +333,40 @@
         <!-- 视频画面 -->
         <div class="video-preview">
           <div class="video-container" ref="videoContainer">
-            <video v-if="isVideo(currentPreviewUrl)" ref="previewVideo" :src="cleanUrl(currentPreviewUrl)" class="video-image"></video>
-            <img v-else :src="cleanUrl(currentPreviewUrl)" :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" />
+            <div v-if="isConverting" class="skeleton-image"></div>
+            <template v-else>
+              <video v-if="isVideo(currentPreviewUrl)" ref="previewVideo" :src="cleanUrl(currentPreviewUrl)" class="video-image"></video>
+              <img v-else :src="cleanUrl(currentPreviewUrl)" :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" />
+            </template>
           </div>
           <div class="preview-aside">
-            <div v-if="isVideo(sceneDetail.video_url || currentPreviewUrl)" class="thumb-card">
-              <div class="thumb-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" />
-                </svg>
-                <span>视频</span>
+            <template v-if="isConverting">
+              <div class="thumb-card"><div class="skeleton-image"></div></div>
+              <div class="thumb-card"><div class="skeleton-image"></div></div>
+            </template>
+            <template v-else>
+              <div v-if="isVideo(sceneDetail.video_url || currentPreviewUrl)" class="thumb-card">
+                <div class="thumb-label">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" />
+                  </svg>
+                  <span>视频</span>
+                </div>
+                <video :src="cleanUrl(sceneDetail.video_url || currentPreviewUrl)" class="thumb-image" muted loop playsinline></video>
               </div>
-              <video :src="cleanUrl(sceneDetail.video_url || currentPreviewUrl)" class="thumb-image" muted loop playsinline></video>
-            </div>
-            <div v-if="shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" class="thumb-card">
-              <div class="thumb-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
-                  <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
-                </svg>
-                <span>图片</span>
+              <div v-if="shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" class="thumb-card">
+                <div class="thumb-label">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
+                  </svg>
+                  <span>图片</span>
+                </div>
+                <img :src="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" alt="图片" class="thumb-image" />
               </div>
-              <img :src="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" alt="图片" class="thumb-image" />
-            </div>
+            </template>
           </div>
         </div>
 
@@ -381,97 +401,121 @@
 
           <!-- 时间轴区域 -->
           <div class="timeline-section" ref="timelineSection">
-            <!-- 字幕开关 -->
-            <div class="timeline-header">
-              <span class="timeline-label">字幕</span>
-              <label class="switch">
-                <input type="checkbox" v-model="subtitleEnabled" checked>
-                <span class="slider"></span>
-              </label>
-            </div>
-
-            <!-- 时间刻度 -->
-            <div class="time-scale">
-              <div class="time-scale-inner" ref="timeScaleInner">
-                <div class="time-marker" v-for="time in timeMarkers" :key="time">
-                  <span class="time-text">{{ time }}</span>
+            <template v-if="isConverting">
+              <div class="timeline-header">
+                <span class="timeline-label"><div class="skeleton-line" style="width:80px;height:12px;"></div></span>
+                <label class="switch">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="time-scale">
+                <div class="time-scale-inner" ref="timeScaleInner">
+                  <div class="skeleton-line" style="height:12px;"></div>
                 </div>
               </div>
-            </div>
-
-            <!-- 分镜轨道 - 水平布局 -->
-            <div class="timeline-tracks" ref="timelineTracks">
-              <div v-for="(scene, index) in scenes" :key="scene.id" class="timeline-track"
-                :class="{ active: index === activeSceneIndex }" draggable="true"
-                @dragstart="handleDragStart(index, $event)" @dragover="handleDragOver($event)"
-                @drop="handleDrop(index, $event)" @dragend="handleDragEnd">
-                <div class="track-header">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
-                    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
-                  </svg>
-                  <span class="track-title">分镜{{ index + 1 }}</span>
-
-                  <!-- 操作按钮 -->
-                  <div class="track-actions">
-                    <button class="action-btn copy-btn" @click="copyScene(index)" title="复制分镜">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor"
-                          stroke-width="2" />
-                      </svg>
-                    </button>
-                    <button class="action-btn delete-btn" @click="deleteScene(index)" title="删除分镜"
-                      v-if="scenes.length > 1">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                        <polyline points="3,6 5,6 21,6" stroke="currentColor" stroke-width="2" />
-                        <path d="M19,6v14a2,2 0,0,1-2,2H7a2,2 0,0,1-2-2V6m3,0V4a2,2 0,0,1,2-2h4a2,2 0,0,1,2,2v2"
-                          stroke="currentColor" stroke-width="2" />
-                      </svg>
-                    </button>
+              <div class="timeline-tracks" ref="timelineTracks">
+                <div v-for="n in 3" :key="'skel-track-'+n" class="timeline-track">
+                  <div class="track-header">
+                    <div class="skeleton-line" style="width:120px;height:12px;"></div>
+                  </div>
+                  <div class="track-clips">
+                    <div v-for="m in 10" :key="'skel-clip-'+n+'-'+m" class="scene-clip">
+                      <div class="skeleton-image" style="height:28px;"></div>
+                    </div>
                   </div>
                 </div>
-                <div class="track-clips" @click="selectScene(index)">
-                  <div v-for="(clip, cidx) in getSceneClips(scene)" :key="cidx" class="scene-clip"
-                    :class="{ active: index === activeSceneIndex }" :style="getClipStyle(scene, clip)">
-                    <video v-if="isVideo(clip.url || scene.thumbnail)" :src="cleanUrl(clip.url || scene.thumbnail)" class="clip-thumbnail" muted loop playsinline></video>
-                    <img v-else :src="cleanUrl(clip.url || scene.thumbnail)" :alt="'分镜' + (index + 1)" class="clip-thumbnail" />
+              </div>
+              <div class="playback-indicator" :style="{ left: playbackLeftPx + 'px' }"></div>
+            </template>
+            <template v-else>
+              <!-- 字幕开关 -->
+              <div class="timeline-header">
+                <span class="timeline-label">字幕</span>
+                <label class="switch">
+                  <input type="checkbox" v-model="subtitleEnabled" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <!-- 时间刻度 -->
+              <div class="time-scale">
+                <div class="time-scale-inner" ref="timeScaleInner">
+                  <div class="time-marker" v-for="time in timeMarkers" :key="time">
+                    <span class="time-text">{{ time }}</span>
                   </div>
                 </div>
-                <div class="track-audio">
-                  <button v-if="index === activeSceneIndex" class="audio-btn add-audio">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
-                      <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="2" />
-                      <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="2" />
+              </div>
+              <!-- 分镜轨道 - 水平布局 -->
+              <div class="timeline-tracks" ref="timelineTracks">
+                <div v-for="(scene, index) in scenes" :key="scene.id" class="timeline-track"
+                  :class="{ active: index === activeSceneIndex }" draggable="true"
+                  @dragstart="handleDragStart(index, $event)" @dragover="handleDragOver($event)"
+                  @drop="handleDrop(index, $event)" @dragend="handleDragEnd">
+                  <div class="track-header">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
                     </svg>
-                    添加配音
-                  </button>
-                  <template v-else>
-                    <button class="audio-btn">
+                    <span class="track-title">分镜{{ index + 1 }}</span>
+                    <!-- 操作按钮 -->
+                    <div class="track-actions">
+                      <button class="action-btn copy-btn" @click="copyScene(index)" title="复制分镜">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor"
+                            stroke-width="2" />
+                        </svg>
+                      </button>
+                      <button class="action-btn delete-btn" @click="deleteScene(index)" title="删除分镜"
+                        v-if="scenes.length > 1">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                          <polyline points="3,6 5,6 21,6" stroke="currentColor" stroke-width="2" />
+                          <path d="M19,6v14a2,2 0,0,1-2,2H7a2,2 0,0,1-2-2V6m3,0V4a2,2 0,0,1,2-2h4a2,2 0,0,1,2,2v2"
+                            stroke="currentColor" stroke-width="2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="track-clips" @click="selectScene(index)">
+                    <div v-for="(clip, cidx) in getSceneClips(scene)" :key="cidx" class="scene-clip"
+                      :class="{ active: index === activeSceneIndex }" :style="getClipStyle(scene, clip)">
+                      <video v-if="isVideo(clip.url || scene.thumbnail)" :src="cleanUrl(clip.url || scene.thumbnail)" class="clip-thumbnail" muted loop playsinline></video>
+                      <img v-else :src="cleanUrl(clip.url || scene.thumbnail)" :alt="'分镜' + (index + 1)" class="clip-thumbnail" />
+                    </div>
+                  </div>
+                  <div class="track-audio">
+                    <button v-if="index === activeSceneIndex" class="audio-btn add-audio">
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                        <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
-                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
-                          stroke-width="2" />
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                        <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="2" />
+                        <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="2" />
                       </svg>
-                      配音
+                      添加配音
                     </button>
-                    <button class="audio-btn">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                        <path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="2" />
-                        <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2" />
-                        <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2" />
-                      </svg>
-                      背景音乐
-                    </button>
-                  </template>
+                    <template v-else>
+                      <button class="audio-btn">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                          <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
+                          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
+                            stroke-width="2" />
+                        </svg>
+                        配音
+                      </button>
+                      <button class="audio-btn">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                          <path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="2" />
+                          <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2" />
+                          <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                        背景音乐
+                      </button>
+                    </template>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <!-- 播放进度指示器 -->
-            <div class="playback-indicator" :style="{ left: playbackLeftPx + 'px' }" @mousedown="onPointerDown"></div>
+              <!-- 播放进度指示器 -->
+              <div class="playback-indicator" :style="{ left: playbackLeftPx + 'px' }" @mousedown="onPointerDown"></div>
+            </template>
           </div>
         </div>
       </div>
@@ -544,8 +588,9 @@ export default {
       isCanvasEditMode: false,
       // 对口型页面显示状态
       showLipSyncView: false,
-      successModalVisible: false
-      ,sceneDetail: { reference_image_url: '', video_url: '' }
+      successModalVisible: false,
+      isConverting: false,
+      sceneDetail: { reference_image_url: '', video_url: '' }
     }
   },
   beforeUnmount() {
@@ -865,6 +910,8 @@ export default {
         }
       })
       this.refreshSidebarFromLocal()
+      const hasVideo = this.scenes.some(sc => Array.isArray(sc.clips) && sc.clips.length && /\.mp4(\?|$)/i.test(String(sc.clips[0].url || '')))
+      if (hasVideo) this.isConverting = false
     },
     // 返回场景的clips，若无则回退到单一缩略图
     getSceneClips(scene) {
@@ -1044,6 +1091,7 @@ export default {
       const token = (this.userStore && this.userStore.token) || ''
       const modelName = 'wan2.2-i2v-flash'
       try {
+        this.isConverting = true
         const text = await generateStoryboardVideo({ videoId, modelName, token })
         let result
         try { result = JSON.parse(text) } catch { result = { raw: text } }
@@ -1058,6 +1106,8 @@ export default {
             try { statusJson = JSON.parse(statusText) } catch (e) { statusJson = null }
             if (statusJson && statusJson.success && Array.isArray(statusJson.items)) {
               this.updateScenesWithQueryItems(statusJson.items)
+              const hasVideo = this.scenes.some(sc => Array.isArray(sc.clips) && sc.clips.length && /\.mp4(\?|$)/i.test(String(sc.clips[0].url || '')))
+              if (hasVideo) this.isConverting = false
             }
           } catch (e) {
             console.warn('查询分镜视频生成状态失败:', e)
@@ -1065,6 +1115,7 @@ export default {
         }, 30000)
       } catch (err) {
         console.error('一键转视频失败:', err)
+        this.isConverting = false
       }
     },
     closeSuccessModal() {
@@ -2788,4 +2839,10 @@ input:checked+.slider:before {
   display: flex;
   flex-direction: column;
 }
+.skeleton-block { padding: 10px 12px; }
+.skeleton-line { height: 12px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; border-radius: 6px; margin-bottom: 8px; }
+.skeleton-paragraph { height: 80px; border-radius: 8px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; }
+.skeleton-image { width: 100%; height: 160px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; border-radius: 8px; }
+.skeleton-card { height: 60px; border-radius: 8px; margin-top: 8px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; }
+@keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>

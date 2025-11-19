@@ -13,9 +13,9 @@
       <div class="modal-body">
         <!-- 登录方式切换 -->
         <div class="login-tabs">
-          <button class="tab-btn" :class="{ active: loginType === 'phone' }" @click="loginType = 'phone'">
+          <!-- <button class="tab-btn" :class="{ active: loginType === 'phone' }" @click="loginType = 'phone'">
             {{ isLogin ? '手机号登录' : '手机号注册' }}
-          </button>
+          </button> -->
           <button class="tab-btn" :class="{ active: loginType === 'email' }" @click="loginType = 'email'">
             {{ isLogin ? '邮箱登录' : '邮箱注册' }}
           </button>
@@ -24,12 +24,12 @@
         <!-- 登录表单 -->
         <form @submit.prevent="handleSubmit" class="login-form">
           <!-- 手机号登录 -->
-          <div v-if="loginType === 'phone'" class="form-group">
+          <!-- <div v-if="loginType === 'phone'" class="form-group">
             <label class="form-label">手机号</label>
             <input v-model="formData.phone" type="tel" class="form-input" placeholder="请输入手机号"
               :class="{ error: errors.phone }" />
             <span v-if="errors.phone" class="error-text">{{ errors.phone }}</span>
-          </div>
+          </div> -->
 
           <!-- 邮箱登录 -->
           <div v-if="loginType === 'email'" class="form-group">
@@ -171,7 +171,8 @@ export default {
   data() {
     return {
       isLogin: true,
-      loginType: 'phone', // 'phone' | 'email'
+      // loginType: 'phone', // 'phone' | 'email'
+      loginType: 'email',
       showPassword: false,
       loading: false,
       captchaText: '',
@@ -254,19 +255,19 @@ export default {
       this.errors = {}
 
       // 验证手机号或邮箱
-      if (this.loginType === 'phone') {
-        if (!this.formData.phone) {
-          this.errors.phone = '请输入手机号'
-        } else if (!/^1[3-9]\d{9}$/.test(this.formData.phone)) {
-          this.errors.phone = '请输入正确的手机号'
-        }
-      } else {
+      // if (this.loginType === 'phone') {
+      //   if (!this.formData.phone) {
+      //     this.errors.phone = '请输入手机号'
+      //   } else if (!/^1[3-9]\d{9}$/.test(this.formData.phone)) {
+      //     this.errors.phone = '请输入正确的手机号'
+      //   }
+      // } else {
         if (!this.formData.email) {
           this.errors.email = '请输入邮箱'
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.formData.email)) {
           this.errors.email = '请输入正确的邮箱格式'
         }
-      }
+      // }
 
       // 验证密码
       if (!this.formData.password) {
@@ -382,27 +383,6 @@ export default {
             console.error('注册失败:', data.message)
             this.showPrompt(data.message || '注册失败，请重试')
           }
-        } else {
-          // 其他登录方式保持原有逻辑（模拟API调用）
-          await new Promise(resolve => setTimeout(resolve, 1500))
-
-          console.log('提交表单:', {
-            type: this.isLogin ? 'login' : 'register',
-            loginType: this.loginType,
-            data: this.formData
-          })
-
-          // 成功后关闭弹窗并触发事件
-          this.$emit('success', {
-            type: this.isLogin ? 'login' : 'register',
-            user: {
-              id: Date.now(),
-              [this.loginType]: this.formData[this.loginType],
-              loginTime: new Date()
-            }
-          })
-
-          this.closeModal()
         }
 
       } catch (error) {
