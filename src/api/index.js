@@ -23,22 +23,12 @@ export async function scriptGen({ stageDirections, materialId = '', category = '
   if (res.status === 401) {
     try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
   }
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`)
+  }
   return res.text()
 }
 
-export async function scriptModify({ modificationSuggestions, videoId, token }) {
-  const url = `${BASE_URL}/api/agent/Script_modify?modificationSuggestions=${encodeURIComponent(modificationSuggestions)}&videoId=${encodeURIComponent(videoId)}`
-  const requestOptions = {
-    method: 'POST',
-    headers: buildSSEHeaders(token),
-    redirect: 'follow'
-  }
-  const res = await fetch(url, requestOptions)
-  if (res.status === 401) {
-    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
-  }
-  return res.text()
-}
 
 // 流式读取剧本修改 SSE，逐步返回事件
 export async function scriptModifyStream({ modificationSuggestions, videoId, token, onEvent }) {
@@ -115,6 +105,9 @@ export async function storyboardPictureGenStream({ videoId, token, onEvent }) {
   const res = await fetch(url, requestOptions)
   if (res.status === 401) {
     try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`)
   }
   const reader = res.body && res.body.getReader ? res.body.getReader() : null
   if (!reader) {
@@ -392,7 +385,6 @@ export async function sendCheckCodeByEmail({ email }) {
 
 export default {
   scriptGen,
-  scriptModify,
   scriptModifyStream,
   storyboardPictureGenStream,
   getMaterialsList,

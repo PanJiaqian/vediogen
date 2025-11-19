@@ -3,7 +3,7 @@
     <div class="header__content">
       <!-- 左侧Logo -->
       <div class="header__left">
-        <div class="logo">
+        <div class="logo" @click="goHome">
           <img src="/logo.png" alt="VideoGen" class="logo-icon" />
           <span class="logo-text">织梦</span>
         </div>
@@ -220,6 +220,10 @@ export default {
         console.warn('请重新登录')
       }
       this.showLoginModal()
+    }
+    ,
+    goHome() {
+      this.$router.push('/')
     }
   }
 }

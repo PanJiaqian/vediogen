@@ -71,30 +71,36 @@
       </div>
     </div>
   </div>
+  <ErrorModal :visible="errorModalVisible" :message="errorMessage" @close="errorModalVisible = false" />
 </template>
 
 <script>
 import { storyboardPictureGenStream } from '@/api'
 import { useUserStore } from '@/stores/user'
+import ErrorModal from '@/components/ErrorModal.vue'
 export default {
   name: 'GenerationStepsView',
+  components: { ErrorModal },
   data() {
     return {
       currentStep: 0,
       progress: 0,
       steps: [
-        { title: '灵感淬炼与主题锚定' },
-        { title: '世界构建与骨架勾勒' },
-        { title: '角色赋魂与关系织造' },
-        { title: '情节编织与节奏设计' },
-        { title: '对白打磨与细节镶嵌' }
+        { title: '画面构想与光影预演' },
+        { title: '镜头语言与情绪锚点' },
+        { title: '场景调度与视觉叙事' },
+        { title: '帧帧推演与动态留白' },
+        { title: '色彩叙事与氛围凝练' }
       ],
       progressTimer: null,
       stepTimer: null,
       // 每步时长（毫秒）：默认每步约75秒，总计约6分钟，实际跳转仍以接口完成为准
       stepDurationsMs: [75000, 75000, 75000, 75000, 75000],
       // 进度刷新间隔（毫秒）
-      progressIntervalMs: 1000
+      progressIntervalMs: 1000,
+      errorModalVisible: false,
+      errorMessage: '小梦出了点问题，请稍后再试',
+      isContentComplete: false
     }
   },
   mounted() {
@@ -133,6 +139,9 @@ export default {
           const inc = Math.max(0, baseIncrement + jitter)
           this.progress += inc
           if (this.progress > 100) this.progress = 100
+          if (this.currentStep === this.steps.length - 1 && !this.isContentComplete) {
+            if (this.progress > 97.7) this.progress = 97.7
+          }
         }
       }, interval)
       // 步骤时长结束后进入下一步
@@ -152,19 +161,30 @@ export default {
         try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { console.warn('打开登录弹窗失败:', e) }
         return
       }
-      try {
-        await storyboardPictureGenStream({
-          videoId,
-          token,
-          onEvent: (obj) => {
-            if (!obj || obj.type === 'connected') return
-            if (obj.Storyboard_picture) {
-              this.handleStoryboardPicture(obj.Storyboard_picture)
+      let attempts = 0
+      while (attempts < 3) {
+        try {
+          await storyboardPictureGenStream({
+            videoId,
+            token,
+            onEvent: (obj) => {
+              if (!obj || obj.type === 'connected') return
+              if (obj.Storyboard_picture) {
+                this.isContentComplete = true
+                this.handleStoryboardPicture(obj.Storyboard_picture)
+              }
             }
+          })
+          return
+        } catch (e) {
+          attempts++
+          if (attempts >= 3) {
+            this.errorModalVisible = true
+            this.currentStep = this.steps.length - 1
+            this.progress = 97.7
+            return
           }
-        })
-      } catch (e) {
-        console.error('分镜图片流式生成失败:', e)
+        }
       }
     },
     handleStoryboardPicture(sb) {
@@ -179,7 +199,7 @@ export default {
       if (this.progressTimer) clearInterval(this.progressTimer)
       if (this.stepTimer) clearTimeout(this.stepTimer)
       const dest = `/video-edit/${projectId}`
-      try { window.history.replaceState({ replaced: true }, '', dest) } catch (e) { /* noop */ }
+      try { window.history.replaceState({ replaced: true }, '', dest) } catch (e) { console.warn('替换浏览历史失败:', e) }
       this.$router.replace(dest)
     },
     normalizeStoryboardPicture(sb) {
@@ -201,7 +221,8 @@ export default {
           return (isNaN(na) ? 0 : na) - (isNaN(nb) ? 0 : nb)
         })
         const firstShot = shotKeys.length ? (s[shotKeys[0]] || {}) : {}
-        const thumb = this.cleanUrl(firstShot.scene_picture || '')
+        const rawThumb = firstShot.scene_picture || firstShot.scene_picture_url || firstShot.Scene_picture_url || s.Scene_picture_url || s.scene_picture_url || ''
+        const thumb = this.cleanUrl(rawThumb)
         const descParts = []
         if (firstShot.shot_title) descParts.push(firstShot.shot_title)
         if (firstShot.visual_description) descParts.push(firstShot.visual_description)

@@ -66,14 +66,17 @@
         </div>
       </div>
     </div>
+    <ErrorModal :visible="errorModalVisible" :message="errorMessage" @close="errorModalVisible = false" />
   </div>
 </template>
 
 <script>
 import { scriptGen } from '@/api'
 import { useUserStore } from '@/stores/user'
+import ErrorModal from '@/components/ErrorModal.vue'
 export default {
   name: 'ConversationView',
+  components: { ErrorModal },
   data() {
     return {
       stageDirections: this.$route.query.q || '',
@@ -93,7 +96,10 @@ export default {
       progressTimer: null,
       stepTimer: null,
       stepDurationsMs: [30000, 30000, 30000, 30000, 30000, 30000],
-      progressIntervalMs: 1000
+      progressIntervalMs: 1000,
+      errorModalVisible: false,
+      errorMessage: '小梦出了点问题，请稍后再试',
+      isContentComplete: false
     }
   },
   computed: {
@@ -125,23 +131,26 @@ export default {
       this.currentStep = 0
       this.progress = 0
     },
-    startStep() {
-      const duration = this.stepDurationsMs[this.currentStep] || 30000
-      const interval = this.progressIntervalMs || 1000
-      if (this.progressTimer) clearInterval(this.progressTimer)
-      if (this.stepTimer) clearTimeout(this.stepTimer)
-      this.progressTimer = setInterval(() => {
-        if (this.progress < 100) {
-          const baseIncrement = 100 / (duration / interval)
-          const jitter = baseIncrement * (Math.random() * 0.2 - 0.1)
-          const inc = Math.max(0, baseIncrement + jitter)
-          this.progress = Math.min(100, this.progress + inc)
+  startStep() {
+    const duration = this.stepDurationsMs[this.currentStep] || 30000
+    const interval = this.progressIntervalMs || 1000
+    if (this.progressTimer) clearInterval(this.progressTimer)
+    if (this.stepTimer) clearTimeout(this.stepTimer)
+    this.progressTimer = setInterval(() => {
+      if (this.progress < 100) {
+        const baseIncrement = 100 / (duration / interval)
+        const jitter = baseIncrement * (Math.random() * 0.2 - 0.1)
+        const inc = Math.max(0, baseIncrement + jitter)
+        this.progress = Math.min(100, this.progress + inc)
+        if (this.currentStep === this.steps.length - 1 && !this.isContentComplete) {
+          if (this.progress > 97.7) this.progress = 97.7
         }
-      }, interval)
-      this.stepTimer = setTimeout(() => {
-        this.nextStep()
-      }, duration)
-    },
+      }
+    }, interval)
+    this.stepTimer = setTimeout(() => {
+      this.nextStep()
+    }, duration)
+  },
     nextStep() {
       if (this.currentStep < this.steps.length - 1) {
         this.currentStep++
@@ -149,7 +158,7 @@ export default {
         this.startStep()
       }
     },
-    startGeneration() {
+    async startGeneration() {
       const stageDirections = this.stageDirections.trim()
       const category = this.category
       const materialId = this.materialId
@@ -165,10 +174,12 @@ export default {
         this.loading = false
         return
       }
-      scriptGen({ stageDirections, materialId, category, token })
-        .then(result => {
-          // 标记完成
+      let attempts = 0
+      while (attempts < 3) {
+        try {
+          const result = await scriptGen({ stageDirections, materialId, category, token })
           this.loading = false
+          this.isContentComplete = true
           this.markAllCompleted()
           if (this.progressTimer) clearInterval(this.progressTimer)
           if (this.stepTimer) clearTimeout(this.stepTimer)
@@ -180,25 +191,29 @@ export default {
             localStorage.setItem(`project:category:${projectId}`, category)
             if (videoId) localStorage.setItem(`project:videoId:${projectId}`, String(videoId))
             if (materialId) localStorage.setItem(`project:materialId:${projectId}`, materialId)
-          } catch (e) {
-            console.warn('本地存储失败:', e)
-          }
-
+          } catch (e) { console.warn('保存项目本地数据失败:', e) }
           setTimeout(() => {
             const route = { name: 'ProjectDetail', params: { id: projectId } }
             try {
               const resolved = this.$router.resolve(route)
               window.history.replaceState({ replaced: true }, '', resolved?.href || `/project/${projectId}`)
-            } catch (e) { /* noop */ }
+            } catch (e) { console.warn('替换浏览历史失败:', e) }
             this.$router.replace(route)
           }, 600)
-        })
-        .catch(error => {
-          console.error('生成接口调用失败:', error)
-          this.loading = false
-          if (this.progressTimer) clearInterval(this.progressTimer)
-          if (this.stepTimer) clearTimeout(this.stepTimer)
-        })
+          return
+        } catch (error) {
+          attempts++
+          if (attempts >= 3) {
+            this.loading = false
+            if (this.progressTimer) clearInterval(this.progressTimer)
+            if (this.stepTimer) clearTimeout(this.stepTimer)
+            this.errorModalVisible = true
+            this.currentStep = this.steps.length - 1
+            this.progress = 97.7
+            return
+          }
+        }
+      }
     }
     ,
     extractVideoIdFromSSE(text) {

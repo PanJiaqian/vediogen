@@ -1,16 +1,20 @@
 <template>
   <div class="project-detail">
     <!-- 左侧内容区域 -->
-    <div class="left-content">
+    <div class="left-content" ref="leftContent">
       <!-- 题目和时间 -->
       <div class="project-header">
         <h1 class="project-title">{{ project.title }}</h1>
         <p class="project-time">创建于 {{ project.createdAt }}</p>
-        <!-- <p class="project-time">视频ID：{{ videoId }}</p> -->
       </div>
       <div>
         <h3 class="section-title">艺术指导建议</h3>
-        <div v-if="generated.artDirection">
+        <div v-if="isSubmitting && loadingSections.art" class="skeleton-block">
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line short"></div>
+        </div>
+        <div v-else-if="generated.artDirection">
           <div>基础风格：{{ generated.artDirection.base_style || '-' }}</div>
           <div>整体视觉策略：{{ generated.artDirection.overall_visual_approach || '-' }}</div>
           <div
@@ -22,7 +26,12 @@
         </div>
 
         <h3 class="section-title">音乐风格</h3>
-        <div v-if="generated.musicStyle && generated.musicStyle.length">
+        <div v-if="isSubmitting && loadingSections.music" class="skeleton-block">
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line short"></div>
+        </div>
+        <div v-else-if="generated.musicStyle && generated.musicStyle.length">
           <div v-for="(m, idx) in generated.musicStyle" :key="idx">
             <div>音乐流派：{{ m.Music_Genre }}</div>
             <div>情绪氛围：{{ m.Emotional_Atmosphere }}</div>
@@ -32,51 +41,79 @@
         </div>
 
         <h3 class="section-title">剧本摘要</h3>
-        <div v-if="generated.scriptSummary" class="section-content" v-html="renderMarkdown(generated.scriptSummary)">
+        <div v-if="isSubmitting && loadingSections.summary" class="skeleton-block">
+          <div class="skeleton-paragraph"></div>
+          <div class="skeleton-paragraph short"></div>
+        </div>
+        <div v-else-if="generated.scriptSummary" class="section-content" v-html="renderMarkdown(generated.scriptSummary)">
         </div>
 
         <h3 class="section-title">人物信息</h3>
-        <div v-if="generated.people && generated.people.length">
-          <div v-for="(p, idx) in generated.people" :key="idx" class="character-item">
-            <div class="character-header">
-              <img
-                v-if="p.Character_picture && !isGenerateFailed(p.Character_picture)"
-                :src="cleanUrl(p.Character_picture)"
-                alt="人物图片"
-                class="character-avatar"
-              />
-              <div v-else class="character-avatar character-avatar--placeholder" @click="handleRegenerateCharacter(p)">重新生成</div>
-              <div class="character-info">
-                <div class="character-name">姓名：{{ p.Character_Name }}</div>
-                <div>身份：{{ p.Role_in_Story }}</div>
-                <div>外观：{{ p.Appearance }}</div>
-              </div>
+        <div v-if="isSubmitting && loadingSections.people" class="card-scroller">
+          <div v-for="n in 3" :key="'pskel-'+n" class="detail-card">
+            <div class="detail-card-text">
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line short"></div>
+              <div class="skeleton-line short"></div>
+            </div>
+            <div class="detail-card-image">
+              <div class="skeleton-image"></div>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="generated.people && generated.people.length" class="card-scroller">
+          <div v-for="(p, idx) in generated.people" :key="idx" class="detail-card">
+            <div class="detail-card-text">
+              <div class="detail-title">姓名：{{ p.Character_Name }}</div>
+              <div class="detail-sub">身份：{{ p.Role_in_Story }}</div>
+              <div class="detail-sub">外观：{{ p.Appearance }}</div>
+            </div>
+            <div class="detail-card-image">
+              <img v-if="p.Character_picture && !isGenerateFailed(p.Character_picture)" :src="cleanUrl(p.Character_picture)" alt="人物图片" class="image-clickable" @click="openImagePreview(cleanUrl(p.Character_picture))" />
+              <div v-else class="detail-card-placeholder" @click="handleRegenerateCharacter(p)">重新生成</div>
             </div>
           </div>
         </div>
 
         <h3 class="section-title">场景集合</h3>
-        <div v-if="generated.scenes && generated.scenes.length">
-          <div v-for="(s, idx) in generated.scenes" :key="idx" style="margin-bottom: 10px;">
-            <div>场景名称：{{ s.Scene_Name }}</div>
-            <div>场景元素：{{ s.Scene_Elements }}</div>
-            <div v-if="s.Scene_picture_url">
-              图片：
-              <template v-if="!isGenerateFailed(s.Scene_picture_url)">
-                <img :src="cleanUrl(s.Scene_picture_url)" alt="场景图片" class="scene-image" />
-              </template>
-              <div v-else class="scene-image-placeholder" @click="handleRegenerateScene(s)">重新生成</div>
+        <div v-if="isSubmitting && loadingSections.scene" class="card-scroller">
+          <div v-for="n in 3" :key="'sskel-'+n" class="detail-card">
+            <div class="detail-card-text">
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line short"></div>
+            </div>
+            <div class="detail-card-image">
+              <div class="skeleton-image"></div>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="generated.scenes && generated.scenes.length" class="card-scroller">
+          <div v-for="(s, idx) in generated.scenes" :key="idx" class="detail-card">
+            <div class="detail-card-text">
+              <div class="detail-title">场景名称：{{ s.Scene_Name }}</div>
+              <div class="detail-sub">场景元素：{{ s.Scene_Elements }}</div>
+            </div>
+            <div class="detail-card-image">
+              <img v-if="s.Scene_picture_url && !isGenerateFailed(s.Scene_picture_url)" :src="cleanUrl(s.Scene_picture_url)" alt="场景图片" class="image-clickable" @click="openImagePreview(cleanUrl(s.Scene_picture_url))" />
+              <div v-else class="detail-card-placeholder" @click="handleRegenerateScene(s)">重新生成</div>
             </div>
           </div>
         </div>
 
         <h3 class="section-title">分镜故事板</h3>
-        <div v-if="generated.storyboard && generated.storyboard.length">
+        <div v-if="isSubmitting && loadingSections.storyboard" class="skeleton-block">
+          <div v-for="n in 2" :key="'sbskel-'+n" style="margin-bottom:10px;">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-card" v-for="m in 2" :key="'sbc-'+n+'-'+m"></div>
+          </div>
+        </div>
+        <div v-else-if="generated.storyboard && generated.storyboard.length">
           <div v-for="(scene, sIdx) in generated.storyboard" :key="sIdx" style="margin-bottom: 10px;">
             <div>场景：{{ scene.scene_title }}</div>
             <div v-if="scene.shots && scene.shots.length">
               <div v-for="(shot, idx) in scene.shots" :key="idx"
                 style="margin: 6px 0; padding: 6px 8px; border: 1px solid #eee; border-radius: 6px;">
+                <div style="font-weight:600;color:#1f2937;margin-bottom:4px;">分镜{{ (shot.shot_code || shot.shot_id) ? (shot.shot_code || shot.shot_id).toString().replace(/^shot_/,'').replace(/^scene_/,'') : (sIdx + 1) + '_' + (idx + 1) }}</div>
                 <div>镜头：{{ shot.shot_title }}</div>
                 <div>画面：{{ shot.visual_description }}</div>
                 <div>机位：{{ shot.camera_direction }}</div>
@@ -98,42 +135,42 @@
         <div class="thinking-steps">
           <h3 class="section-title">思考生成步骤</h3>
           <div class="step-list">
-            <div class="step-item completed">
-              <div class="step-icon">✓</div>
-              <div class="step-content">
-                <div class="step-title">剧本摘要</div>
-                <div class="step-description">概述剧本核心内容</div>
-              </div>
-            </div>
-            <div class="step-item completed">
+            <div class="step-item completed" @click="scrollToSection('艺术指导建议')">
               <div class="step-icon">✓</div>
               <div class="step-content">
                 <div class="step-title">艺术指导建议</div>
                 <div class="step-description">设定整体视觉与风格方向</div>
               </div>
             </div>
-            <div class="step-item completed">
+            <div class="step-item completed" @click="scrollToSection('音乐风格')">
               <div class="step-icon">✓</div>
               <div class="step-content">
                 <div class="step-title">音乐风格</div>
                 <div class="step-description">明确音乐基调与节奏</div>
               </div>
             </div>
-            <div class="step-item">
+            <div class="step-item completed" @click="scrollToSection('剧本摘要')">
+              <div class="step-icon">✓</div>
+              <div class="step-content">
+                <div class="step-title">剧本摘要</div>
+                <div class="step-description">概述剧本核心内容</div>
+              </div>
+            </div>
+            <div class="step-item" @click="scrollToSection('人物信息')">
               <div class="step-icon">⏳</div>
               <div class="step-content">
-                <div class="step-title">角色信息</div>
+                <div class="step-title">人物信息</div>
                 <div class="step-description">梳理主要角色信息</div>
               </div>
             </div>
-            <div class="step-item">
+            <div class="step-item" @click="scrollToSection('场景集合')">
               <div class="step-icon">⏳</div>
               <div class="step-content">
                 <div class="step-title">场景集合</div>
                 <div class="step-description">汇总关键场景要素</div>
               </div>
             </div>
-            <div class="step-item">
+            <div class="step-item" @click="scrollToSection('分镜故事板')">
               <div class="step-icon">⏳</div>
               <div class="step-content">
                 <div class="step-title">分镜故事板</div>
@@ -145,10 +182,11 @@
 
         <!-- 问答消息列表 -->
         <div class="qa-messages">
-          <div v-for="(m, i) in messages" :key="m.id" class="qa-message">
+          <div v-for="(m, i) in messages" :key="m.id" class="qa-message" :class="{'qa-message-left': m.side === 'left'}">
             <div class="qa-message-text">{{ m.text }}</div>
-            <div class="qa-message-status" v-if="m.status"><span v-if="m.status === '思考中'" class="qa-thinking"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span><span v-else>{{ m.status }}</span></div>
+            <div class="qa-message-status" v-if="m.status && m.status !== '思考中'">{{ m.status }}</div>
           </div>
+          <div v-if="isSubmitting" class="qa-center-status">生成中...</div>
         </div>
 
         <!-- 操作按钮 -->
@@ -178,14 +216,20 @@
       </div>
     </div>
   </div>
+  <div v-if="imagePreviewVisible" class="image-preview-overlay" @click="closeImagePreview">
+    <img :src="imagePreviewSrc" class="image-preview-img" @click.stop />
+  </div>
+  <ErrorModal :visible="errorModalVisible" :message="errorMessage" @close="errorModalVisible = false" />
 </template>
 
 <script>
 import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
+import ErrorModal from '@/components/ErrorModal.vue'
 export default {
   name: 'ProjectDetailView',
+  components: { ErrorModal },
   data() {
     return {
       userInput: '',
@@ -195,6 +239,11 @@ export default {
       prompt: '',
       category: '',
       materialId: '',
+      imagePreviewVisible: false,
+      imagePreviewSrc: '',
+      errorModalVisible: false,
+      errorMessage: '小梦出了点问题，请稍后再试',
+      loadingSections: { art: false, music: false, summary: false, people: false, scene: false, storyboard: false },
       generated: {
         scriptSummary: '',
         artDirection: null,
@@ -281,7 +330,9 @@ export default {
       // 追加问答消息
       const msg = { id: Date.now(), text: suggestion, status: '思考中' }
       this.messages.push(msg)
+      this.messages.push({ id: Date.now() + 1, text: '小梦收到了您的新idea！原来这样改故事会更精彩，让我现在来优化这个故事吧！', side: 'left' })
       this.isSubmitting = true
+      this.loadingSections = { art: true, music: true, summary: true, people: true, scene: true, storyboard: true }
       // 发送后清空输入框
       this.userInput = ''
       const projectId = this.$route.params.id
@@ -303,7 +354,8 @@ export default {
           }
         })
       } catch (e) {
-        console.error('剧本修改接口调用失败:', e)
+        this.errorMessage = (e && e.message) || '接口调用失败'
+        this.errorModalVisible = true
       } finally {
         // 接口完成后在发送内容下添加节点“思考完成”，并恢复按钮显示
         const lastIndex = this.messages.length - 1
@@ -323,6 +375,30 @@ export default {
     },
     shouldRenderImage(u) {
       return shouldRenderImageUtil(u)
+    },
+    openImagePreview(url) {
+      this.imagePreviewSrc = url
+      this.imagePreviewVisible = true
+    },
+    closeImagePreview() {
+      this.imagePreviewVisible = false
+      this.imagePreviewSrc = ''
+    },
+    scrollToSection(title) {
+      try {
+        const container = this.$refs && this.$refs.leftContent
+        if (!container) return
+        const titles = container.querySelectorAll('h3.section-title')
+        let target = null
+        for (const el of titles) {
+          if (String(el.textContent).trim() === String(title).trim()) { target = el; break }
+        }
+        if (!target) return
+        const top = target.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop
+        container.scrollTo({ top, behavior: 'smooth' })
+      } catch (e) {
+        console.warn('滚动定位失败:', e)
+      }
     },
     // 简易 Markdown 渲染：加粗与段落换行
     renderMarkdown(text) {
@@ -368,26 +444,56 @@ export default {
         const resp = await regenerateImage({ videoId, type, name, token })
         const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
         if (!generateUuid) {
-          console.warn('未获取到 generateUuid，无法查询结果', resp)
+          this.errorMessage = '未获取到生成任务编号'
+          this.errorModalVisible = true
           return
         }
         // 每5秒轮询一次查询接口，直到拿到图片地址
-        const poll = async () => {
-          try {
-            const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
-            const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
-            if (url) {
-              s.Scene_picture_url = url
-              try { clearInterval(intervalId) } catch (e) { /* no-op */ }
+          const poll = async () => {
+            try {
+              const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
+              const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
+              if (q && q.success === false) {
+                this.errorMessage = q.message || '接口返回失败'
+                this.errorModalVisible = true
+                try { clearInterval(intervalId) } catch (e) { console.warn('clearInterval error:', e) }
+                return
+              }
+              if (url) {
+                s.Scene_picture_url = url
+                try { clearInterval(intervalId) } catch (e) { /* no-op */ }
+                try {
+                  const projectId = this.$route.params.id
+                  const key = `video-edit:scenes:${projectId}`
+                  const text = localStorage.getItem(key) || ''
+                  if (text) {
+                    let arr = []
+                    try { arr = JSON.parse(text) || [] } catch (e) { arr = [] }
+                    const t = s.Scene_Name || s.scene_title || ''
+                    let changed = false
+                    for (const item of arr) {
+                      if (String(item.title || '').trim() === String(t).trim()) {
+                        item.thumbnail = this.cleanUrl(url)
+                        changed = true
+                        break
+                      }
+                    }
+                    if (changed) {
+                      try { localStorage.setItem(key, JSON.stringify(arr)) } catch (e) { console.warn('更新场景缩略图缓存失败:', e) }
+                    }
+                  }
+                } catch (e) { console.warn('同步场景图到列表失败:', e) }
+              }
+            } catch (e) {
+            this.errorMessage = (e && e.message) || '查询重生成场景图片失败'
+            this.errorModalVisible = true
             }
-          } catch (e) {
-            console.warn('查询重生成场景图片失败:', e)
           }
-        }
         const intervalId = setInterval(poll, 5000)
         await poll()
       } catch (e) {
-        console.warn('重新生成场景图片失败:', e)
+        this.errorMessage = (e && e.message) || '重新生成场景图片失败'
+        this.errorModalVisible = true
       }
     },
     async handleRegenerateCharacter(p) {
@@ -404,7 +510,8 @@ export default {
         const resp = await regenerateImage({ videoId, type, name, token })
         const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
         if (!generateUuid) {
-          console.warn('未获取到 generateUuid，无法查询结果', resp)
+          this.errorMessage = '未获取到生成任务编号'
+          this.errorModalVisible = true
           return
         }
         // 每5秒轮询一次查询接口，直到拿到图片地址
@@ -412,18 +519,26 @@ export default {
           try {
             const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
             const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
+            if (q && q.success === false) {
+              this.errorMessage = q.message || '接口返回失败'
+              this.errorModalVisible = true
+              try { clearInterval(intervalId) } catch (e) { console.warn('clearInterval error:', e) }
+              return
+            }
             if (url) {
               p.Character_picture = url
               try { clearInterval(intervalId) } catch (e) { /* no-op */ }
             }
           } catch (e) {
-            console.warn('查询重生成人物图片失败:', e)
+            this.errorMessage = (e && e.message) || '查询重生成人物图片失败'
+            this.errorModalVisible = true
           }
         }
         const intervalId = setInterval(poll, 5000)
         await poll()
       } catch (e) {
-        console.warn('重新生成人物图片失败:', e)
+        this.errorMessage = (e && e.message) || '重新生成人物图片失败'
+        this.errorModalVisible = true
       }
     },
     applyParsedData(objs) {
@@ -434,20 +549,40 @@ export default {
             ? o.Art_Direction_Suggestions[0]
             : o.Art_Direction_Suggestions
           this.generated.artDirection = ads
+          this.loadingSections.art = false
         }
         if (o.Music_Style) {
           this.generated.musicStyle = Array.isArray(o.Music_Style) ? o.Music_Style : [o.Music_Style]
+          this.loadingSections.music = false
         }
         if (o.Script_Summary) {
           this.generated.scriptSummary = o.Script_Summary
           this.project.contentSummary = o.Script_Summary
+          this.loadingSections.summary = false
         }
         if (o.Storyboard) {
           // 兼容返回结构：可能为{ scene_id, scene_title, shots, Storyboard:[...] }或纯数组
           const raw = o.Storyboard
           let scenes = []
           if (Array.isArray(raw)) {
-            scenes = raw
+            if (raw.length && raw[0] && raw[0].content) {
+              const grouped = {}
+              for (const item of raw) {
+                const c = item.content || {}
+                const sceneTitle = c.scene_title || c.scene_id || '未命名场景'
+                if (!grouped[sceneTitle]) grouped[sceneTitle] = []
+                grouped[sceneTitle].push({
+                  shot_title: c.shot_title || '',
+                  visual_description: c.visual_description || '',
+                  camera_direction: c.camera_direction || '',
+                  dialogue_or_narration: c.dialogue_or_narration || '',
+                  shot_code: item.shot_code || c.shot_id || ''
+                })
+              }
+              scenes = Object.keys(grouped).map(t => ({ scene_title: t, shots: grouped[t] }))
+            } else {
+              scenes = raw
+            }
           } else if (raw && typeof raw === 'object') {
             // 外层自身有一个场景
             if (Array.isArray(raw.shots) && raw.shots.length) {
@@ -458,13 +593,33 @@ export default {
             }
             // 内层 Storyboard 列表再追加
             if (Array.isArray(raw.Storyboard)) {
-              scenes.push(...raw.Storyboard)
+              const inner = raw.Storyboard
+              if (inner.length && inner[0] && inner[0].content) {
+                const grouped = {}
+                for (const item of inner) {
+                  const c = item.content || {}
+                  const sceneTitle = c.scene_title || c.scene_id || '未命名场景'
+                  if (!grouped[sceneTitle]) grouped[sceneTitle] = []
+                  grouped[sceneTitle].push({
+                    shot_title: c.shot_title || '',
+                    visual_description: c.visual_description || '',
+                    camera_direction: c.camera_direction || '',
+                    dialogue_or_narration: c.dialogue_or_narration || '',
+                    shot_code: item.shot_code || c.shot_id || ''
+                  })
+                }
+                scenes.push(...Object.keys(grouped).map(t => ({ scene_title: t, shots: grouped[t] })))
+              } else {
+                scenes.push(...inner)
+              }
             }
           }
           this.generated.storyboard = scenes
+          this.loadingSections.storyboard = false
         }
         if (o.people) {
           this.generated.people = o.people
+          this.loadingSections.people = false
         }
         if (o.Scene) {
           if (typeof o.Scene === 'string') {
@@ -483,11 +638,13 @@ export default {
                     shot_title: c.shot_title || '',
                     visual_description: c.visual_description || '',
                     camera_direction: c.camera_direction || '',
-                    dialogue_or_narration: c.dialogue_or_narration || ''
+                    dialogue_or_narration: c.dialogue_or_narration || '',
+                    shot_code: item.shot_code || c.shot_id || ''
                   })
                 }
                 this.generated.storyboard = Object.keys(grouped).map(t => ({ scene_title: t, shots: grouped[t] }))
               }
+              this.loadingSections.scene = false
             } catch (e) {
               console.warn('Scene 解析失败:', e)
             }
@@ -504,11 +661,13 @@ export default {
                   shot_title: c.shot_title || '',
                   visual_description: c.visual_description || '',
                   camera_direction: c.camera_direction || '',
-                  dialogue_or_narration: c.dialogue_or_narration || ''
+                  dialogue_or_narration: c.dialogue_or_narration || '',
+                  shot_code: item.shot_code || c.shot_id || ''
                 })
               }
               this.generated.storyboard = Object.keys(grouped).map(t => ({ scene_title: t, shots: grouped[t] }))
             }
+            this.loadingSections.scene = false
           }
         }
       }
@@ -634,6 +793,7 @@ export default {
   display: flex;
   height: calc(100vh - 60px);
   /* 减去header高度 */
+  --font-scale: 1.1;
 }
 
 .left-content {
@@ -670,7 +830,7 @@ export default {
 }
 
 .project-title {
-  font-size: 24px;
+  font-size: calc(24px * var(--font-scale));
   font-weight: 700;
   color: #111827;
   margin-bottom: 4px;
@@ -678,12 +838,12 @@ export default {
 }
 
 .project-time {
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   color: #6b7280;
 }
 
 .section-title {
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale));
   font-weight: 600;
   color: #374151;
   margin-bottom: 12px;
@@ -714,7 +874,7 @@ export default {
 
 /* 左侧标题与分块美化 */
 .left-content .section-title {
-  font-size: 18px;
+  font-size: calc(18px * var(--font-scale));
   font-weight: 700;
   color: #222;
   margin: 18px 0 10px;
@@ -733,14 +893,14 @@ export default {
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 8px;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   color: #374151;
 }
 
 /* Markdown 文本样式 */
 .left-content .section-content {
   color: #4b5563;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   line-height: 1.7;
 }
 
@@ -776,7 +936,7 @@ export default {
   justify-content: center;
   background: #f3f4f6;
   color: #6b7280;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   cursor: pointer;
 }
 .character-info { flex: 1; }
@@ -810,7 +970,7 @@ export default {
   display: flex;
   align-items: flex-start;
   margin-bottom: 8px;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   line-height: 1.4;
 }
 
@@ -843,13 +1003,13 @@ export default {
   display: flex;
   align-items: flex-start;
   margin-bottom: 8px;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   line-height: 1.4;
 }
 
 .highlight-icon {
   margin-right: 8px;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
 }
 
 .highlight-label {
@@ -885,7 +1045,7 @@ export default {
 
 .scene-label {
   font-weight: 600;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   color: #374151;
   background-color: #e5e7eb;
   padding: 4px 8px;
@@ -901,7 +1061,7 @@ export default {
   display: flex;
   align-items: flex-start;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   line-height: 1.4;
 }
 
@@ -927,65 +1087,54 @@ export default {
 }
 
 .step-list {
-  background: transparent;
-  border-radius: 8px;
-  padding: 0;
+  position: relative;
+  padding: 0 0 0 18px;
 }
 
 .step-item {
+  position: relative;
   display: flex;
   align-items: flex-start;
+  gap: 10px;
   margin-bottom: 12px;
-  font-size: 12px;
-  padding: 12px;
+  font-size: calc(12px * var(--font-scale));
+  padding: 8px 8px 8px 6px;
   border-radius: 8px;
-  border-left: 4px solid transparent;
+  background: transparent;
 }
 
-.step-item:last-child {
-  margin-bottom: 0;
-}
+.step-item:last-child { margin-bottom: 0; }
 
-.step-item.completed:nth-child(1) {
-  background: #d4edda;
-  border-left-color: #28a745;
-}
+.step-item:hover { background: rgba(243, 244, 246, 0.6); }
 
-.step-item.completed:nth-child(2) {
-  background: #d4edda;
-  border-left-color: #28a745;
-}
+.step-icon { display: none; }
 
-.step-item.completed:nth-child(3) {
-  background: #cce7ff;
-  border-left-color: #007bff;
-}
-
-.step-item:not(.completed) {
-  background: #f8f9fa;
-  border-left-color: #dee2e6;
-}
-
-.step-icon {
-  width: 20px;
-  height: 20px;
+.step-item::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 14px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  margin-right: 8px;
-  flex-shrink: 0;
+  background: #9ca3af;
 }
+.step-item.completed::before { background: #3b82f6; }
+
+.step-item::after {
+  content: '';
+  position: absolute;
+  left: -9px;
+  top: 24px;
+  width: 2px;
+  height: calc(100% - 24px);
+  background: #e5e7eb;
+}
+.step-item:last-child::after { display: none; }
 
 .step-item.completed .step-icon {
-  background: #28a745;
-  color: white;
-}
-
-.step-item:not(.completed) .step-icon {
-  background: #6c757d;
-  color: white;
+  border-color: #3b82f6;
+  color: #3b82f6;
 }
 
 .step-content {
@@ -994,13 +1143,14 @@ export default {
 
 .step-title {
   font-weight: 600;
-  color: #333;
+  color: #111827;
   margin-bottom: 2px;
 }
 
 .step-description {
-  color: #666;
+  color: #6b7280;
   line-height: 1.4;
+  font-size: 12px;
 }
 
 .action-buttons {
@@ -1034,16 +1184,29 @@ export default {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
+.qa-message-left {
+  align-self: flex-start;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px 4px 16px 16px;
+}
+
 .qa-message-text {
   color: #0f172a;
-  font-size: 13px;
+  font-size: calc(13px * var(--font-scale));
   line-height: 1.5;
 }
 
 .qa-message-status {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   color: #6b7280;
+}
+
+.qa-center-status {
+  text-align: center;
+  color: #6b7280;
+  font-size: 12px;
 }
 
 .qa-thinking {
@@ -1073,7 +1236,7 @@ export default {
   padding: 10px 16px;
   border: none;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: calc(12px * var(--font-scale));
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
@@ -1144,7 +1307,7 @@ export default {
   flex: 1;
   border: none;
   outline: none;
-  font-size: 14px;
+  font-size: calc(14px * var(--font-scale));
   color: #333;
   background: transparent;
 }
@@ -1165,7 +1328,7 @@ export default {
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 16px;
+  font-size: calc(16px * var(--font-scale));
   font-weight: bold;
   flex-shrink: 0;
 }
@@ -1183,5 +1346,150 @@ export default {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+.card-scroller {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.detail-card {
+  flex: 0 0 260px;
+  width: 260px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.detail-card-text {
+  padding: 12px;
+}
+
+.detail-title {
+  font-size: calc(15px * var(--font-scale));
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 6px;
+}
+
+.detail-sub {
+  font-size: calc(13px * var(--font-scale));
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.detail-card-image img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  display: block;
+}
+
+.detail-card-placeholder {
+  width: 100%;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: calc(14px * var(--font-scale));
+  cursor: pointer;
+}
+
+/* Skeleton */
+.skeleton-block { padding: 10px 12px; }
+.skeleton-line {
+  height: 12px;
+  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.skeleton-line.short { width: 60%; }
+.skeleton-paragraph { height: 80px; border-radius: 8px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; }
+.skeleton-paragraph.short { height: 40px; }
+.skeleton-image { width: 100%; height: 160px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; }
+.skeleton-card { height: 60px; border-radius: 8px; margin-top: 8px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; }
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.image-clickable { cursor: zoom-in; }
+.image-preview-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+.image-preview-img {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+.card-scroller {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.detail-card {
+  flex: 0 0 260px;
+  width: 260px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.detail-card-text {
+  padding: 12px;
+}
+
+.detail-title {
+  font-size: calc(15px * var(--font-scale));
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 6px;
+}
+
+.detail-sub {
+  font-size: calc(13px * var(--font-scale));
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.detail-card-image img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  display: block;
+}
+
+.detail-card-placeholder {
+  width: 100%;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: calc(14px * var(--font-scale));
+  cursor: pointer;
 }
 </style>

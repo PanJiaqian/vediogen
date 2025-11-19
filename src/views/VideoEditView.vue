@@ -301,13 +301,13 @@
       <div class="right-panel">
         <!-- 画布编辑和对口型 -->
         <div class="edit-controls">
-          <button class="control-btn active" @click="toggleCanvasEditMode">
+          <button v-if="isVideo(currentPreviewUrl)" class="control-btn active" @click="toggleCanvasEditMode">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
               <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
               <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
           </svg>
-            {{ entryMode === 'crop' ? '裁剪分镜' : '画布编辑' }}
+            裁剪分镜
           </button>
           <button class="control-btn" @click="toggleLipSyncView">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -321,7 +321,7 @@
 
         <!-- 视频画面 -->
         <div class="video-preview">
-          <div class="video-container">
+          <div class="video-container" ref="videoContainer">
             <video v-if="isVideo(currentPreviewUrl)" ref="previewVideo" :src="cleanUrl(currentPreviewUrl)" class="video-image"></video>
             <img v-else :src="cleanUrl(currentPreviewUrl)" :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" />
           </div>
@@ -369,7 +369,7 @@
               <span class="separator">/</span>
               <span class="total-time">{{ totalTimeText }}</span>
             </div>
-            <button class="expand-btn">
+            <button class="expand-btn" @click="toggleFullscreen">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <polyline points="15,3 21,3 21,9" stroke="currentColor" stroke-width="2" />
                 <polyline points="9,21 3,21 3,15" stroke="currentColor" stroke-width="2" />
@@ -659,6 +659,25 @@ export default {
     },
     shouldRenderImage(u) {
       return shouldRenderImageUtil(u)
+    },
+    async toggleFullscreen() {
+      try {
+        const d = document
+        const el = this.$refs.previewVideo || this.$refs.videoContainer
+        if (!el) return
+        const activeFs = d.fullscreenElement || d.webkitFullscreenElement || d.msFullscreenElement
+        if (activeFs) {
+          if (d.exitFullscreen) await d.exitFullscreen()
+          else if (d.webkitExitFullscreen) d.webkitExitFullscreen()
+          else if (d.msExitFullscreen) d.msExitFullscreen()
+        } else {
+          if (el.requestFullscreen) await el.requestFullscreen()
+          else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen()
+          else if (el.msRequestFullscreen) el.msRequestFullscreen()
+        }
+      } catch (e) {
+        console.warn('全屏切换失败:', e)
+      }
     },
     playVideoSafely(el) {
       try {
