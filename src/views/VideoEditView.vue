@@ -704,7 +704,9 @@ export default {
     },
     isVideo(u) {
       const s = this.cleanUrl(u)
-      return /\.mp4(\?|$)/i.test(s)
+      if (!s) return false
+      if (this.entryMode === 'crop') return true
+      return /\.(mp4|webm|mov|m3u8)(\?|#|$)/i.test(s)
     },
     isGenerateFailed(u) {
       return isGenerateFailedUtil(u)

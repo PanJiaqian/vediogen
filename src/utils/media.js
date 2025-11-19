@@ -1,6 +1,11 @@
 export function cleanUrl(u) {
-  const str = (u || '').toString()
-  return str.replace(/`/g, '').trim()
+  const str = (u || '').toString().trim()
+  return str
+    .replace(/^`+|`+$/g, '')
+    .replace(/\\`/g, '')
+    .replace(/"/g, '')
+    .replace(/'/g, '')
+    .trim()
 }
 
 export function isGenerateFailed(u) {
