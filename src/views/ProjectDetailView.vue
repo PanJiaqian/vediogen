@@ -271,29 +271,15 @@ export default {
       worksStatusVideo: false,
       worksStatusPicture: false,
       project: {
-        title: '十二生肖起源记',
-        createdAt: '2023/11/20 02:05',
-        duration: '9:16',
+        title: '',
+        createdAt: '',
+        duration: '',
         aspectRatio: '16:9',
-        wordCount: '4.4',
-        videoType: '教育科普类',
-        contentSummary: '以幽默风趣的方式来讲述中国传统十二生肖的起源故事，讲述各种动物为争夺生肖排名的故事，作者通过现代化的叙述手法来十二生肖的起源故事中的传统文化。',
-        highlights: [
-          '开篇直接切入情境，通过开篇的问题引入',
-          '主题突出：以幽默有趣的大对话'
-        ],
-        scenes: [
-          {
-            opening: '在很久很久以前，玉帝决定为十二种动物命名为生肖，举行了一场比赛。',
-            vivid: '动物竞赛大对决',
-            action: '工作画面展示，老鼠偷偷爬到牛背上，在最后一刻跳下来，成为第一名。'
-          },
-          {
-            opening: '生动有趣：动物竞赛大对决',
-            vivid: '动作场景：工作画面展示，各动物奋勇争先，老鼠坐在牛背上，最后跳下终点线。',
-            action: '老鼠偷偷爬到牛背上，在最后一刻跳下来，成为第一名。'
-          }
-        ]
+        wordCount: '',
+        videoType: '',
+        contentSummary: '',
+        highlights: [],
+        scenes: []
       }
     }
   },

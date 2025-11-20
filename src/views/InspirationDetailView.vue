@@ -75,13 +75,13 @@
           </div>
 
           <!-- 生成同款视频按钮 -->
-          <button class="generate-btn" @click="generateSimilarVideo">
+          <!-- <button class="generate-btn" @click="generateSimilarVideo">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <polygon points="23 7 16 12 23 17 23 7"></polygon>
               <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
             </svg>
             生成同款视频
-          </button>
+          </button> -->
         </div>
       </div>
     </div>
@@ -97,18 +97,18 @@ export default {
     return {
       inspirationData: {
         id: null,
-        title: '玩转多人对口型—让角色开口说话',
-        videoUrl: '/api/placeholder/video.mp4',
-        thumbnail: '/api/placeholder/600/400',
-        description: '在AI时代背景下，我们可以让任何人物角色开口说话，无论是历史人物、动漫角色还是虚拟形象。本视频将展示如何使用先进的AI技术实现多人对口型效果，让静态图像变得生动有趣。Seko正在为你生成内容...',
+        title: '',
+        videoUrl: '',
+        thumbnail: '',
+        description: '',
         author: {
-          name: '张三',
+          name: '',
           avatar: '/logo.png'
         },
-        publishTime: '2024-10-17 17:30',
-        tags: ['AI技术', '视频制作', '口型同步'],
-        views: '69',
-        likes: '42'
+        publishTime: '',
+        tags: [],
+        views: 0,
+        likes: 0
       }
     }
   },

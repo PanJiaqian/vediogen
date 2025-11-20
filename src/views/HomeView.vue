@@ -310,18 +310,7 @@ export default {
         { id: 2, text: '女娲后人与修道者三...' },
         { id: 3, text: '婚礼现场揭穿未婚夫...' }
       ],
-      recommendations: [
-        {
-          id: 1,
-          title: '探索宇宙',
-          image: projectPlaceholders.space
-        },
-        {
-          id: 2,
-          title: '城市风光',
-          image: projectPlaceholders.city
-        }
-      ],
+      recommendations: [],
       // 页面消息
       message: {
         show: false,
@@ -369,23 +358,6 @@ export default {
       const stageDirections = this.searchQuery.trim()
       const category = this.activeFeature === 'script' ? '0' : '1'
       const materialId = this.selectedSubjectId ? String(this.selectedSubjectId) : ''
-
-      // 构建请求
-      const myHeaders = new Headers()
-      myHeaders.append('Accept', 'text/event-stream')
-      // 使用当前登录返回的 token
-      const token = (this.userStore && this.userStore.token) || ''
-      if (token) {
-        myHeaders.append('Authorization', token)
-      }
-
-      const requestOptions = {
-        method: 'POST',
-        headers: myHeaders,
-        redirect: 'follow'
-      }
-
-      const apiUrl = `http://106.12.116.141:1770/api/agent/Script_gen?stageDirections=${encodeURIComponent(stageDirections)}&materialId=${encodeURIComponent(materialId)}&category=${encodeURIComponent(category)}`
 
       const projectId = Date.now().toString()
       try {

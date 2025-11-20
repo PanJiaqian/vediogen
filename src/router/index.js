@@ -35,12 +35,6 @@ const routes = [
     component: () => import(/* webpackChunkName: "project-detail" */ '../views/ProjectDetailView.vue')
   },
   {
-    path: '/conversation',
-    name: 'Conversation',
-    component: () => import(/* webpackChunkName: "conversation" */ '../views/ConversationView.vue'),
-    meta: { hideSidebar: true }
-  },
-  {
     path: '/generation-steps/:id',
     name: 'GenerationSteps',
     component: () => import(/* webpackChunkName: "generation-steps" */ '../views/GenerationStepsView.vue')

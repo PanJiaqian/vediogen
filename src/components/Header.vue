@@ -101,7 +101,6 @@
 </template>
 
 <script>
-import { userAvatars } from '@/utils/placeholder'
 import LoginModal from './LoginModal.vue'
 import { useUserStore } from '@/stores/user'
 
@@ -112,7 +111,6 @@ export default {
   },
   data() {
     return {
-      userAvatars,
       loginModalVisible: false,
       showUserMenu: false,
       centerPromptVisible: false,

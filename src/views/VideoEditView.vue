@@ -126,10 +126,12 @@
             <div class="image-container">
               <video v-if="isVideo(currentPreviewUrl)"
                      :src="cleanUrl(currentPreviewUrl)"
+                     :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')"
+                     preload="metadata"
                      class="scene-image" playsinline muted loop controls></video>
               <img v-else-if="shouldRenderImage(currentPreviewUrl)"
                      :src="cleanUrl(currentPreviewUrl)"
-                     alt="分镜图片" class="scene-image" />
+                     alt="分镜图片" class="scene-image" decoding="async" fetchpriority="high" />
             </div>
 
             <!-- 底部操作按钮 -->
@@ -335,8 +337,8 @@
           <div class="video-container" ref="videoContainer">
             <div v-if="isConverting" class="skeleton-image"></div>
             <template v-else>
-              <video v-if="isVideo(currentPreviewUrl)" ref="previewVideo" :src="cleanUrl(currentPreviewUrl)" class="video-image"></video>
-              <img v-else :src="cleanUrl(currentPreviewUrl)" :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" />
+              <video v-if="isVideo(currentPreviewUrl)" ref="previewVideo" :src="cleanUrl(currentPreviewUrl)" :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')" preload="metadata" playsinline muted loop class="video-image"></video>
+              <img v-else :src="cleanUrl(currentPreviewUrl)" :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" decoding="async" fetchpriority="high" />
             </template>
           </div>
           <div class="preview-aside">
@@ -353,7 +355,7 @@
                   </svg>
                   <span>视频</span>
                 </div>
-                <video :src="cleanUrl(sceneDetail.video_url || currentPreviewUrl)" class="thumb-image" muted loop playsinline></video>
+                <video :src="cleanUrl(sceneDetail.video_url || currentPreviewUrl)" :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')" class="thumb-image" muted loop playsinline preload="none" disablepictureinpicture></video>
               </div>
               <div v-if="shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" class="thumb-card">
                 <div class="thumb-label">
@@ -364,7 +366,7 @@
                   </svg>
                   <span>图片</span>
                 </div>
-                <img :src="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" alt="图片" class="thumb-image" />
+                <img :src="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" alt="图片" class="thumb-image" loading="lazy" decoding="async" fetchpriority="low" />
               </div>
             </template>
           </div>
@@ -446,7 +448,7 @@
               </div>
               <!-- 分镜轨道 - 水平布局 -->
               <div class="timeline-tracks" ref="timelineTracks">
-                <div v-for="(scene, index) in scenes" :key="scene.id" class="timeline-track"
+                <div v-for="(scene, index) in scenes" :key="scene.id" class="timeline-track" :data-index="index"
                   :class="{ active: index === activeSceneIndex }" draggable="true"
                   @dragstart="handleDragStart(index, $event)" @dragover="handleDragOver($event)"
                   @drop="handleDrop(index, $event)" @dragend="handleDragEnd">
@@ -479,8 +481,8 @@
                   <div class="track-clips" @click="selectScene(index)">
                     <div v-for="(clip, cidx) in getSceneClips(scene)" :key="cidx" class="scene-clip"
                       :class="{ active: index === activeSceneIndex }" :style="getClipStyle(scene, clip)">
-                      <video v-if="isVideo(clip.url || scene.thumbnail)" :src="cleanUrl(clip.url || scene.thumbnail)" class="clip-thumbnail" muted loop playsinline></video>
-                      <img v-else :src="cleanUrl(clip.url || scene.thumbnail)" :alt="'分镜' + (index + 1)" class="clip-thumbnail" />
+                      <video v-if="isVideo(clip.url || scene.thumbnail)" :src="cleanUrl(clip.url || scene.thumbnail)" :poster="cleanUrl(scene.thumbnail || '/logo.png')" class="clip-thumbnail" muted loop playsinline :preload="index < 4 ? 'metadata' : 'none'" disablepictureinpicture></video>
+                      <img v-else :src="cleanUrl(clip.url || scene.thumbnail)" :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async" fetchpriority="low" />
                     </div>
                   </div>
                   <div class="track-audio">
@@ -598,6 +600,10 @@ export default {
       clearInterval(this._storyboardQueryInterval)
       this._storyboardQueryInterval = null
     }
+    if (this._io) {
+      try { this._io.disconnect() } catch (e) { void 0 }
+      this._io = null
+    }
   },
   mounted() {
     const projectId = this.$route.params.id
@@ -652,9 +658,28 @@ export default {
         }
         tracks.addEventListener('scroll', sync)
         sync()
+        this._prefetchedSceneIndices = new Set()
+        try {
+          const io = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+              if (entry && entry.isIntersecting) {
+                const el = entry.target
+                const idx = Number(el.getAttribute('data-index'))
+                if (Number.isFinite(idx) && idx >= 4 && !(this._prefetchedSceneIndices && this._prefetchedSceneIndices.has(idx))) {
+                  this._prefetchedSceneIndices && this._prefetchedSceneIndices.add(idx)
+                  this.prefetchSceneDetailByIndex(idx)
+                  io.unobserve(el)
+                }
+              }
+            })
+          }, { root: this.$refs.timelineSection, threshold: 0.25 })
+          this._io = io
+          tracks.querySelectorAll('.timeline-track').forEach(el => io.observe(el))
+        } catch (err) { void 0 }
       }
     })
     this.fetchCurrentSceneDetail()
+    this.prefetchInitialScenesDetails()
   },
   computed: {
     userStore() {
@@ -1027,6 +1052,30 @@ export default {
           const refImg = this.cleanUrl(data.reference_image_url || scene.thumbnail || '')
           const vurl = this.cleanUrl(data.video_url || '')
           const vlocal = this.isVideo(this.currentPreviewUrl) ? this.cleanUrl(this.currentPreviewUrl) : ''
+          const incomingKey = String(data.scene_number || '').trim()
+          let targetIndex = this.activeSceneIndex
+          if (incomingKey) {
+            const byProp = this.scenes.findIndex(sc => String(sc.scene_number || '').trim() === incomingKey)
+            if (byProp >= 0) targetIndex = byProp
+            else if (Array.isArray(this._shotOrder) && this._shotOrder.length) {
+              const mapped = this._shotOrder.indexOf(incomingKey)
+              if (mapped >= 0) targetIndex = mapped
+            }
+          }
+          if (targetIndex >= 0 && targetIndex < this.scenes.length) {
+            const target = this.scenes[targetIndex]
+            if (refImg) target.thumbnail = refImg
+            if (vurl) target.clips = [{ url: vurl, durationMs: 5000 }]
+            const content = data && data.prompt && data.prompt.content ? data.prompt.content : null
+            if (content) {
+              const parts = []
+              if (content.shot_title) parts.push(content.shot_title)
+              if (content.visual_description) parts.push(content.visual_description)
+              const desc = parts.length ? parts.join('：') : ''
+              if (desc) target.description = desc
+              if (!target.scene_number) target.scene_number = incomingKey || content.shot_id || undefined
+            }
+          }
           this.sceneDetail = { reference_image_url: refImg, video_url: vurl || vlocal }
         } else {
           this.refreshSidebarFromLocal()
@@ -1034,6 +1083,95 @@ export default {
       } catch (e) {
         this.refreshSidebarFromLocal()
       }
+    },
+    async prefetchInitialScenesDetails() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        const count = Math.min(4, Array.isArray(this.scenes) ? this.scenes.length : 0)
+        for (let i = 0; i < count; i++) {
+          const sc = this.scenes[i] || {}
+          const sceneNumber = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[i] : '') || `shot_${i + 1}`)
+          const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
+          let json
+          try { json = JSON.parse(text) } catch { json = null }
+          const data = json && json.data ? json.data : null
+          if (data) {
+            const refImg = this.cleanUrl(data.reference_image_url || sc.thumbnail || '')
+            const vurl = this.cleanUrl(data.video_url || '')
+            const incomingKey = String(data.scene_number || '').trim()
+            let targetIndex = i
+            if (incomingKey) {
+              const byProp = this.scenes.findIndex(s => String(s.scene_number || '').trim() === incomingKey)
+              if (byProp >= 0) targetIndex = byProp
+              else if (Array.isArray(this._shotOrder) && this._shotOrder.length) {
+                const mapped = this._shotOrder.indexOf(incomingKey)
+                if (mapped >= 0) targetIndex = mapped
+              }
+            }
+            if (targetIndex >= 0 && targetIndex < this.scenes.length) {
+              const target = this.scenes[targetIndex]
+              if (refImg) target.thumbnail = refImg
+              if (vurl) target.clips = [{ url: vurl, durationMs: 5000 }]
+              const content = data && data.prompt && data.prompt.content ? data.prompt.content : null
+              if (content) {
+                const parts = []
+                if (content.shot_title) parts.push(content.shot_title)
+                if (content.visual_description) parts.push(content.visual_description)
+                const desc = parts.length ? parts.join('：') : ''
+                if (desc) target.description = desc
+                if (!target.scene_number) target.scene_number = incomingKey || content.shot_id || undefined
+              }
+            }
+          }
+        }
+        this.refreshSidebarFromLocal()
+      } catch (e) { /* no-op */ }
+    },
+    async prefetchSceneDetailByIndex(i) {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        const sc = this.scenes[i] || {}
+        const sceneNumber = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[i] : '') || `shot_${i + 1}`)
+        const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
+        let json
+        try { json = JSON.parse(text) } catch { json = null }
+        const data = json && json.data ? json.data : null
+        if (data) {
+          const refImg = this.cleanUrl(data.reference_image_url || sc.thumbnail || '')
+          const vurl = this.cleanUrl(data.video_url || '')
+          const incomingKey = String(data.scene_number || '').trim()
+          let targetIndex = i
+          if (incomingKey) {
+            const byProp = this.scenes.findIndex(s => String(s.scene_number || '').trim() === incomingKey)
+            if (byProp >= 0) targetIndex = byProp
+            else if (Array.isArray(this._shotOrder) && this._shotOrder.length) {
+              const mapped = this._shotOrder.indexOf(incomingKey)
+              if (mapped >= 0) targetIndex = mapped
+            }
+          }
+          if (targetIndex >= 0 && targetIndex < this.scenes.length) {
+            const target = this.scenes[targetIndex]
+            if (refImg) target.thumbnail = refImg
+            if (vurl) target.clips = [{ url: vurl, durationMs: 5000 }]
+            const content = data && data.prompt && data.prompt.content ? data.prompt.content : null
+            if (content) {
+              const parts = []
+              if (content.shot_title) parts.push(content.shot_title)
+              if (content.visual_description) parts.push(content.visual_description)
+              const desc = parts.length ? parts.join('：') : ''
+              if (desc) target.description = desc
+              if (!target.scene_number) target.scene_number = incomingKey || content.shot_id || undefined
+            }
+          }
+          if (i === this.activeSceneIndex) {
+            this.sceneDetail = { reference_image_url: refImg, video_url: vurl || this.sceneDetail.video_url }
+          }
+        }
+      } catch (e) { void 0 }
     },
     // 根据分镜数量生成时间刻度（每1秒一个刻度）
     updateTimeMarkers() {
@@ -1612,6 +1750,7 @@ export default {
   /* 强制flex子元素计算高度 */
   min-height: 0;
   /* 允许flex子元素缩小 */
+  content-visibility: auto;
 }
 
 
@@ -1985,6 +2124,7 @@ export default {
   justify-content: center;
   overflow: hidden;
   flex: 1;
+  content-visibility: auto;
 }
 
 .video-image {
@@ -2292,6 +2432,7 @@ input:checked+.slider:before {
   scrollbar-color: #cbd5e1 #f1f5f9;
   /* Firefox 滚动条颜色 */
   padding: 8px 0;
+  content-visibility: auto;
 }
 
 .timeline-tracks::-webkit-scrollbar {
@@ -2518,6 +2659,7 @@ input:checked+.slider:before {
   /* 强制flex子元素计算高度 */
   min-height: 0;
   /* 允许flex子元素缩小 */
+  content-visibility: auto;
 }
 
 .input-section {

@@ -55,37 +55,7 @@ export const projectPlaceholders = {
   tech: generatePlaceholder(300, 200, '50E3C2', 'ffffff', '科技前沿')
 }
 
-/**
- * 预定义的用户头像
- */
-export const userAvatars = {
-  default: generateAvatarPlaceholder(40, 'U', '1890ff'),
-  small: generateAvatarPlaceholder(32, 'U', '1890ff')
-}
-
-/**
- * 资产库占位图片
- */
-export const assetPlaceholders = {
-  video: generatePlaceholder(200, 150, '6C5CE7', 'ffffff', '视频'),
-  audio: generatePlaceholder(200, 150, 'A55EEA', 'ffffff', '音频'),
-  image: generatePlaceholder(200, 150, '26DE81', 'ffffff', '图片'),
-  model: generatePlaceholder(200, 150, 'FD79A8', 'ffffff', '模型'),
-  effect: generatePlaceholder(200, 150, 'FDCB6E', 'ffffff', '特效'),
-  template: generatePlaceholder(200, 150, '74B9FF', 'ffffff', '模板')
-}
-
-/**
- * 数字人占位图片
- */
-export const digitalHumanPlaceholders = {
-  male: generatePlaceholder(200, 250, '3742FA', 'ffffff', '男性'),
-  female: generatePlaceholder(200, 250, 'F8B500', 'ffffff', '女性'),
-  cartoon: generatePlaceholder(200, 250, 'FF6B6B', 'ffffff', '卡通'),
-  business: generatePlaceholder(200, 250, '4ECDC4', 'ffffff', '商务'),
-  casual: generatePlaceholder(200, 250, 'A8E6CF', 'ffffff', '休闲'),
-  formal: generatePlaceholder(200, 250, '88D8C0', 'ffffff', '正式')
-}
+// 移除非主体库的静态占位集合，保留项目占位以兼容 HomeView
 
 /**
  * 根据类型获取占位图片
@@ -97,12 +67,6 @@ export function getPlaceholderByType(type, category = 'default') {
   switch (type) {
   case 'project':
     return projectPlaceholders[category] || projectPlaceholders.space
-  case 'user':
-    return userAvatars[category] || userAvatars.default
-  case 'asset':
-    return assetPlaceholders[category] || assetPlaceholders.video
-  case 'digital-human':
-    return digitalHumanPlaceholders[category] || digitalHumanPlaceholders.male
   default:
     return generatePlaceholder(300, 200, '95A5A6', 'ffffff', '占位图')
   }
@@ -141,8 +105,5 @@ export default {
   generateAvatarPlaceholder,
   generateGradientPlaceholder,
   getPlaceholderByType,
-  projectPlaceholders,
-  userAvatars,
-  assetPlaceholders,
-  digitalHumanPlaceholders
+  projectPlaceholders
 }
