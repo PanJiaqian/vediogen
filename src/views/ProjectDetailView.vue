@@ -135,43 +135,43 @@
         <div class="thinking-steps">
           <h3 class="section-title">思考生成步骤</h3>
           <div class="step-list">
-            <div class="step-item completed" @click="scrollToSection('艺术指导建议')">
-              <div class="step-icon">✓</div>
+            <div class="step-item" :class="{ completed: artDone }" @click="scrollToSection('艺术指导建议')">
+              <div class="step-icon" :class="{ active: artDone }">{{ artDone ? '✓' : '⏳' }}</div>
               <div class="step-content">
                 <div class="step-title">艺术指导建议</div>
                 <div class="step-description">设定整体视觉与风格方向</div>
               </div>
             </div>
-            <div class="step-item completed" @click="scrollToSection('音乐风格')">
-              <div class="step-icon">✓</div>
+            <div class="step-item" :class="{ completed: musicDone }" @click="scrollToSection('音乐风格')">
+              <div class="step-icon" :class="{ active: musicDone }">{{ musicDone ? '✓' : '⏳' }}</div>
               <div class="step-content">
                 <div class="step-title">音乐风格</div>
                 <div class="step-description">明确音乐基调与节奏</div>
               </div>
             </div>
-            <div class="step-item completed" @click="scrollToSection('剧本摘要')">
-              <div class="step-icon">✓</div>
+            <div class="step-item" :class="{ completed: summaryDone }" @click="scrollToSection('剧本摘要')">
+              <div class="step-icon" :class="{ active: summaryDone }">{{ summaryDone ? '✓' : '⏳' }}</div>
               <div class="step-content">
                 <div class="step-title">剧本摘要</div>
                 <div class="step-description">概述剧本核心内容</div>
               </div>
             </div>
-            <div class="step-item" @click="scrollToSection('人物信息')">
-              <div class="step-icon">⏳</div>
+            <div class="step-item" :class="{ completed: peopleDone }" @click="scrollToSection('人物信息')">
+              <div class="step-icon" :class="{ active: peopleDone }">{{ peopleDone ? '✓' : '⏳' }}</div>
               <div class="step-content">
                 <div class="step-title">人物信息</div>
                 <div class="step-description">梳理主要角色信息</div>
               </div>
             </div>
-            <div class="step-item" @click="scrollToSection('场景集合')">
-              <div class="step-icon">⏳</div>
+            <div class="step-item" :class="{ completed: sceneDone }" @click="scrollToSection('场景集合')">
+              <div class="step-icon" :class="{ active: sceneDone }">{{ sceneDone ? '✓' : '⏳' }}</div>
               <div class="step-content">
                 <div class="step-title">场景集合</div>
                 <div class="step-description">汇总关键场景要素</div>
               </div>
             </div>
-            <div class="step-item" @click="scrollToSection('分镜故事板')">
-              <div class="step-icon">⏳</div>
+            <div class="step-item" :class="{ completed: storyboardDone }" @click="scrollToSection('分镜故事板')">
+              <div class="step-icon" :class="{ active: storyboardDone }">{{ storyboardDone ? '✓' : '⏳' }}</div>
               <div class="step-content">
                 <div class="step-title">分镜故事板</div>
                 <div class="step-description">组织分镜与镜头安排</div>
@@ -222,7 +222,7 @@
 </template>
 
 <script>
-import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo, getWorksVideoStatus, queryStoryboardVideoStatus, getStoryboardImagesDetail } from '@/api'
+import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo, getWorksVideoStatus, queryStoryboardVideoStatus, getStoryboardImagesDetail, scriptGenStream } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
 export default {
@@ -282,6 +282,24 @@ export default {
       return useUserStore()
     }
     ,
+    artDone() {
+      return !!this.generated.artDirection
+    },
+    musicDone() {
+      return Array.isArray(this.generated.musicStyle) && this.generated.musicStyle.length > 0
+    },
+    summaryDone() {
+      return !!this.generated.scriptSummary
+    },
+    peopleDone() {
+      return Array.isArray(this.generated.people) && this.generated.people.length > 0
+    },
+    sceneDone() {
+      return Array.isArray(this.generated.scenes) && this.generated.scenes.length > 0
+    },
+    storyboardDone() {
+      return Array.isArray(this.generated.storyboard) && this.generated.storyboard.length > 0
+    },
     canViewStoryboard() {
       return this.worksStatusVideo || this.worksStatusPicture
     },
@@ -306,6 +324,26 @@ export default {
     }
   },
   methods: {
+    async startScriptGenStream() {
+      const projectId = this.$route.params.id
+      const stageDirections = (this.$route.query.q || '').trim()
+      const category = this.$route.query.category || '0'
+      const materialId = this.$route.query.materialId || ''
+      const token = (this.userStore && this.userStore.token) || ''
+      if (!stageDirections || !token) return
+      this.isSubmitting = true
+      this.loadingSections = { art: true, music: true, summary: true, people: true, scene: true, storyboard: true }
+      try {
+        await scriptGenStream({ stageDirections, materialId, category, token, onEvent: (obj) => {
+          if (!obj || obj.type === 'connected') return
+          this.applyParsedData([obj])
+        } })
+      } catch (e) {
+        console.warn('脚本生成流式接口错误:', e)
+      } finally {
+        this.isSubmitting = false
+      }
+    },
     async fetchWorksStatus() {
       try {
         const token = (this.userStore && this.userStore.token) || ''
@@ -811,8 +849,7 @@ export default {
           this.applyParsedData([dataObj])
         }
       } else {
-        // 不再自动调用 byVideo 接口，改为仅在 VideoEditView 的返回按钮触发并写入缓存
-        console.info('ProjectDetailView: 未找到剧本详情缓存，暂不调用 byVideo 接口')
+        await this.startScriptGenStream()
       }
     } catch (e) {
       console.warn('读取生成内容失败:', e)
@@ -1149,6 +1186,7 @@ export default {
 .step-item:hover { background: rgba(243, 244, 246, 0.6); }
 
 .step-icon { display: none; }
+.step-icon.active { color: #3b82f6; }
 
 .step-item::before {
   content: '';

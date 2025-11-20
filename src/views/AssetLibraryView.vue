@@ -412,15 +412,14 @@ export default {
       const stageDirections = text
       const category = '0'
       const materialId = this.selectedAsset && this.selectedAsset.id ? String(this.selectedAsset.id) : ''
-      const myHeaders = new Headers()
-      myHeaders.append('Accept', 'text/event-stream')
-      const token = (this.userStore && this.userStore.token) || ''
-      if (token) {
-        myHeaders.append('Authorization', token)
-      }
-      const requestOptions = { method: 'POST', headers: myHeaders, redirect: 'follow' }
-      const apiUrl = `http://106.12.116.141:1770/api/agent/Script_gen?stageDirections=${encodeURIComponent(stageDirections)}&materialId=${encodeURIComponent(materialId)}&category=${encodeURIComponent(category)}`
-      this.$router.push({ name: 'Conversation', query: { q: stageDirections, category, materialId } })
+      const projectId = Date.now().toString()
+      try {
+        localStorage.setItem(`project:prompt:${projectId}`, stageDirections)
+        localStorage.setItem(`project:category:${projectId}`, category)
+        if (materialId) localStorage.setItem(`project:materialId:${projectId}`, materialId)
+        localStorage.setItem(`project:videoId:${projectId}`, projectId)
+      } catch (e) { /* no-op */ }
+      this.$router.push({ name: 'ProjectDetail', params: { id: projectId }, query: { q: stageDirections, category, materialId } })
     }
   }
 }

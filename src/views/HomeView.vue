@@ -387,8 +387,14 @@ export default {
 
       const apiUrl = `http://106.12.116.141:1770/api/agent/Script_gen?stageDirections=${encodeURIComponent(stageDirections)}&materialId=${encodeURIComponent(materialId)}&category=${encodeURIComponent(category)}`
 
-      // 跳转到对话页面，由对话页发起生成并在完成后跳转详情
-      this.$router.push({ name: 'Conversation', query: { q: stageDirections, category, materialId } })
+      const projectId = Date.now().toString()
+      try {
+        localStorage.setItem(`project:prompt:${projectId}`, stageDirections)
+        localStorage.setItem(`project:category:${projectId}`, category)
+        if (materialId) localStorage.setItem(`project:materialId:${projectId}`, materialId)
+        localStorage.setItem(`project:videoId:${projectId}`, projectId)
+      } catch (e) { /* no-op */ }
+      this.$router.push({ name: 'ProjectDetail', params: { id: projectId }, query: { q: stageDirections, category, materialId } })
     },
     applySuggestion(suggestionText) {
       this.searchQuery = suggestionText

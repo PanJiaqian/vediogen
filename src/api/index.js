@@ -94,6 +94,67 @@ export async function scriptModifyStream({ modificationSuggestions, videoId, tok
   }
 }
 
+export async function scriptGenStream({ stageDirections, materialId = '', category = '0', token, onEvent }) {
+  const url = `${BASE_URL}/api/agent/Script_gen?stageDirections=${encodeURIComponent(stageDirections)}&materialId=${encodeURIComponent(materialId)}&category=${encodeURIComponent(category)}`
+  const requestOptions = {
+    method: 'POST',
+    headers: buildSSEHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  const reader = res.body && res.body.getReader ? res.body.getReader() : null
+  if (!reader) {
+    const text = await res.text()
+    if (typeof onEvent === 'function') {
+      const chunks = text.split(/\n\n+/)
+      for (const chunk of chunks) {
+        const m = chunk.match(/data:(.*)/s)
+        if (m && m[1]) {
+          try {
+            const obj = JSON.parse(m[1].trim())
+            onEvent(obj)
+          } catch (err) {
+            console.warn('SSE fallback JSON 解析失败:', err)
+          }
+        }
+      }
+    }
+    return
+  }
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const parts = buffer.split(/\n\n+/)
+    buffer = parts.pop() || ''
+    for (const part of parts) {
+      const m = part.match(/data:(.*)/s)
+      if (m && m[1]) {
+        try {
+          const obj = JSON.parse(m[1].trim())
+          if (typeof onEvent === 'function') onEvent(obj)
+        } catch (err) {
+          console.warn('SSE 流式 JSON 解析失败:', err)
+        }
+      }
+    }
+  }
+  const m = buffer.match(/data:(.*)/s)
+  if (m && m[1]) {
+    try {
+      const obj = JSON.parse(m[1].trim())
+      if (typeof onEvent === 'function') onEvent(obj)
+    } catch (err) {
+      console.warn('SSE 最后块 JSON 解析失败:', err)
+    }
+  }
+}
+
 // 分镜图片生成
 export async function storyboardPictureGenStream({ videoId, token, onEvent }) {
   const url = `${BASE_URL}/api/agent/Storyboard_image_gen?videoId=${encodeURIComponent(videoId)}`
