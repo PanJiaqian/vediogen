@@ -45,12 +45,13 @@
           <div class="skeleton-paragraph"></div>
           <div class="skeleton-paragraph short"></div>
         </div>
-        <div v-else-if="generated.scriptSummary" class="section-content" v-html="renderMarkdown(generated.scriptSummary)">
+        <div v-else-if="generated.scriptSummary" class="section-content"
+          v-html="renderMarkdown(generated.scriptSummary)">
         </div>
 
         <h3 class="section-title">人物信息</h3>
         <div v-if="isSubmitting && loadingSections.people" class="card-scroller">
-          <div v-for="n in 3" :key="'pskel-'+n" class="detail-card">
+          <div v-for="n in 3" :key="'pskel-' + n" class="detail-card">
             <div class="detail-card-text">
               <div class="skeleton-line"></div>
               <div class="skeleton-line short"></div>
@@ -69,7 +70,9 @@
               <div class="detail-sub">外观：{{ p.Appearance }}</div>
             </div>
             <div class="detail-card-image">
-              <img v-if="p.Character_picture && !isGenerateFailed(p.Character_picture)" :src="cleanUrl(p.Character_picture)" alt="人物图片" class="image-clickable" @click="openImagePreview(cleanUrl(p.Character_picture))" />
+              <img v-if="p.Character_picture && !isGenerateFailed(p.Character_picture)"
+                :src="cleanUrl(p.Character_picture)" alt="人物图片" class="image-clickable"
+                @click="openImagePreview(cleanUrl(p.Character_picture))" />
               <div v-else class="detail-card-placeholder" @click="handleRegenerateCharacter(p)">重新生成</div>
             </div>
           </div>
@@ -77,7 +80,7 @@
 
         <h3 class="section-title">场景集合</h3>
         <div v-if="isSubmitting && loadingSections.scene" class="card-scroller">
-          <div v-for="n in 3" :key="'sskel-'+n" class="detail-card">
+          <div v-for="n in 3" :key="'sskel-' + n" class="detail-card">
             <div class="detail-card-text">
               <div class="skeleton-line"></div>
               <div class="skeleton-line short"></div>
@@ -94,7 +97,9 @@
               <div class="detail-sub">场景元素：{{ s.Scene_Elements }}</div>
             </div>
             <div class="detail-card-image">
-              <img v-if="s.Scene_picture_url && !isGenerateFailed(s.Scene_picture_url)" :src="cleanUrl(s.Scene_picture_url)" alt="场景图片" class="image-clickable" @click="openImagePreview(cleanUrl(s.Scene_picture_url))" />
+              <img v-if="s.Scene_picture_url && !isGenerateFailed(s.Scene_picture_url)"
+                :src="cleanUrl(s.Scene_picture_url)" alt="场景图片" class="image-clickable"
+                @click="openImagePreview(cleanUrl(s.Scene_picture_url))" />
               <div v-else class="detail-card-placeholder" @click="handleRegenerateScene(s)">重新生成</div>
             </div>
           </div>
@@ -102,9 +107,9 @@
 
         <h3 class="section-title">分镜故事板</h3>
         <div v-if="isSubmitting && loadingSections.storyboard" class="skeleton-block">
-          <div v-for="n in 2" :key="'sbskel-'+n" style="margin-bottom:10px;">
+          <div v-for="n in 2" :key="'sbskel-' + n" style="margin-bottom:10px;">
             <div class="skeleton-line"></div>
-            <div class="skeleton-card" v-for="m in 2" :key="'sbc-'+n+'-'+m"></div>
+            <div class="skeleton-card" v-for="m in 2" :key="'sbc-' + n + '-' + m"></div>
           </div>
         </div>
         <div v-else-if="generated.storyboard && generated.storyboard.length">
@@ -113,7 +118,9 @@
             <div v-if="scene.shots && scene.shots.length">
               <div v-for="(shot, idx) in scene.shots" :key="idx"
                 style="margin: 6px 0; padding: 6px 8px; border: 1px solid #eee; border-radius: 6px;">
-                <div style="font-weight:600;color:#1f2937;margin-bottom:4px;">分镜{{ (shot.shot_code || shot.shot_id) ? (shot.shot_code || shot.shot_id).toString().replace(/^shot_/,'').replace(/^scene_/,'') : (sIdx + 1) + '_' + (idx + 1) }}</div>
+                <div style="font-weight:600;color:#1f2937;margin-bottom:4px;">分镜{{ (shot.shot_code || shot.shot_id) ?
+                  (shot.shot_code || shot.shot_id).toString().replace(/^shot_/, '').replace(/^scene_/, '') : (sIdx + 1) +
+                  '_' + (idx + 1) }}</div>
                 <div>镜头：{{ shot.shot_title }}</div>
                 <div>画面：{{ shot.visual_description }}</div>
                 <div>机位：{{ shot.camera_direction }}</div>
@@ -182,7 +189,8 @@
 
         <!-- 问答消息列表 -->
         <div class="qa-messages">
-          <div v-for="(m, i) in messages" :key="m.id" class="qa-message" :class="{'qa-message-left': m.side === 'left'}">
+          <div v-for="(m, i) in messages" :key="m.id" class="qa-message"
+            :class="{ 'qa-message-left': m.side === 'left' }">
             <div class="qa-message-text">{{ m.text }}</div>
             <div class="qa-message-status" v-if="m.status && m.status !== '思考中'">{{ m.status }}</div>
           </div>
@@ -190,10 +198,22 @@
         </div>
 
         <!-- 操作按钮 -->
+        <div class="aspect-ratio-select" v-show="!isSubmitting && !canViewStoryboard">
+          <span class="aspect-label">画面比例</span>
+          <div class="aspect-options">
+            <button type="button" class="aspect-option" :class="{ active: project.aspectRatio === '16:9' }"
+              @click="project.aspectRatio = '16:9'">16:9</button>
+            <button type="button" class="aspect-option" :class="{ active: project.aspectRatio === '9:16' }"
+              @click="project.aspectRatio = '9:16'">9:16</button>
+            <button type="button" class="aspect-option" :class="{ active: project.aspectRatio === '1:1' }"
+              @click="project.aspectRatio = '1:1'">1:1</button>
+          </div>
+        </div>
         <div class="action-buttons" v-show="!isSubmitting">
           <!-- <button class="action-btn save-script">保存剧本</button>
           <button class="action-btn add-scene">添加场景</button> -->
-          <button class="action-btn generate-video" @click="handleViewOrGenerate" :disabled="!canViewStoryboard && !allImagesReady">{{ canViewStoryboard ? '查看分镜' : '生成分镜' }}</button>
+          <button class="action-btn generate-video" @click="handleViewOrGenerate"
+            :disabled="!canViewStoryboard && !allImagesReady">{{ canViewStoryboard ? '查看分镜' : '生成分镜' }}</button>
         </div>
       </div>
 
@@ -227,7 +247,7 @@ import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
 export default {
   name: 'ProjectDetailView',
-  components: { },
+  components: {},
   data() {
     return {
       userInput: '',
@@ -334,10 +354,13 @@ export default {
       this.isSubmitting = true
       this.loadingSections = { art: true, music: true, summary: true, people: true, scene: true, storyboard: true }
       try {
-        await scriptGenStream({ stageDirections, materialId, category, token, onEvent: (obj) => {
-          if (!obj || obj.type === 'connected') return
-          this.applyParsedData([obj])
-        } })
+        this._sseGenCtrl = new AbortController()
+        await scriptGenStream({
+          stageDirections, materialId, category, token, signal: this._sseGenCtrl.signal, onEvent: (obj) => {
+            if (!obj || obj.type === 'connected') return
+            this.applyParsedData([obj])
+          }
+        })
       } catch (e) {
         console.warn('脚本生成流式接口错误:', e)
       } finally {
@@ -453,10 +476,12 @@ export default {
         return
       }
       try {
+        this._sseModCtrl = new AbortController()
         await scriptModifyStream({
           modificationSuggestions: suggestion,
           videoId,
           token,
+          signal: this._sseModCtrl.signal,
           onEvent: (obj) => {
             if (!obj || obj.type === 'connected') return
             this.applyParsedData([obj])
@@ -550,6 +575,12 @@ export default {
         const type = 'scene'
         const name = (s.Scene_Name || '').toString().trim() || 'scene'
         const resp = await regenerateImage({ videoId, type, name, token })
+        const respMsg = String((resp && (resp.message || resp.msg || resp.meg)) || '').trim()
+        const respSensitive = (resp && resp.success === false) || /敏感/i.test(respMsg)
+        if (respSensitive) {
+          try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { /* no-op */ }
+          return
+        }
         const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
         if (!generateUuid) {
           return
@@ -557,6 +588,11 @@ export default {
         const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
         const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
         const msgText = String((q && (q.message || q.msg || q.meg)) || '').trim()
+        const isSensitive = (q && q.success === false) || /敏感/i.test(msgText)
+        if (isSensitive) {
+          try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { /* no-op */ }
+          return
+        }
         if (msgText) {
           console.warn('重生成场景图片接口返回错误:', msgText)
           return
@@ -601,6 +637,12 @@ export default {
         const type = 'character_gen'
         const name = (p.Character_Name || '').toString().trim() || 'character'
         const resp = await regenerateImage({ videoId, type, name, token })
+        const respMsg = String((resp && (resp.message || resp.msg || resp.meg)) || '').trim()
+        const respSensitive = (resp && resp.success === false) || /敏感/i.test(respMsg)
+        if (respSensitive) {
+          try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { /* no-op */ }
+          return
+        }
         const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
         if (!generateUuid) {
           return
@@ -608,6 +650,11 @@ export default {
         const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
         const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
         const msgText = String((q && (q.message || q.msg || q.meg)) || '').trim()
+        const isSensitive = (q && q.success === false) || /敏感/i.test(msgText)
+        if (isSensitive) {
+          try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { /* no-op */ }
+          return
+        }
         if (msgText) {
           console.warn('重生成人物图片接口返回错误:', msgText)
           return
@@ -855,6 +902,10 @@ export default {
       console.warn('读取生成内容失败:', e)
     }
   }
+  ,beforeUnmount() {
+    try { if (this._sseGenCtrl && this._sseGenCtrl.abort) this._sseGenCtrl.abort() } catch (e) { void e }
+    try { if (this._sseModCtrl && this._sseModCtrl.abort) this._sseModCtrl.abort() } catch (e) { void e }
+  }
 }
 </script>
 
@@ -995,11 +1046,13 @@ export default {
 .character-item {
   margin-bottom: 10px;
 }
+
 .character-header {
   display: flex;
   align-items: center;
   margin-bottom: 6px;
 }
+
 .character-avatar {
   width: 64px;
   height: 64px;
@@ -1008,6 +1061,7 @@ export default {
   border: 1px solid #eee;
   margin-right: 8px;
 }
+
 .character-avatar--placeholder {
   display: flex;
   align-items: center;
@@ -1017,7 +1071,11 @@ export default {
   font-size: calc(12px * var(--font-scale));
   cursor: pointer;
 }
-.character-info { flex: 1; }
+
+.character-info {
+  flex: 1;
+}
+
 .character-name {
   font-weight: 600;
   color: #374151;
@@ -1181,12 +1239,21 @@ export default {
   background: transparent;
 }
 
-.step-item:last-child { margin-bottom: 0; }
+.step-item:last-child {
+  margin-bottom: 0;
+}
 
-.step-item:hover { background: rgba(243, 244, 246, 0.6); }
+.step-item:hover {
+  background: rgba(243, 244, 246, 0.6);
+}
 
-.step-icon { display: none; }
-.step-icon.active { color: #3b82f6; }
+.step-icon {
+  display: none;
+}
+
+.step-icon.active {
+  color: #3b82f6;
+}
 
 .step-item::before {
   content: '';
@@ -1198,7 +1265,10 @@ export default {
   border-radius: 50%;
   background: #9ca3af;
 }
-.step-item.completed::before { background: #3b82f6; }
+
+.step-item.completed::before {
+  background: #3b82f6;
+}
 
 .step-item::after {
   content: '';
@@ -1209,7 +1279,10 @@ export default {
   height: calc(100% - 24px);
   background: #e5e7eb;
 }
-.step-item:last-child::after { display: none; }
+
+.step-item:last-child::after {
+  display: none;
+}
 
 .step-item.completed .step-icon {
   border-color: #3b82f6;
@@ -1255,7 +1328,8 @@ export default {
 
 .qa-message {
   max-width: 85%;
-  align-self: flex-end; /* 发送者气泡靠右 */
+  align-self: flex-end;
+  /* 发送者气泡靠右 */
   background: #e1f0ff;
   border: 1px solid #cfe3ff;
   padding: 8px 12px;
@@ -1303,12 +1377,27 @@ export default {
   opacity: 0.8;
 }
 
-.qa-thinking .dot:nth-child(2) { animation-delay: 0.2s; }
-.qa-thinking .dot:nth-child(3) { animation-delay: 0.4s; }
+.qa-thinking .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.qa-thinking .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
 @keyframes qa-bounce {
-  0%, 80%, 100% { transform: scale(0.85); opacity: 0.6; }
-  40% { transform: scale(1); opacity: 1; }
+
+  0%,
+  80%,
+  100% {
+    transform: scale(0.85);
+    opacity: 0.6;
+  }
+
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .action-btn {
@@ -1480,7 +1569,10 @@ export default {
 }
 
 /* Skeleton */
-.skeleton-block { padding: 10px 12px; }
+.skeleton-block {
+  padding: 10px 12px;
+}
+
 .skeleton-line {
   height: 12px;
   background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
@@ -1489,35 +1581,72 @@ export default {
   border-radius: 6px;
   margin-bottom: 8px;
 }
-.skeleton-line.short { width: 60%; }
-.skeleton-paragraph { height: 80px; border-radius: 8px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; }
-.skeleton-paragraph.short { height: 40px; }
-.skeleton-image { width: 100%; height: 160px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; }
-.skeleton-card { height: 60px; border-radius: 8px; margin-top: 8px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; }
 
-@keyframes skeleton-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+.skeleton-line.short {
+  width: 60%;
 }
 
-.image-clickable { cursor: zoom-in; }
+.skeleton-paragraph {
+  height: 80px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-paragraph.short {
+  height: 40px;
+}
+
+.skeleton-image {
+  width: 100%;
+  height: 160px;
+  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-card {
+  height: 60px;
+  border-radius: 8px;
+  margin-top: 8px;
+  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.image-clickable {
+  cursor: zoom-in;
+}
+
 .image-preview-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.75);
+  background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3000;
 }
+
 .image-preview-img {
   max-width: 90vw;
   max-height: 90vh;
   border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
 .card-scroller {
@@ -1570,5 +1699,44 @@ export default {
   color: #6b7280;
   font-size: calc(14px * var(--font-scale));
   cursor: pointer;
+}
+
+.aspect-ratio-select {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.aspect-label {
+  color: #374151;
+  font-size: calc(12px * var(--font-scale));
+}
+
+.aspect-options {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.aspect-option {
+  padding: 6px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 9999px;
+  background: #fff;
+  color: #374151;
+  font-size: calc(12px * var(--font-scale));
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.aspect-option:hover {
+  background: #F9FAFB;
+}
+
+.aspect-option.active {
+  background: rgba(59, 130, 246, 0.10);
+  border-color: #3b82f6;
+  color: #1f2937;
 }
 </style>

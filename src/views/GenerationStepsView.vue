@@ -114,6 +114,7 @@ export default {
     if (this.stepTimer) {
       clearTimeout(this.stepTimer)
     }
+    try { if (this._ssePicCtrl && this._ssePicCtrl.abort) this._ssePicCtrl.abort() } catch (e) { void e }
   },
   methods: {
     cleanUrl(u) {
@@ -164,9 +165,11 @@ export default {
       let attempts = 0
       while (attempts < 3) {
         try {
+          this._ssePicCtrl = new AbortController()
           await storyboardPictureGenStream({
             videoId,
             token,
+            signal: this._ssePicCtrl.signal,
             onEvent: (obj) => {
               if (!obj || obj.type === 'connected') return
               if (obj.Storyboard_picture) {
@@ -254,6 +257,7 @@ export default {
       return positions[index - 1] || {}
     }
   }
+  
 }
 </script>
 

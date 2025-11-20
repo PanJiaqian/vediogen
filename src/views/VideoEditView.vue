@@ -914,8 +914,11 @@ export default {
         }
       })
       this.refreshSidebarFromLocal()
-      const hasVideo = this.scenes.some(sc => Array.isArray(sc.clips) && sc.clips.length && /\.mp4(\?|$)/i.test(String(sc.clips[0].url || '')))
-      if (hasVideo) this.isConverting = false
+      const allDone = items.length > 0 && items.every(it => {
+        const s = String(it.status || '').toLowerCase()
+        return s === 'succeeded' || s === 'success' || s === 'failed'
+      })
+      if (allDone) this.isConverting = false
     },
     // 返回场景的clips，若无则回退到单一缩略图
     getSceneClips(scene) {
@@ -1059,6 +1062,12 @@ export default {
         const nameRaw = String(currentScene.scene_number || '').trim()
         const name = nameRaw || `shot_${this.activeSceneIndex + 1}`
         const resp = await regenerateImage({ videoId, type, name, token })
+        const respMsg = String((resp && (resp.message || resp.msg || resp.meg)) || '').trim()
+        const respSensitive = (resp && resp.success === false) || /敏感/i.test(respMsg)
+        if (respSensitive) {
+          try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { /* no-op */ }
+          return
+        }
         const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
         if (!generateUuid) {
           console.warn('未获取到 generateUuid，无法查询结果', resp)
@@ -1072,6 +1081,11 @@ export default {
           const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
           const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
           const msgText = String((q && (q.message || q.msg || q.meg)) || '').trim()
+          const isSensitive = (q && q.success === false) || /敏感/i.test(msgText)
+          if (isSensitive) {
+            try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { /* no-op */ }
+            return
+          }
           if (msgText) {
             console.warn('重生成分镜图片接口返回错误:', msgText)
             return
@@ -1129,9 +1143,19 @@ export default {
             let statusJson = null
             try { statusJson = JSON.parse(statusText) } catch (e) { statusJson = null }
             if (statusJson && statusJson.success && Array.isArray(statusJson.items)) {
-              this.updateScenesWithQueryItems(statusJson.items)
-              const hasVideo = this.scenes.some(sc => Array.isArray(sc.clips) && sc.clips.length && /\.mp4(\?|$)/i.test(String(sc.clips[0].url || '')))
-              if (hasVideo) this.isConverting = false
+              const items = statusJson.items
+              this.updateScenesWithQueryItems(items)
+              const allDone = items.length > 0 && items.every(it => {
+                const s = String(it.status || '').toLowerCase()
+                return s === 'succeeded' || s === 'success' || s === 'failed'
+              })
+              if (allDone) {
+                if (this._storyboardQueryInterval) {
+                  try { clearInterval(this._storyboardQueryInterval) } catch (e) { /* no-op */ }
+                  this._storyboardQueryInterval = null
+                }
+                this.isConverting = false
+              }
             }
           } catch (e) {
             console.warn('查询分镜视频生成状态失败:', e)

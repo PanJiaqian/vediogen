@@ -31,12 +31,13 @@ export async function scriptGen({ stageDirections, materialId = '', category = '
 
 
 // 流式读取剧本修改 SSE，逐步返回事件
-export async function scriptModifyStream({ modificationSuggestions, videoId, token, onEvent }) {
+export async function scriptModifyStream({ modificationSuggestions, videoId, token, onEvent, signal }) {
   const url = `${BASE_URL}/api/agent/Script_modify?modificationSuggestions=${encodeURIComponent(modificationSuggestions)}&videoId=${encodeURIComponent(videoId)}`
   const requestOptions = {
     method: 'POST',
     headers: buildSSEHeaders(token),
-    redirect: 'follow'
+    redirect: 'follow',
+    signal
   }
   const res = await fetch(url, requestOptions)
   if (res.status === 401) {
@@ -45,6 +46,7 @@ export async function scriptModifyStream({ modificationSuggestions, videoId, tok
   const reader = res.body && res.body.getReader ? res.body.getReader() : null
   if (!reader) {
     // 回退为非流式
+    if (signal && signal.aborted) return
     const text = await res.text()
     if (typeof onEvent === 'function') {
       const chunks = text.split(/\n\n+/)
@@ -65,6 +67,7 @@ export async function scriptModifyStream({ modificationSuggestions, videoId, tok
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
   for (;;) {
+    if (signal && signal.aborted) break
     const { done, value } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
@@ -94,12 +97,13 @@ export async function scriptModifyStream({ modificationSuggestions, videoId, tok
   }
 }
 
-export async function scriptGenStream({ stageDirections, materialId = '', category = '0', token, onEvent }) {
+export async function scriptGenStream({ stageDirections, materialId = '', category = '0', token, onEvent, signal }) {
   const url = `${BASE_URL}/api/agent/Script_gen?stageDirections=${encodeURIComponent(stageDirections)}&materialId=${encodeURIComponent(materialId)}&category=${encodeURIComponent(category)}`
   const requestOptions = {
     method: 'POST',
     headers: buildSSEHeaders(token),
-    redirect: 'follow'
+    redirect: 'follow',
+    signal
   }
   const res = await fetch(url, requestOptions)
   if (res.status === 401) {
@@ -107,6 +111,7 @@ export async function scriptGenStream({ stageDirections, materialId = '', catego
   }
   const reader = res.body && res.body.getReader ? res.body.getReader() : null
   if (!reader) {
+    if (signal && signal.aborted) return
     const text = await res.text()
     if (typeof onEvent === 'function') {
       const chunks = text.split(/\n\n+/)
@@ -127,6 +132,7 @@ export async function scriptGenStream({ stageDirections, materialId = '', catego
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
   for (;;) {
+    if (signal && signal.aborted) break
     const { done, value } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
@@ -156,12 +162,13 @@ export async function scriptGenStream({ stageDirections, materialId = '', catego
 }
 
 // 分镜图片生成
-export async function storyboardPictureGenStream({ videoId, token, onEvent }) {
+export async function storyboardPictureGenStream({ videoId, token, onEvent, signal }) {
   const url = `${BASE_URL}/api/agent/Storyboard_image_gen?videoId=${encodeURIComponent(videoId)}`
   const requestOptions = {
     method: 'POST',
     headers: buildSSEHeaders(token),
-    redirect: 'follow'
+    redirect: 'follow',
+    signal
   }
   const res = await fetch(url, requestOptions)
   if (res.status === 401) {
@@ -172,6 +179,7 @@ export async function storyboardPictureGenStream({ videoId, token, onEvent }) {
   }
   const reader = res.body && res.body.getReader ? res.body.getReader() : null
   if (!reader) {
+    if (signal && signal.aborted) return
     const text = await res.text()
     if (typeof onEvent === 'function') {
       const chunks = text.split(/\n\n+/)
@@ -192,6 +200,7 @@ export async function storyboardPictureGenStream({ videoId, token, onEvent }) {
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
   for (;;) {
+    if (signal && signal.aborted) break
     const { done, value } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
