@@ -481,13 +481,8 @@
                   <div class="track-clips" @click="selectScene(index)">
                     <div v-for="(clip, cidx) in getSceneClips(scene)" :key="cidx" class="scene-clip"
                       :class="{ active: index === activeSceneIndex }" :style="getClipStyle(scene, clip)">
-                      <template v-if="isVideo(clip.url || scene.thumbnail)">
-                        <video v-if="index === activeSceneIndex || shouldPreload(index)" :src="cleanUrl(clip.url || scene.thumbnail)" :poster="getScenePoster(scene, clip)" class="clip-thumbnail" muted playsinline preload="metadata" disablepictureinpicture></video>
-                        <img v-else :src="getScenePoster(scene, clip)" :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async" fetchpriority="low" />
-                      </template>
-                      <template v-else>
-                        <img :src="cleanUrl(clip.url || scene.thumbnail) || '/logo.png'" :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async" fetchpriority="low" />
-                      </template>
+                      <video v-if="isVideo(clip.url || scene.thumbnail)" :src="cleanUrl(clip.url || scene.thumbnail)" :poster="cleanUrl(scene.thumbnail || '/logo.png')" class="clip-thumbnail" muted loop playsinline :preload="index < 4 ? 'metadata' : 'none'" disablepictureinpicture></video>
+                      <img v-else :src="cleanUrl(clip.url || scene.thumbnail)" :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async" fetchpriority="low" />
                     </div>
                   </div>
                   <div class="track-audio">
@@ -685,17 +680,18 @@ export default {
         }
         tracks.addEventListener('scroll', sync)
         sync()
-        this._visibleTrackIndices = new Set()
+        this._prefetchedSceneIndices = new Set()
         try {
           const io = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-              const el = entry && entry.target
-              const idx = el ? Number(el.getAttribute('data-index')) : NaN
-              if (!Number.isFinite(idx)) return
-              if (entry.isIntersecting) {
-                this._visibleTrackIndices.add(idx)
-              } else {
-                this._visibleTrackIndices.delete(idx)
+              if (entry && entry.isIntersecting) {
+                const el = entry.target
+                const idx = Number(el.getAttribute('data-index'))
+                if (Number.isFinite(idx) && idx >= 4 && !(this._prefetchedSceneIndices && this._prefetchedSceneIndices.has(idx))) {
+                  this._prefetchedSceneIndices && this._prefetchedSceneIndices.add(idx)
+                  this.prefetchSceneDetailByIndex(idx)
+                  io.unobserve(el)
+                }
               }
             })
           }, { root: this.$refs.timelineTracks, threshold: 0.25 })
@@ -705,6 +701,7 @@ export default {
       }
     })
     this.fetchCurrentSceneDetail()
+    this.prefetchInitialScenesDetails()
   },
   computed: {
     userStore() {
@@ -1141,26 +1138,12 @@ export default {
         }
       }
       if (!baseUrl) return []
-      if (!isActive) {
-        return [{ url: baseUrl, durationMs: Math.max(5000, duration || 5000) }]
-      }
+      // 每秒2张缩略图，总计10张以覆盖5秒
       const perSecondFrames = 2
       const totalSeconds = Math.max(1, Math.round(duration / 1000))
       const frames = Math.max(1, totalSeconds * perSecondFrames)
       const seg = Math.max(250, Math.round(duration / frames))
       return Array.from({ length: frames }, () => ({ url: baseUrl, durationMs: seg }))
-    },
-    shouldPreload(index) {
-      return index === this.activeSceneIndex || (this._visibleTrackIndices && this._visibleTrackIndices.has(index))
-    },
-    getScenePoster(scene, clip) {
-      const thumb = this.cleanUrl(scene?.thumbnail || '')
-      const url = this.cleanUrl((clip && clip.url) || thumb)
-      if (this.isVideo(url)) {
-        const poster = this.cleanUrl(scene?.poster || '')
-        return poster || '/logo.png'
-      }
-      return url || '/logo.png'
     },
     // 基于时长计算片段在轨的宽度百分比
     getClipStyle(scene, clip) {
@@ -1703,6 +1686,7 @@ export default {
     handleDragStart(index, event) {
       this.draggedIndex = index
       event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/html', event.target.outerHTML)
       console.log('开始拖拽分镜:', index)
     },
     handleDragOver(event) {
@@ -2849,7 +2833,8 @@ input:checked+.slider:before {
 .clip-thumbnail {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  /* 完整显示缩略图 */
   background: #fff;
 }
 
