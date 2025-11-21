@@ -430,14 +430,7 @@
               <div class="playback-indicator" :style="{ left: playbackLeftPx + 'px' }"></div>
             </template>
             <template v-else>
-              <!-- 字幕开关 -->
-              <div class="timeline-header">
-                <span class="timeline-label">字幕</span>
-                <label class="switch">
-                  <input type="checkbox" v-model="subtitleEnabled" checked>
-                  <span class="slider"></span>
-                </label>
-              </div>
+              
               <!-- 时间刻度 -->
               <div class="time-scale">
                 <div class="time-scale-inner" ref="timeScaleInner">
@@ -556,7 +549,7 @@
 <script>
 import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, storyboardPictureGenStream, copyStoryboardVideo, reorderStoryboardScenes } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, storyboardPictureGenStream, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
 
@@ -702,6 +695,7 @@ export default {
     })
     this.fetchCurrentSceneDetail()
     this.prefetchInitialScenesDetails()
+    this.pollStoryboardImagesDetail()
   },
   computed: {
     userStore() {
@@ -859,8 +853,9 @@ export default {
               }
               if (added > 0) {
                 if (this.activeSceneIndex < 0 || this.activeSceneIndex >= this.scenes.length) this.activeSceneIndex = 0
-                this.updateTimeMarkers()
                 this._shotOrder = this.getShotOrderFromRaw(projectId)
+                this.sortScenesByOrder()
+                this.updateTimeMarkers()
                 try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
                 if (this.isConverting) this.isConverting = false
               }
@@ -881,6 +876,7 @@ export default {
               }
               if (added > 0) {
                 if (this.activeSceneIndex < 0 || this.activeSceneIndex >= this.scenes.length) this.activeSceneIndex = 0
+                this.sortScenesByOrder()
                 this.updateTimeMarkers()
                 try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
                 if (this.isConverting) this.isConverting = false
@@ -1152,6 +1148,26 @@ export default {
       const widthPct = Math.max(2, Math.round(((Number(clip.durationMs) || 3000) / total) * 100))
       return { width: widthPct + '%', minWidth: '28px' }
     },
+    sortScenesByOrder() {
+      const order = Array.isArray(this._shotOrder) ? this._shotOrder : []
+      if (!Array.isArray(this.scenes) || this.scenes.length === 0 || order.length === 0) return
+      this.scenes = this.scenes.slice().sort((a, b) => {
+        const ak = String(a.scene_number || '').trim()
+        const bk = String(b.scene_number || '').trim()
+        const ai = order.indexOf(ak)
+        const bi = order.indexOf(bk)
+        if (ai === -1 && bi === -1) {
+          const an = parseInt(ak.replace(/[^0-9]/g, ''), 10)
+          const bn = parseInt(bk.replace(/[^0-9]/g, ''), 10)
+          const av = Number.isFinite(an) ? an : Number.MAX_SAFE_INTEGER
+          const bv = Number.isFinite(bn) ? bn : Number.MAX_SAFE_INTEGER
+          return av - bv
+        }
+        if (ai === -1) return 1
+        if (bi === -1) return -1
+        return ai - bi
+      })
+    },
     refreshSidebarFromLocal() {
       const imgApi = this.cleanUrl(this.sceneDetail.reference_image_url || '')
       const vidApi = this.cleanUrl(this.sceneDetail.video_url || '')
@@ -1295,6 +1311,59 @@ export default {
           const refImg = this.cleanUrl(activeItem.reference_image_url || active.thumbnail || '')
           const vurl = this.cleanUrl(activeItem.video_url || '')
           this.sceneDetail = { reference_image_url: refImg, video_url: vurl }
+        }
+      } catch (e) { void 0 }
+    },
+    async pollStoryboardImagesDetail() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            const text = await getStoryboardImagesDetail({ videoId, token })
+            let resp = null
+            try { resp = JSON.parse(text) } catch { resp = null }
+            const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
+            if (list.length) {
+              const order = Array.isArray(this._shotOrder) ? this._shotOrder : []
+              list.forEach((item, i) => {
+                const key = String(item.scene_number || (item.scene_script && item.scene_script.content && item.scene_script.content.shot_id) || '').trim()
+                let idx = this.scenes.findIndex(sc => String(sc.scene_number || '').trim() === key)
+                if (idx < 0 && order.length) idx = order.indexOf(key)
+                if (idx < 0) idx = i < this.scenes.length ? i : -1
+                if (idx >= 0 && idx < this.scenes.length) {
+                  const sc = this.scenes[idx]
+                  const refImg = this.cleanUrl(item.reference_image_url || sc.thumbnail || '')
+                  const vurl = this.cleanUrl(item.video_url || '')
+                  if (refImg) sc.thumbnail = refImg
+                  if (vurl) sc.clips = [{ url: vurl, durationMs: 5000 }]
+                  else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 3000 }]
+                  const content = item && item.scene_script && item.scene_script.content ? item.scene_script.content : null
+                  if (content) {
+                    const parts = []
+                    if (content.shot_title) parts.push(content.shot_title)
+                    if (content.visual_description) parts.push(content.visual_description)
+                    const desc = parts.length ? parts.join('：') : ''
+                    if (desc) sc.description = desc
+                  }
+                  if (!sc.scene_number) sc.scene_number = key || undefined
+                }
+              })
+              const active = this.scenes[this.activeSceneIndex] || {}
+              const activeKey = String(active.scene_number || '').trim()
+              const activeItem = list.find(x => String(x.scene_number || '').trim() === activeKey) || null
+              if (activeItem) {
+                const refImg = this.cleanUrl(activeItem.reference_image_url || active.thumbnail || '')
+                const vurl = this.cleanUrl(activeItem.video_url || '')
+                this.sceneDetail = { reference_image_url: refImg, video_url: vurl }
+              }
+            }
+          } catch (e) { void 0 }
+          if (attempt < 2) {
+            await new Promise(r => setTimeout(r, 10000))
+          }
         }
       } catch (e) { void 0 }
     },
@@ -2332,7 +2401,7 @@ export default {
   /* 允许内容在容器内收缩，避免挤压左侧 */
   overflow: hidden;
   /* 右侧自身不溢出，内部控件自行滚动 */
-  padding: 20px;
+  padding: 12px 20px 20px;
 }
 
 .edit-controls {
@@ -2366,7 +2435,7 @@ export default {
 }
 
 .video-preview {
-  height: 250px;
+  height: 300px;
   margin-bottom: 20px;
   flex-shrink: 0;
   display: flex;

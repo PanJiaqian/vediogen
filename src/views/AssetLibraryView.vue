@@ -206,44 +206,7 @@ export default {
         { id: 'public', name: '公共' },
         { id: 'personal', name: '个人' }
       ],
-      assets: [
-        {
-          id: 1,
-          title: '首选版kitty',
-          thumbnail: generateGradientPlaceholder('首选版kitty', 'E8E8E8', 'F8F9FA'),
-          type: 'public'
-        },
-        {
-          id: 2,
-          title: '多儿',
-          thumbnail: generateGradientPlaceholder('多儿', 'E8E8E8', 'F8F9FA'),
-          type: 'public'
-        },
-        {
-          id: 3,
-          title: 'Chou Chou',
-          thumbnail: generateGradientPlaceholder('Chou Chou', 'E8E8E8', 'F8F9FA'),
-          type: 'public'
-        },
-        {
-          id: 4,
-          title: 'Mokoko',
-          thumbnail: generateGradientPlaceholder('Mokoko', 'E8E8E8', 'F8F9FA'),
-          type: 'public'
-        },
-        {
-          id: 5,
-          title: 'Zimomo',
-          thumbnail: generateGradientPlaceholder('Zimomo', 'E8E8E8', 'F8F9FA'),
-          type: 'public'
-        },
-        {
-          id: 6,
-          title: 'Labubu',
-          thumbnail: generateGradientPlaceholder('Labubu', 'E8E8E8', 'F8F9FA'),
-          type: 'public'
-        }
-      ]
+      assets: []
     }
   },
   computed: {
@@ -309,28 +272,19 @@ export default {
     async loadPersonalMaterials() {
       try {
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) {
-          console.log('未找到token，使用模拟数据')
-          return
-        }
-        
-        // 使用统一 API 获取素材列表
         const result = await getMaterialsList(token)
         const data = JSON.parse(result)
-        
-        console.log('获取个人素材列表响应:', data)
-        
-        if (data.code === 0 && data.data) {
-          // 将API数据转换为资产卡片格式
-          const personalAssets = data.data.map(item => {
+        if (data && data.code === 0 && Array.isArray(data.data)) {
+          const mapped = data.data.map(item => {
             const rawUrl = String(item.fileUrl || '').trim().replace(/^`+|`+$/g, '')
             const isHttp = /^https?:\/\//i.test(rawUrl)
             const thumb = isHttp ? rawUrl : generateGradientPlaceholder(item.name, 'E8E8E8', 'F8F9FA')
+            const type = String(item.type || '').toUpperCase() === 'COMMUNITY' ? 'public' : 'personal'
             return {
               id: item.id,
               title: item.name,
               thumbnail: thumb,
-              type: 'personal',
+              type,
               category: item.category,
               gender: item.gender,
               ageRange: item.ageRange,
@@ -339,19 +293,14 @@ export default {
               updateTime: item.updateTime
             }
           })
-          
-          // 更新资产列表，保留公共资产，替换个人资产
-          this.assets = [
-            ...this.assets.filter(asset => asset.type === 'public'),
-            ...personalAssets
-          ]
+          const publicAssets = mapped.filter(a => a.type === 'public')
+          const personalAssets = mapped.filter(a => a.type === 'personal')
+          this.assets = [...publicAssets, ...personalAssets]
         } else {
-          console.error('获取个人素材列表失败:', data.message)
+          console.error('获取个人素材列表失败:', data && data.message)
         }
-        
       } catch (error) {
         console.error('获取个人素材列表失败:', error)
-        // 保持使用模拟数据
       }
     },
     toggleInputBox() {

@@ -177,71 +177,7 @@ export default {
       // 已选择的主体名称（用于替换“主体”字样）
       selectedSubjectName: '',
       // 主体数据
-      subjects: [
-        {
-          id: 1,
-          name: '背带裤kitty',
-          avatar: '/api/placeholder/40/40',
-          tags: ['动物'],
-          category: 'public'
-        },
-        {
-          id: 2,
-          name: '多儿',
-          avatar: '/api/placeholder/40/40',
-          tags: ['动物'],
-          category: 'public'
-        },
-        {
-          id: 3,
-          name: 'Chou Chou',
-          avatar: '/api/placeholder/40/40',
-          tags: ['男性', '少年'],
-          category: 'public'
-        },
-        {
-          id: 4,
-          name: 'Mokoko',
-          avatar: '/api/placeholder/40/40',
-          tags: ['其他'],
-          category: 'public'
-        },
-        {
-          id: 5,
-          name: 'Zimomo',
-          avatar: '/api/placeholder/40/40',
-          tags: ['其他'],
-          category: 'public'
-        },
-        {
-          id: 6,
-          name: 'Labubu',
-          avatar: '/api/placeholder/40/40',
-          tags: ['其他'],
-          category: 'public'
-        },
-        {
-          id: 7,
-          name: '三龙子',
-          avatar: '/api/placeholder/40/40',
-          tags: ['男性', '青年'],
-          category: 'public'
-        },
-        {
-          id: 8,
-          name: '沈星回',
-          avatar: '/api/placeholder/40/40',
-          tags: ['男性', '青年'],
-          category: 'public'
-        },
-        {
-          id: 9,
-          name: '秦御',
-          avatar: '/api/placeholder/40/40',
-          tags: ['男性', '青年'],
-          category: 'public'
-        }
-      ],
+      subjects: [],
       // 画风数据
       artStyles: [
         {
@@ -334,6 +270,7 @@ export default {
     // 点击外部关闭下拉框
     document.addEventListener('click', this.handleClickOutside)
     this.loadCreativeWorks()
+    this.loadPersonalSubjects()
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside)
@@ -456,26 +393,26 @@ export default {
       alert('主体创建成功！')
     },
 
-    // 加载个人主体（与主体库保持一致的数据来源）
+    // 加载主体（包含公共与个人）
     async loadPersonalSubjects() {
       try {
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) {
-          return
-        }
         const result = await getMaterialsList(token)
         let data
         try { data = JSON.parse(result) } catch { data = null }
         if (data && data.code === 0 && Array.isArray(data.data)) {
-          const personalSubjects = data.data.map(item => ({
-            id: item.id,
-            name: item.name,
-            avatar: item.fileUrl || '/api/placeholder/40/40',
-            tags: [item.gender || '全部', item.ageRange || '全部'].filter(Boolean),
-            category: 'personal'
-          }))
-          const publicSubjects = this.subjects.filter(s => s.category === 'public')
-          this.subjects = [...publicSubjects, ...personalSubjects]
+          const subjects = data.data.map(item => {
+            const rawUrl = String(item.fileUrl || '').trim().replace(/^`+|`+$/g, '')
+            const isHttp = /^https?:\/\//i.test(rawUrl)
+            return {
+              id: item.id,
+              name: item.name,
+              avatar: isHttp ? rawUrl : '/api/placeholder/40/40',
+              tags: [item.gender || '全部', item.ageRange || '全部'].filter(Boolean),
+              category: String(item.type || '').toUpperCase() === 'COMMUNITY' ? 'public' : 'personal'
+            }
+          })
+          this.subjects = subjects
         }
       } catch (e) {
         console.warn('加载个人主体失败:', e)

@@ -9,9 +9,13 @@
           <div class="version-selector">
             <button class="version-button" @click.prevent.stop="toggleVersions">历史文件</button>
             <div v-if="versionsMenuOpen" class="version-popover" @click.stop>
-              <div v-for="(v, idx) in versions" :key="v.videoId || idx" class="version-item" :class="{ selected: idx === selectedVersionIndex }" @click.prevent.stop="selectVersion(idx)">
+              <div v-for="(v, idx) in versions" :key="v.videoId || idx" class="version-item"
+                :class="{ selected: idx === selectedVersionIndex }" @click.prevent.stop="selectVersion(idx)">
                 <div class="version-item-left">
-                  <svg class="version-doc-icon" viewBox="0 0 24 24"><path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#e5e7eb"/><path d="M14 2v6h6" fill="#f3f4f6"/></svg>
+                  <svg class="version-doc-icon" viewBox="0 0 24 24">
+                    <path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#e5e7eb" />
+                    <path d="M14 2v6h6" fill="#f3f4f6" />
+                  </svg>
                   <div class="version-item-text">
                     <div class="version-title">{{ v.title || '未命名版本' }}</div>
                     <div class="version-time">{{ formatDateTime(v.createdAt) }}</div>
@@ -136,7 +140,8 @@
               <div v-for="(shot, idx) in scene.shots" :key="idx"
                 style="margin: 6px 0; padding: 6px 8px; border: 1px solid #eee; border-radius: 6px;">
                 <div style="font-weight:600;color:#1f2937;margin-bottom:4px;">分镜{{ (shot.shot_code || shot.shot_id) ?
-                  (shot.shot_code || shot.shot_id).toString().replace(/^shot_/, '').replace(/^scene_/, '') : (sIdx + 1) +
+                  (shot.shot_code || shot.shot_id).toString().replace(/^shot_/, '').replace(/^scene_/, '') : (sIdx + 1)
+                  +
                   '_' + (idx + 1) }}</div>
                 <div>镜头：{{ shot.shot_title }}</div>
                 <div>画面：{{ shot.visual_description }}</div>
@@ -152,7 +157,7 @@
     <!-- 右侧内容区域 -->
     <div class="right-content">
       <!-- 可滚动内容区域 -->
-      <div class="scrollable-content">
+      <div class="scrollable-content" ref="rightScrollable">
 
 
         <!-- 思考生成步骤 -->
@@ -206,12 +211,23 @@
 
         <!-- 问答消息列表 -->
         <div class="qa-messages">
-          <div v-for="(m, i) in messages" :key="m.id" class="qa-message"
-            :class="{ 'qa-message-left': m.side === 'left' }">
-            <div class="qa-message-text">{{ m.text }}</div>
-            <div class="qa-message-status" v-if="m.status && m.status !== '思考中'">{{ m.status }}</div>
-          </div>
-          <div v-if="isSubmitting" class="qa-center-status">生成中...</div>
+          <template v-if="isMessagesLoading">
+            <div class="skeleton-block">
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line short"></div>
+            </div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </template>
+          <template v-else>
+            <div v-for="(m, i) in messages" :key="m.id" class="qa-message"
+              :class="{ 'qa-message-left': m.side === 'left' }">
+              <div class="qa-message-text">{{ m.text }}</div>
+              <div class="qa-message-status" v-if="m.status && m.status !== '思考中'">{{ m.status }}</div>
+            </div>
+            <div v-if="isSubmitting" class="qa-center-status">生成中...</div>
+          </template>
         </div>
 
         <!-- 操作按钮 -->
@@ -272,6 +288,7 @@ export default {
       userInput: '',
       videoId: '',
       messages: [],
+      isMessagesLoading: false,
       isSubmitting: false,
       prompt: '',
       category: '',
@@ -406,6 +423,7 @@ export default {
     },
     async loadConversationMessages() {
       try {
+        this.isMessagesLoading = true
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) return
         const projectId = this.$route.params.id
@@ -434,6 +452,8 @@ export default {
           })
         }
         this.messages = merged
+        this.isMessagesLoading = false
+        this.$nextTick(() => { this.scrollToMessagesBottom() })
       } catch (e) { /* no-op */ }
     },
     toggleVersions() {
@@ -576,6 +596,7 @@ export default {
       const msg = { id: Date.now(), text: suggestion, status: '思考中' }
       this.messages.push(msg)
       this.messages.push({ id: Date.now() + 1, text: '小梦收到了您的新idea！原来这样改故事会更精彩，让我现在来优化这个故事吧！', side: 'left' })
+      this.$nextTick(() => { this.scrollToMessagesBottom() })
       this.isSubmitting = true
       this.loadingSections = { art: true, music: true, summary: true, people: true, scene: true, storyboard: true }
       // 发送后清空输入框
@@ -609,7 +630,15 @@ export default {
           this.messages[lastIndex].status = '思考完成'
         }
         this.isSubmitting = false
+        this.$nextTick(() => { this.scrollToMessagesBottom() })
       }
+    },
+    scrollToMessagesBottom() {
+      try {
+        const el = this.$refs && this.$refs.rightScrollable
+        if (!el) return
+        el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+      } catch (e) { /* no-op */ }
     },
     // 代理到通用工具，方便其他页面统一复用
     cleanUrl(u) {
@@ -1064,7 +1093,7 @@ export default {
       console.warn('读取生成内容失败:', e)
     }
   }
-  ,beforeUnmount() {
+  , beforeUnmount() {
     try { if (this._sseGenCtrl && this._sseGenCtrl.abort) this._sseGenCtrl.abort() } catch (e) { void e }
     try { if (this._sseModCtrl && this._sseModCtrl.abort) this._sseModCtrl.abort() } catch (e) { void e }
   }
@@ -1128,16 +1157,19 @@ export default {
   margin-bottom: 4px;
   line-height: 1.2;
 }
+
 .project-title-row {
   display: flex;
   align-items: center;
   gap: 12px;
 }
+
 .version-selector {
   position: absolute;
   top: 0;
   right: 0;
 }
+
 .version-button {
   border: 1px solid #e5e7eb;
   background: #ffffff;
@@ -1146,6 +1178,7 @@ export default {
   padding: 6px 12px;
   font-size: 12px;
 }
+
 .version-popover {
   position: absolute;
   top: 36px;
@@ -1153,11 +1186,12 @@ export default {
   width: 280px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   border-radius: 12px;
   padding: 12px;
   z-index: 10;
 }
+
 .version-item {
   display: flex;
   align-items: center;
@@ -1166,46 +1200,55 @@ export default {
   border-radius: 8px;
   border: 1px solid transparent;
 }
+
 .version-item:hover {
   background: #f9fafb;
 }
+
 .version-item.selected {
   border-color: #3b82f6;
 }
+
 .version-item-left {
   display: flex;
   align-items: center;
   gap: 8px;
 }
+
 .version-doc-icon {
   width: 24px;
   height: 24px;
 }
+
 .version-item-text {
   display: flex;
   flex-direction: column;
 }
+
 .version-title {
   font-size: 13px;
   color: #111827;
 }
+
 .version-time {
   font-size: 12px;
   color: #6b7280;
 }
+
 .floating-toast {
   position: fixed;
   left: 50%;
   bottom: 80px;
   transform: translateX(-50%);
-  background: rgba(17,24,39,0.9);
+  background: rgba(17, 24, 39, 0.9);
   color: #fff;
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 14px;
   z-index: 3000;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
+
 .version-tag {
   border: 1px solid #e5e7eb;
   color: #374151;
@@ -1778,6 +1821,8 @@ export default {
   border-radius: 12px;
   background: #fff;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .detail-card-text {
@@ -1814,6 +1859,10 @@ export default {
   color: #6b7280;
   font-size: calc(14px * var(--font-scale));
   cursor: pointer;
+}
+
+.detail-card-image {
+  margin-top: auto;
 }
 
 /* Skeleton */
@@ -1911,6 +1960,8 @@ export default {
   border-radius: 12px;
   background: #fff;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .detail-card-text {
@@ -1947,6 +1998,10 @@ export default {
   color: #6b7280;
   font-size: calc(14px * var(--font-scale));
   cursor: pointer;
+}
+
+.detail-card-image {
+  margin-top: auto;
 }
 
 .aspect-ratio-select {
