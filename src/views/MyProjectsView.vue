@@ -14,7 +14,18 @@
     </div>
 
     <!-- 项目网格 -->
-    <div class="projects-grid">
+    <div v-if="isLoading" class="projects-grid">
+      <div v-for="n in 8" :key="'skel-'+n" class="project-card">
+        <div class="project-thumbnail">
+          <div class="skeleton-image"></div>
+        </div>
+        <div class="project-info">
+          <div class="skeleton-line" style="width: 80%; height: 16px;"></div>
+          <div class="skeleton-line short" style="width: 60%; height: 12px;"></div>
+        </div>
+      </div>
+    </div>
+    <div v-else class="projects-grid">
       <div
         v-for="project in currentTabProjects"
         :key="project.id"
@@ -32,7 +43,7 @@
     </div>
 
     <!-- 暂无更多内容提示 -->
-    <div class="empty-message">
+    <div class="empty-message" v-if="!isLoading && currentTabProjects.length === 0">
       暂无更多内容
     </div>
   </div>
@@ -53,7 +64,8 @@ export default {
         { id: 'avatar', name: '数字人' }
       ],
       storyProjects: [],
-      avatarProjects: []
+      avatarProjects: [],
+      isLoading: true
     }
   },
   computed: {
@@ -70,6 +82,7 @@ export default {
   methods: {
     async fetchMyWorksList() {
       try {
+        this.isLoading = true
         const token = this.userStore?.token || ''
         const result = await getMyWorksList(token)
         const resp = JSON.parse(result)
@@ -108,6 +121,7 @@ export default {
       } catch (e) {
         console.error('获取“我的空间”作品列表错误:', e)
       }
+      this.isLoading = false
     },
     setActiveTab(tabId) {
       this.activeTab = tabId
@@ -386,6 +400,33 @@ export default {
   padding: 60px 20px;
   color: #6c757d;
   font-size: 16px;
+}
+
+.skeleton-line {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e6e6e6 37%, #f0f0f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+  border-radius: 6px;
+  height: 14px;
+  margin: 6px 0;
+}
+
+.skeleton-line.short {
+  width: 60%;
+}
+
+.skeleton-image {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e6e6e6 37%, #f0f0f0 63%);
+  background-size: 400% 100%;
+  animation: skeleton-loading 1.4s ease infinite;
+  border-radius: 8px;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 
 /* 响应式设计 */

@@ -481,8 +481,13 @@
                   <div class="track-clips" @click="selectScene(index)">
                     <div v-for="(clip, cidx) in getSceneClips(scene)" :key="cidx" class="scene-clip"
                       :class="{ active: index === activeSceneIndex }" :style="getClipStyle(scene, clip)">
-                      <video v-if="isVideo(clip.url || scene.thumbnail)" :src="cleanUrl(clip.url || scene.thumbnail)" :poster="cleanUrl(scene.thumbnail || '/logo.png')" class="clip-thumbnail" muted loop playsinline :preload="index < 4 ? 'metadata' : 'none'" disablepictureinpicture></video>
-                      <img v-else :src="cleanUrl(clip.url || scene.thumbnail)" :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async" fetchpriority="low" />
+                      <template v-if="isVideo(clip.url || scene.thumbnail)">
+                        <video v-if="index === activeSceneIndex || shouldPreload(index)" :src="cleanUrl(clip.url || scene.thumbnail)" :poster="getScenePoster(scene, clip)" class="clip-thumbnail" muted playsinline preload="metadata" disablepictureinpicture></video>
+                        <img v-else :src="getScenePoster(scene, clip)" :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async" fetchpriority="low" />
+                      </template>
+                      <template v-else>
+                        <img :src="cleanUrl(clip.url || scene.thumbnail) || '/logo.png'" :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async" fetchpriority="low" />
+                      </template>
                     </div>
                   </div>
                   <div class="track-audio">
@@ -543,6 +548,8 @@
     </div>
   </div>
 
+  <div v-if="toastVisible" class="floating-toast">{{ toastText }}</div>
+
   <div v-if="successModalVisible" class="success-modal-overlay" @click="closeSuccessModal">
     <div class="success-modal" @click.stop>
       <div class="success-title">任务创建成功</div>
@@ -554,7 +561,7 @@
 <script>
 import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, storyboardPictureGenStream } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, storyboardPictureGenStream, copyStoryboardVideo, reorderStoryboardScenes } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
 
@@ -602,7 +609,9 @@ export default {
       showLipSyncView: false,
       successModalVisible: false,
       isConverting: false,
-      sceneDetail: { reference_image_url: '', video_url: '' }
+      sceneDetail: { reference_image_url: '', video_url: '' },
+      toastVisible: false,
+      toastText: ''
     }
   },
   beforeUnmount() {
@@ -661,7 +670,7 @@ export default {
     } catch (e) {
       this._shotOrder = []
     }
-    this.fetchAllSceneDetails()
+    
     // 同步时间刻度与轨道的水平滚动
     this.$nextTick(() => {
       const tracks = this.$refs.timelineTracks
@@ -676,37 +685,26 @@ export default {
         }
         tracks.addEventListener('scroll', sync)
         sync()
-        this._prefetchedSceneIndices = new Set()
+        this._visibleTrackIndices = new Set()
         try {
           const io = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
-              if (entry && entry.isIntersecting) {
-                const el = entry.target
-                const idx = Number(el.getAttribute('data-index'))
-                if (Number.isFinite(idx) && idx >= 4 && !(this._prefetchedSceneIndices && this._prefetchedSceneIndices.has(idx))) {
-                  this._prefetchedSceneIndices && this._prefetchedSceneIndices.add(idx)
-                  this.prefetchSceneDetailByIndex(idx)
-                  io.unobserve(el)
-                }
+              const el = entry && entry.target
+              const idx = el ? Number(el.getAttribute('data-index')) : NaN
+              if (!Number.isFinite(idx)) return
+              if (entry.isIntersecting) {
+                this._visibleTrackIndices.add(idx)
+              } else {
+                this._visibleTrackIndices.delete(idx)
               }
             })
           }, { root: this.$refs.timelineTracks, threshold: 0.25 })
           this._io = io
           tracks.querySelectorAll('.timeline-track').forEach(el => io.observe(el))
         } catch (err) { void 0 }
-        try {
-          const pxPerSecond = this.getPxPerSecond()
-          const trackWidth = Math.max(1, pxPerSecond * 5)
-          const visibleCount = Math.min(
-            Array.isArray(this.scenes) ? this.scenes.length : 0,
-            Math.max(4, Math.ceil(tracks.clientWidth / trackWidth) + 2)
-          )
-          for (let i = 0; i < visibleCount; i++) this.prefetchSceneDetailByIndex(i)
-        } catch (e) { void 0 }
       }
     })
     this.fetchCurrentSceneDetail()
-    this.prefetchInitialScenesDetails()
   },
   computed: {
     userStore() {
@@ -822,6 +820,7 @@ export default {
         this._ssePicCtrl = new AbortController()
         await storyboardPictureGenStream({
           videoId,
+          aspectRatio: localStorage.getItem(`project:aspectRatio:${projectId}`) || '16:9',
           token,
           signal: this._ssePicCtrl.signal,
           onEvent: (obj) => {
@@ -1142,12 +1141,26 @@ export default {
         }
       }
       if (!baseUrl) return []
-      // 每秒2张缩略图，总计10张以覆盖5秒
+      if (!isActive) {
+        return [{ url: baseUrl, durationMs: Math.max(5000, duration || 5000) }]
+      }
       const perSecondFrames = 2
       const totalSeconds = Math.max(1, Math.round(duration / 1000))
       const frames = Math.max(1, totalSeconds * perSecondFrames)
       const seg = Math.max(250, Math.round(duration / frames))
       return Array.from({ length: frames }, () => ({ url: baseUrl, durationMs: seg }))
+    },
+    shouldPreload(index) {
+      return index === this.activeSceneIndex || (this._visibleTrackIndices && this._visibleTrackIndices.has(index))
+    },
+    getScenePoster(scene, clip) {
+      const thumb = this.cleanUrl(scene?.thumbnail || '')
+      const url = this.cleanUrl((clip && clip.url) || thumb)
+      if (this.isVideo(url)) {
+        const poster = this.cleanUrl(scene?.poster || '')
+        return poster || '/logo.png'
+      }
+      return url || '/logo.png'
     },
     // 基于时长计算片段在轨的宽度百分比
     getClipStyle(scene, clip) {
@@ -1391,10 +1404,14 @@ export default {
     },
     async handleRegenerateActiveScene() {
       try {
+        this.toastText = '正在生成中'
+        this.toastVisible = true
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
           console.warn('未登录，无法重新生成分镜图片')
           try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         const projectId = this.$route.params.id
@@ -1409,11 +1426,15 @@ export default {
         const respSensitive = (resp && resp.success === false) || /敏感/i.test(respMsg)
         if (respSensitive) {
           try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { void 0 }
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
         if (!generateUuid) {
           console.warn('未获取到 generateUuid，无法查询结果', resp)
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         if (this._regenerateActiveSceneInterval) {
@@ -1427,10 +1448,14 @@ export default {
           const isSensitive = (q && q.success === false) || /敏感/i.test(msgText)
           if (isSensitive) {
             try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { void 0 }
+            this.toastText = '生成失败'
+            setTimeout(() => { this.toastVisible = false }, 2000)
             return
           }
           if (msgText) {
             console.warn('重生成分镜图片接口返回错误:', msgText)
+            this.toastText = '生成失败'
+            setTimeout(() => { this.toastVisible = false }, 2000)
             return
           }
           if (url) {
@@ -1441,12 +1466,18 @@ export default {
               scene.clips = [{ url: cleaned, durationMs: 5000 }]
               this.sceneDetail = { reference_image_url: cleaned, video_url: this.sceneDetail.video_url }
             }
+            this.toastText = '生成成功'
+            setTimeout(() => { this.toastVisible = false }, 2000)
           }
         } catch (e) {
           console.warn('查询重生成分镜图片失败:', e)
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
         }
       } catch (e) {
         console.warn('重新生成分镜图片失败:', e)
+        this.toastText = '生成失败'
+        setTimeout(() => { this.toastVisible = false }, 2000)
       }
     },
     async goBack() {
@@ -1672,14 +1703,13 @@ export default {
     handleDragStart(index, event) {
       this.draggedIndex = index
       event.dataTransfer.effectAllowed = 'move'
-      event.dataTransfer.setData('text/html', event.target.outerHTML)
       console.log('开始拖拽分镜:', index)
     },
     handleDragOver(event) {
       event.preventDefault()
       event.dataTransfer.dropEffect = 'move'
     },
-    handleDrop(targetIndex, event) {
+    async handleDrop(targetIndex, event) {
       event.preventDefault()
       if (this.draggedIndex !== null && this.draggedIndex !== targetIndex) {
         const draggedScene = this.scenes[this.draggedIndex]
@@ -1694,6 +1724,19 @@ export default {
         }
 
         console.log('拖拽完成，从', this.draggedIndex, '移动到', targetIndex)
+
+        try {
+          const projectId = this.$route.params.id
+          const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+          const token = (this.userStore && this.userStore.token) || ''
+          if (token) {
+            const orders = this.scenes.map((sc, idx) => ({
+              scene_number: String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[idx] : `shot_${idx + 1}`)),
+              order_index: idx + 1
+            }))
+            await reorderStoryboardScenes({ videoId, orders, token })
+          }
+        } catch (e) { void 0 }
       }
     },
     handleDragEnd() {
@@ -1701,15 +1744,42 @@ export default {
       console.log('拖拽结束')
     },
     // 复制分镜
-    copyScene(index) {
-      const sceneToCopy = this.scenes[index]
-      const newScene = {
-        ...sceneToCopy,
-        id: Date.now(), // 生成新的ID
-        title: sceneToCopy.title + '_副本'
-      }
-      this.scenes.splice(index + 1, 0, newScene)
-      console.log('复制分镜:', sceneToCopy.title)
+    async copyScene(index) {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) {
+          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
+          return
+        }
+        const order_index = index + 1
+        const text = await copyStoryboardVideo({ videoId, order_index, token })
+        let obj = null
+        try { obj = JSON.parse(text) } catch (e) { obj = null }
+        const arr = obj && obj.code === 0 && obj.data && Array.isArray(obj.data.scenes) ? obj.data.scenes : []
+        if (!arr.length) return
+        const prevScenes = Array.isArray(this.scenes) ? this.scenes.slice() : []
+        const mapped = arr.map((it, idx) => {
+          const url = this.cleanUrl(it.video_url || '')
+          const title = `分镜${Number(it.order_index) || idx + 1}`
+          const dur = Number(it.duration) || 5
+          let thumb = ''
+          const key = String(it.scene_number || '').trim()
+          if (key) {
+            const prev = prevScenes.find(sc => String(sc.scene_number || '').trim() === key)
+            thumb = this.cleanUrl((prev && prev.thumbnail) || '')
+          }
+          if (!thumb) {
+            const byIndex = prevScenes[(Number(it.order_index) || (idx + 1)) - 1]
+            thumb = this.cleanUrl((byIndex && byIndex.thumbnail) || '')
+          }
+          return { id: Date.now() + idx, title, description: '分镜视频', thumbnail: thumb || '/logo.png', clips: [{ url, durationMs: dur * 1000 }], scene_number: it.scene_number }
+        })
+        this.scenes = mapped
+        this.updateTimeMarkers()
+        try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
+      } catch (e) { void 0 }
     },
     // 删除分镜
     deleteScene(index) {
@@ -2533,6 +2603,19 @@ export default {
   color: #ffffff;
   cursor: pointer;
 }
+.floating-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 80px;
+  transform: translateX(-50%);
+  background: rgba(17,24,39,0.9);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 3000;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+}
 
 /* 时间轴区域 */
 .timeline-section {
@@ -2766,8 +2849,7 @@ input:checked+.slider:before {
 .clip-thumbnail {
   width: 100%;
   height: 100%;
-  object-fit: contain;
-  /* 完整显示缩略图 */
+  object-fit: cover;
   background: #fff;
 }
 

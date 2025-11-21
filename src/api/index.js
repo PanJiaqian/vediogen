@@ -491,6 +491,46 @@ export async function sendCheckCodeByEmail({ email }) {
   return res.text()
 }
 
+export async function copyStoryboardVideo({ videoId, order_index, token }) {
+  const url = `${BASE_URL}/detail/storyboard/copy`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ videoId, order_index })
+  const requestOptions = {
+    method: 'POST',
+    headers,
+    body,
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
+export async function reorderStoryboardScenes({ videoId, orders, token }) {
+  const url = `${BASE_URL}/detail/storyboard/reorder`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ videoId, orders })
+  const requestOptions = {
+    method: 'POST',
+    headers,
+    body,
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    return res.text()
+  }
+}
+
 export default {
   scriptModifyStream,
   storyboardPictureGenStream,
@@ -511,4 +551,6 @@ export default {
   , getStoryboardSceneDetail
   , getVideoVersionsByConversation
   , getConversationMessages
+  , copyStoryboardVideo
+  , reorderStoryboardScenes
 }

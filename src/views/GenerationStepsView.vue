@@ -168,6 +168,7 @@ export default {
           this._ssePicCtrl = new AbortController()
           await storyboardPictureGenStream({
             videoId,
+            aspectRatio: localStorage.getItem(`project:aspectRatio:${projectId}`) || '16:9',
             token,
             signal: this._ssePicCtrl.signal,
             onEvent: (obj) => {

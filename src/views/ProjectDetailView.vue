@@ -256,6 +256,7 @@
   <div v-if="imagePreviewVisible" class="image-preview-overlay" @click="closeImagePreview">
     <img :src="imagePreviewSrc" class="image-preview-img" @click.stop />
   </div>
+  <div v-if="toastVisible" class="floating-toast">{{ toastText }}</div>
 </template>
 
 <script>
@@ -301,7 +302,9 @@ export default {
       },
       versionsMenuOpen: false,
       versions: [],
-      selectedVersionIndex: null
+      selectedVersionIndex: null,
+      toastVisible: false,
+      toastText: ''
     }
   },
   computed: {
@@ -554,6 +557,7 @@ export default {
         try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
         return
       }
+      try { localStorage.setItem(`project:aspectRatio:${projectId}`, String((this.project && this.project.aspectRatio) || '16:9')) } catch (e) { void 0 }
       try { localStorage.setItem(`video-edit:generateStoryboard:${projectId}`, '1') } catch (e) { /* no-op */ }
       this.$router.push(`/video-edit/${projectId}`)
     },
@@ -689,10 +693,14 @@ export default {
     },
     async handleRegenerateScene(s) {
       try {
+        this.toastText = '正在生成中'
+        this.toastVisible = true
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
           console.warn('未登录，无法重新生成场景图片')
           try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         const videoId = this.videoId || this.$route.params.id
@@ -703,10 +711,14 @@ export default {
         const respSensitive = (resp && resp.success === false) || /敏感/i.test(respMsg)
         if (respSensitive) {
           try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { /* no-op */ }
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
         if (!generateUuid) {
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
@@ -715,10 +727,14 @@ export default {
         const isSensitive = (q && q.success === false) || /敏感/i.test(msgText)
         if (isSensitive) {
           try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { /* no-op */ }
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         if (msgText) {
           console.warn('重生成场景图片接口返回错误:', msgText)
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         if (url) {
@@ -744,17 +760,25 @@ export default {
               }
             }
           } catch (e) { console.warn('同步场景图到列表失败:', e) }
+          this.toastText = '生成成功'
+          setTimeout(() => { this.toastVisible = false }, 2000)
         }
       } catch (e) {
         console.warn('重新生成场景图片失败:', e)
+        this.toastText = '生成失败'
+        setTimeout(() => { this.toastVisible = false }, 2000)
       }
     },
     async handleRegenerateCharacter(p) {
       try {
+        this.toastText = '正在生成中'
+        this.toastVisible = true
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
           console.warn('未登录，无法重新生成人物图片')
           try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         const videoId = this.videoId || this.$route.params.id
@@ -765,10 +789,14 @@ export default {
         const respSensitive = (resp && resp.success === false) || /敏感/i.test(respMsg)
         if (respSensitive) {
           try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { /* no-op */ }
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
         if (!generateUuid) {
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
@@ -777,17 +805,25 @@ export default {
         const isSensitive = (q && q.success === false) || /敏感/i.test(msgText)
         if (isSensitive) {
           try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { /* no-op */ }
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         if (msgText) {
           console.warn('重生成人物图片接口返回错误:', msgText)
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
           return
         }
         if (url) {
           p.Character_picture = url
+          this.toastText = '生成成功'
+          setTimeout(() => { this.toastVisible = false }, 2000)
         }
       } catch (e) {
         console.warn('重新生成人物图片失败:', e)
+        this.toastText = '生成失败'
+        setTimeout(() => { this.toastVisible = false }, 2000)
       }
     },
     applyParsedData(objs) {
@@ -1156,6 +1192,19 @@ export default {
 .version-time {
   font-size: 12px;
   color: #6b7280;
+}
+.floating-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 80px;
+  transform: translateX(-50%);
+  background: rgba(17,24,39,0.9);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 3000;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
 }
 .version-tag {
   border: 1px solid #e5e7eb;
