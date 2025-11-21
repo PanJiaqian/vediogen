@@ -1,4 +1,4 @@
-const BASE_URL = 'http://106.12.116.141:1770'
+const BASE_URL = 'https://www.xydriftcraft.com:1770'
 
 function buildAuthHeaders(token) {
   const headers = new Headers()
@@ -12,22 +12,6 @@ function buildSSEHeaders(token) {
   return headers
 }
 
-export async function scriptGen({ stageDirections, materialId = '', category = '0', token }) {
-  const url = `${BASE_URL}/api/agent/Script_gen?stageDirections=${encodeURIComponent(stageDirections)}&materialId=${encodeURIComponent(materialId)}&category=${encodeURIComponent(category)}`
-  const requestOptions = {
-    method: 'POST',
-    headers: buildSSEHeaders(token),
-    redirect: 'follow'
-  }
-  const res = await fetch(url, requestOptions)
-  if (res.status === 401) {
-    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
-  }
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`)
-  }
-  return res.text()
-}
 
 
 // 流式读取剧本修改 SSE，逐步返回事件
@@ -66,7 +50,7 @@ export async function scriptModifyStream({ modificationSuggestions, videoId, tok
   }
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
-  for (;;) {
+  for (; ;) {
     if (signal && signal.aborted) break
     const { done, value } = await reader.read()
     if (done) break
@@ -131,7 +115,7 @@ export async function scriptGenStream({ stageDirections, materialId = '', catego
   }
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
-  for (;;) {
+  for (; ;) {
     if (signal && signal.aborted) break
     const { done, value } = await reader.read()
     if (done) break
@@ -162,8 +146,8 @@ export async function scriptGenStream({ stageDirections, materialId = '', catego
 }
 
 // 分镜图片生成
-export async function storyboardPictureGenStream({ videoId, token, onEvent, signal }) {
-  const url = `${BASE_URL}/api/agent/Storyboard_image_gen?videoId=${encodeURIComponent(videoId)}`
+export async function storyboardPictureGenStream({ videoId, aspectRatio, token, onEvent, signal }) {
+  const url = `${BASE_URL}/api/agent/Storyboard_image_gen?videoId=${encodeURIComponent(videoId)}${aspectRatio ? `&aspectRatio=${encodeURIComponent(aspectRatio)}` : ''}`
   const requestOptions = {
     method: 'POST',
     headers: buildSSEHeaders(token),
@@ -199,7 +183,7 @@ export async function storyboardPictureGenStream({ videoId, token, onEvent, sign
   }
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
-  for (;;) {
+  for (; ;) {
     if (signal && signal.aborted) break
     const { done, value } = await reader.read()
     if (done) break
@@ -300,7 +284,7 @@ export async function queryRegenerateImage({ videoId, type, name, generateUuid, 
       try { return JSON.parse(await res.text()) } catch { return null }
     }
   }
-  for (;;) {
+  for (; ;) {
     let data = null
     try { data = await requestOnce() } catch (e) { data = null }
     const urlA = data && data.urls && data.urls[0] && data.urls[0].imageUrl
@@ -340,6 +324,33 @@ export async function getCreativeWorkById({ id }) {
   return res.text()
 }
 
+export async function getVideoVersionsByConversation({ conversationId, token }) {
+  const url = `${BASE_URL}/detail/works/video/versions/byConversation?conversationId=${encodeURIComponent(conversationId)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
+export async function getConversationMessages({ conversationId, token }) {
+  const url = `${BASE_URL}/detail/conversation/messages?conversationId=${encodeURIComponent(conversationId)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
 // 获取“我的空间”作品列表
 export async function getMyWorksList(token) {
   const url = `${BASE_URL}/myWorks/getMyWorksList`
@@ -481,7 +492,6 @@ export async function sendCheckCodeByEmail({ email }) {
 }
 
 export default {
-  scriptGen,
   scriptModifyStream,
   storyboardPictureGenStream,
   getMaterialsList,
@@ -492,11 +502,13 @@ export default {
   emailLogin,
   emailRegister,
   sendCheckCodeByEmail
-  ,regenerateImage
-  ,queryRegenerateImage
-  ,getStoryboardImagesDetail
-  ,getScriptDetailByVideo
-  ,generateStoryboardVideo
-  ,queryStoryboardVideoStatus
-  ,getStoryboardSceneDetail
+  , regenerateImage
+  , queryRegenerateImage
+  , getStoryboardImagesDetail
+  , getScriptDetailByVideo
+  , generateStoryboardVideo
+  , queryStoryboardVideoStatus
+  , getStoryboardSceneDetail
+  , getVideoVersionsByConversation
+  , getConversationMessages
 }

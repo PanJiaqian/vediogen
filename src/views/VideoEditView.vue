@@ -124,13 +124,13 @@
 
             <!-- 图片展示 -->
             <div class="image-container">
-              <video v-if="isVideo(currentPreviewUrl)"
-                     :src="cleanUrl(currentPreviewUrl)"
+              <video v-if="isVideo(sceneDetail.video_url)"
+                     :src="cleanUrl(sceneDetail.video_url)"
                      :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')"
                      preload="metadata"
                      class="scene-image" playsinline muted loop controls></video>
-              <img v-else-if="shouldRenderImage(currentPreviewUrl)"
-                     :src="cleanUrl(currentPreviewUrl)"
+              <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url)"
+                     :src="cleanUrl(sceneDetail.reference_image_url)"
                      alt="分镜图片" class="scene-image" decoding="async" fetchpriority="high" />
             </div>
 
@@ -337,8 +337,8 @@
           <div class="video-container" ref="videoContainer">
             <div v-if="isConverting" class="skeleton-image"></div>
             <template v-else>
-              <video v-if="isVideo(currentPreviewUrl)" ref="previewVideo" :src="cleanUrl(currentPreviewUrl)" :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')" preload="metadata" playsinline muted loop class="video-image"></video>
-              <img v-else :src="cleanUrl(currentPreviewUrl)" :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" decoding="async" fetchpriority="high" />
+              <video v-if="isVideo(sceneDetail.video_url)" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')" preload="metadata" playsinline muted loop class="video-image"></video>
+              <img v-else :src="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" decoding="async" fetchpriority="high" />
             </template>
           </div>
           <div class="preview-aside">
@@ -347,7 +347,7 @@
               <div class="thumb-card"><div class="skeleton-image"></div></div>
             </template>
             <template v-else>
-              <div v-if="isVideo(sceneDetail.video_url || currentPreviewUrl)" class="thumb-card">
+              <div v-if="isVideo(sceneDetail.video_url)" class="thumb-card">
                 <div class="thumb-label">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
@@ -355,9 +355,9 @@
                   </svg>
                   <span>视频</span>
                 </div>
-                <video :src="cleanUrl(sceneDetail.video_url || currentPreviewUrl)" :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')" class="thumb-image" muted loop playsinline preload="none" disablepictureinpicture></video>
+                <video :src="cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')" class="thumb-image" muted loop playsinline preload="none" disablepictureinpicture></video>
               </div>
-              <div v-if="shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" class="thumb-card">
+              <div v-if="shouldRenderImage(sceneDetail.reference_image_url)" class="thumb-card">
                 <div class="thumb-label">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
@@ -366,7 +366,7 @@
                   </svg>
                   <span>图片</span>
                 </div>
-                <img :src="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" alt="图片" class="thumb-image" loading="lazy" decoding="async" fetchpriority="low" />
+                <img :src="cleanUrl(sceneDetail.reference_image_url)" alt="图片" class="thumb-image" loading="lazy" decoding="async" fetchpriority="low" />
               </div>
             </template>
           </div>
@@ -514,6 +514,16 @@
                     </template>
                   </div>
                 </div>
+                <div v-for="n in pendingSkeletonCount" :key="'pending-skel-'+n" class="timeline-track">
+                  <div class="track-header">
+                    <div class="skeleton-line" style="width:120px;height:12px;"></div>
+                  </div>
+                  <div class="track-clips">
+                    <div v-for="m in 10" :key="'pending-skel-clip-'+n+'-'+m" class="scene-clip">
+                      <div class="skeleton-image" style="height:28px;"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <!-- 播放进度指示器 -->
               <div class="playback-indicator" :style="{ left: playbackLeftPx + 'px' }" @mousedown="onPointerDown"></div>
@@ -544,7 +554,7 @@
 <script>
 import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, storyboardPictureGenStream } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
 
@@ -604,6 +614,7 @@ export default {
       try { this._io.disconnect() } catch (e) { void 0 }
       this._io = null
     }
+    try { if (this._ssePicCtrl && this._ssePicCtrl.abort) this._ssePicCtrl.abort() } catch (e) { void 0 }
   },
   mounted() {
     const projectId = this.$route.params.id
@@ -634,6 +645,12 @@ export default {
       }
       const title = localStorage.getItem(`project:prompt:${projectId}`)
       if (title) this.projectTitle = title
+      const shouldGen = localStorage.getItem(`video-edit:generateStoryboard:${projectId}`) === '1'
+      if (shouldGen) {
+        this.isConverting = true
+        this.startStoryboardSSE()
+        try { localStorage.removeItem(`video-edit:generateStoryboard:${projectId}`) } catch (e) { void 0 }
+      }
     } catch (e) {
       console.warn('读取分镜场景或标题失败:', e)
     }
@@ -644,6 +661,7 @@ export default {
     } catch (e) {
       this._shotOrder = []
     }
+    this.fetchAllSceneDetails()
     // 同步时间刻度与轨道的水平滚动
     this.$nextTick(() => {
       const tracks = this.$refs.timelineTracks
@@ -672,10 +690,19 @@ export default {
                 }
               }
             })
-          }, { root: this.$refs.timelineSection, threshold: 0.25 })
+          }, { root: this.$refs.timelineTracks, threshold: 0.25 })
           this._io = io
           tracks.querySelectorAll('.timeline-track').forEach(el => io.observe(el))
         } catch (err) { void 0 }
+        try {
+          const pxPerSecond = this.getPxPerSecond()
+          const trackWidth = Math.max(1, pxPerSecond * 5)
+          const visibleCount = Math.min(
+            Array.isArray(this.scenes) ? this.scenes.length : 0,
+            Math.max(4, Math.ceil(tracks.clientWidth / trackWidth) + 2)
+          )
+          for (let i = 0; i < visibleCount; i++) this.prefetchSceneDetailByIndex(i)
+        } catch (e) { void 0 }
       }
     })
     this.fetchCurrentSceneDetail()
@@ -711,6 +738,11 @@ export default {
         const url = this.cleanUrl(sc?.thumbnail || '')
         return this.shouldRenderImage(url)
       })
+    },
+    pendingSkeletonCount() {
+      const need = 4
+      const len = Array.isArray(this.scenes) ? this.scenes.length : 0
+      return Math.max(0, need - len)
     }
   },
   watch: {
@@ -725,6 +757,145 @@ export default {
     }
   },
   methods: {
+    parseIncrementalResultToScenes(result) {
+      const scenes = []
+      try {
+        if (!result || typeof result !== 'object') return scenes
+        if (result.shots && typeof result.shots === 'object') {
+          let id = (Array.isArray(this.scenes) ? this.scenes.length : 0) + 1
+          const v = result.shots || {}
+          const rawThumb = v.scene_picture || v.scene_picture_url || v.Scene_picture_url || ''
+          const thumb = this.cleanUrl(rawThumb)
+          if (thumb) {
+            const descParts = []
+            if (v.shot_title) descParts.push(v.shot_title)
+            if (v.visual_description) descParts.push(v.visual_description)
+            const description = descParts.length ? descParts.join('：') : '暂无描述'
+            const sceneNumber = String(v.shot_id || v.shot_number || '').trim()
+            const title = String(result.scene_title || sceneNumber || '分镜')
+            scenes.push({ id: id++, title, description, thumbnail: thumb || '/logo.png', scene_number: sceneNumber })
+          }
+          return scenes
+        }
+        const shotKeys = Object.keys(result).filter(k => /^shot_/i.test(k))
+        if (shotKeys.length) {
+          let id = (Array.isArray(this.scenes) ? this.scenes.length : 0) + 1
+          for (const k of shotKeys.sort((a, b) => {
+            const na = parseInt(String(a).replace(/[^0-9]/g, ''), 10)
+            const nb = parseInt(String(b).replace(/[^0-9]/g, ''), 10)
+            return (isNaN(na) ? 0 : na) - (isNaN(nb) ? 0 : nb)
+          })) {
+            const v = result[k] || {}
+            const rawThumb = v.scene_picture || v.scene_picture_url || v.Scene_picture_url || result.Scene_picture_url || result.scene_picture_url || ''
+            const thumb = this.cleanUrl(rawThumb)
+            if (!thumb) continue
+            const descParts = []
+            if (v.shot_title) descParts.push(v.shot_title)
+            if (v.visual_description) descParts.push(v.visual_description)
+            const description = descParts.length ? descParts.join('：') : '暂无描述'
+            scenes.push({ id: id++, title: String(result.scene_title || `分镜${id - 1}`), description, thumbnail: thumb || '/logo.png', scene_number: k })
+          }
+          return scenes
+        }
+        const rawThumb = result.scene_picture || result.scene_picture_url || result.Scene_picture_url || ''
+        const thumb = this.cleanUrl(rawThumb)
+        if (!thumb) return scenes
+        const descParts = []
+        if (result.shot_title) descParts.push(result.shot_title)
+        if (result.visual_description) descParts.push(result.visual_description)
+        const description = descParts.length ? descParts.join('：') : '暂无描述'
+        const sceneNumber = String(result.scene_number || result.shot_id || result.scene_id || '').trim()
+        scenes.push({ id: (Array.isArray(this.scenes) ? this.scenes.length : 0) + 1, title: String(result.scene_title || sceneNumber || '分镜'), description, thumbnail: thumb || '/logo.png', scene_number: sceneNumber })
+      } catch (e) { void 0 }
+      return scenes
+    },
+    async startStoryboardSSE() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) {
+          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
+          this.isConverting = false
+          return
+        }
+        this._ssePicCtrl = new AbortController()
+        await storyboardPictureGenStream({
+          videoId,
+          token,
+          signal: this._ssePicCtrl.signal,
+          onEvent: (obj) => {
+            if (!obj || obj.type === 'connected') return
+            if (obj.Storyboard_picture) {
+              let prevRaw = null
+              try { prevRaw = JSON.parse(localStorage.getItem(`project:storyboard_raw:${projectId}`) || 'null') } catch (e) { prevRaw = null }
+              const incoming = obj.Storyboard_picture
+              let mergedRaw = incoming
+              if (prevRaw && typeof prevRaw === 'object' && !Array.isArray(prevRaw) && typeof incoming === 'object' && !Array.isArray(incoming)) {
+                mergedRaw = Object.assign({}, prevRaw, incoming)
+              } else if (Array.isArray(prevRaw) && Array.isArray(incoming)) {
+                const seen = new Set()
+                const arr = []
+                for (const item of prevRaw) {
+                  const key = String(item.scene_id || item.scene_title || '')
+                  if (!seen.has(key)) { arr.push(item); seen.add(key) }
+                }
+                for (const item of incoming) {
+                  const key = String(item.scene_id || item.scene_title || '')
+                  if (!seen.has(key)) { arr.push(item); seen.add(key) }
+                }
+                mergedRaw = arr
+              }
+              try { localStorage.setItem(`project:storyboard_raw:${projectId}`, JSON.stringify(mergedRaw)) } catch (e) { void 0 }
+              const incScenes = this.parseStoryboardRawToScenes(incoming)
+              let added = 0
+              if (Array.isArray(incScenes) && incScenes.length) {
+                for (const sc of incScenes) {
+                  const key = String(sc.scene_number || '').trim()
+                  let exists = false
+                  for (let i = 0; i < this.scenes.length; i++) {
+                    const t = this.scenes[i]
+                    if (key && String(t.scene_number || '').trim() === key) { exists = true; break }
+                    if (!key && t.thumbnail && sc.thumbnail && t.thumbnail === sc.thumbnail) { exists = true; break }
+                  }
+                  if (!exists) { this.scenes.push(sc); added++ }
+                }
+              }
+              if (added > 0) {
+                if (this.activeSceneIndex < 0 || this.activeSceneIndex >= this.scenes.length) this.activeSceneIndex = 0
+                this.updateTimeMarkers()
+                this._shotOrder = this.getShotOrderFromRaw(projectId)
+                try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
+                if (this.isConverting) this.isConverting = false
+              }
+            } else if (obj.result) {
+              const incScenes = this.parseIncrementalResultToScenes(obj.result)
+              let added = 0
+              if (Array.isArray(incScenes) && incScenes.length) {
+                for (const sc of incScenes) {
+                  const key = String(sc.scene_number || '').trim()
+                  let exists = false
+                  for (let i = 0; i < this.scenes.length; i++) {
+                    const t = this.scenes[i]
+                    if (key && String(t.scene_number || '').trim() === key) { exists = true; break }
+                    if (!key && t.thumbnail && sc.thumbnail && t.thumbnail === sc.thumbnail) { exists = true; break }
+                  }
+                  if (!exists) { this.scenes.push(sc); added++ }
+                }
+              }
+              if (added > 0) {
+                if (this.activeSceneIndex < 0 || this.activeSceneIndex >= this.scenes.length) this.activeSceneIndex = 0
+                this.updateTimeMarkers()
+                try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
+                if (this.isConverting) this.isConverting = false
+              }
+            }
+          }
+        })
+      } catch (e) {
+        this.isConverting = false
+      }
+    },
     // 代理到通用工具，统一图片 URL 处理和失败判断
     cleanUrl(u) {
       return cleanUrlUtil(u)
@@ -1053,15 +1224,7 @@ export default {
           const vurl = this.cleanUrl(data.video_url || '')
           const vlocal = this.isVideo(this.currentPreviewUrl) ? this.cleanUrl(this.currentPreviewUrl) : ''
           const incomingKey = String(data.scene_number || '').trim()
-          let targetIndex = this.activeSceneIndex
-          if (incomingKey) {
-            const byProp = this.scenes.findIndex(sc => String(sc.scene_number || '').trim() === incomingKey)
-            if (byProp >= 0) targetIndex = byProp
-            else if (Array.isArray(this._shotOrder) && this._shotOrder.length) {
-              const mapped = this._shotOrder.indexOf(incomingKey)
-              if (mapped >= 0) targetIndex = mapped
-            }
-          }
+          const targetIndex = this.activeSceneIndex
           if (targetIndex >= 0 && targetIndex < this.scenes.length) {
             const target = this.scenes[targetIndex]
             if (refImg) target.thumbnail = refImg
@@ -1084,6 +1247,61 @@ export default {
         this.refreshSidebarFromLocal()
       }
     },
+    async fetchAllSceneDetails() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        const callers = [
+          () => getStoryboardSceneDetail({ videoId, token }),
+          () => getStoryboardSceneDetail({ videoId, sceneNumber: 'all', token }),
+          () => getStoryboardSceneDetail({ videoId, sceneNumber: 'scene_all', token })
+        ]
+        let arr = null
+        for (const call of callers) {
+          try {
+            const text = await call()
+            let json
+            try { json = JSON.parse(text) } catch { json = null }
+            if (json && Array.isArray(json.data)) { arr = json.data; break }
+          } catch (e) { void 0 }
+        }
+        if (!arr || !arr.length) return
+        const order = Array.isArray(this._shotOrder) ? this._shotOrder : []
+        arr.forEach((item, i) => {
+          const key = String(item.scene_number || (item.scene_script && item.scene_script.content && item.scene_script.content.shot_id) || '').trim()
+          let idx = this.scenes.findIndex(sc => String(sc.scene_number || '').trim() === key)
+          if (idx < 0 && order.length) idx = order.indexOf(key)
+          if (idx < 0) idx = i < this.scenes.length ? i : -1
+          if (idx >= 0 && idx < this.scenes.length) {
+            const sc = this.scenes[idx]
+            const refImg = this.cleanUrl(item.reference_image_url || sc.thumbnail || '')
+            const vurl = this.cleanUrl(item.video_url || '')
+            if (refImg) sc.thumbnail = refImg
+            if (vurl) sc.clips = [{ url: vurl, durationMs: 5000 }]
+            else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 3000 }]
+            const content = item && item.scene_script && item.scene_script.content ? item.scene_script.content : null
+            if (content) {
+              const parts = []
+              if (content.shot_title) parts.push(content.shot_title)
+              if (content.visual_description) parts.push(content.visual_description)
+              const desc = parts.length ? parts.join('：') : ''
+              if (desc) sc.description = desc
+            }
+            if (!sc.scene_number) sc.scene_number = key || undefined
+          }
+        })
+        // 同步当前分镜到界面展示
+        const active = this.scenes[this.activeSceneIndex] || {}
+        const activeKey = String(active.scene_number || '').trim()
+        const activeItem = arr.find(x => String(x.scene_number || '').trim() === activeKey) || null
+        if (activeItem) {
+          const refImg = this.cleanUrl(activeItem.reference_image_url || active.thumbnail || '')
+          const vurl = this.cleanUrl(activeItem.video_url || '')
+          this.sceneDetail = { reference_image_url: refImg, video_url: vurl }
+        }
+      } catch (e) { void 0 }
+    },
     async prefetchInitialScenesDetails() {
       try {
         const projectId = this.$route.params.id
@@ -1101,15 +1319,7 @@ export default {
             const refImg = this.cleanUrl(data.reference_image_url || sc.thumbnail || '')
             const vurl = this.cleanUrl(data.video_url || '')
             const incomingKey = String(data.scene_number || '').trim()
-            let targetIndex = i
-            if (incomingKey) {
-              const byProp = this.scenes.findIndex(s => String(s.scene_number || '').trim() === incomingKey)
-              if (byProp >= 0) targetIndex = byProp
-              else if (Array.isArray(this._shotOrder) && this._shotOrder.length) {
-                const mapped = this._shotOrder.indexOf(incomingKey)
-                if (mapped >= 0) targetIndex = mapped
-              }
-            }
+            const targetIndex = i
             if (targetIndex >= 0 && targetIndex < this.scenes.length) {
               const target = this.scenes[targetIndex]
               if (refImg) target.thumbnail = refImg
@@ -1123,11 +1333,14 @@ export default {
                 if (desc) target.description = desc
                 if (!target.scene_number) target.scene_number = incomingKey || content.shot_id || undefined
               }
+              if (targetIndex === this.activeSceneIndex) {
+                this.sceneDetail = { reference_image_url: refImg, video_url: vurl || this.sceneDetail.video_url }
+              }
             }
           }
         }
-        this.refreshSidebarFromLocal()
-      } catch (e) { /* no-op */ }
+        if (!this.sceneDetail.reference_image_url && !this.sceneDetail.video_url) this.refreshSidebarFromLocal()
+      } catch (e) { void 0 }
     },
     async prefetchSceneDetailByIndex(i) {
       try {
@@ -1144,15 +1357,7 @@ export default {
           const refImg = this.cleanUrl(data.reference_image_url || sc.thumbnail || '')
           const vurl = this.cleanUrl(data.video_url || '')
           const incomingKey = String(data.scene_number || '').trim()
-          let targetIndex = i
-          if (incomingKey) {
-            const byProp = this.scenes.findIndex(s => String(s.scene_number || '').trim() === incomingKey)
-            if (byProp >= 0) targetIndex = byProp
-            else if (Array.isArray(this._shotOrder) && this._shotOrder.length) {
-              const mapped = this._shotOrder.indexOf(incomingKey)
-              if (mapped >= 0) targetIndex = mapped
-            }
-          }
+          const targetIndex = i
           if (targetIndex >= 0 && targetIndex < this.scenes.length) {
             const target = this.scenes[targetIndex]
             if (refImg) target.thumbnail = refImg
@@ -1189,7 +1394,7 @@ export default {
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
           console.warn('未登录，无法重新生成分镜图片')
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
+          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
           return
         }
         const projectId = this.$route.params.id
@@ -1203,7 +1408,7 @@ export default {
         const respMsg = String((resp && (resp.message || resp.msg || resp.meg)) || '').trim()
         const respSensitive = (resp && resp.success === false) || /敏感/i.test(respMsg)
         if (respSensitive) {
-          try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { /* no-op */ }
+          try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { void 0 }
           return
         }
         const generateUuid = resp.generate_uuid || (resp.raw && resp.raw.data && resp.raw.data.generateUuid)
@@ -1212,7 +1417,7 @@ export default {
           return
         }
         if (this._regenerateActiveSceneInterval) {
-          try { clearInterval(this._regenerateActiveSceneInterval) } catch (e) { /* no-op */ }
+          try { clearInterval(this._regenerateActiveSceneInterval) } catch (e) { void 0 }
           this._regenerateActiveSceneInterval = null
         }
         try {
@@ -1221,7 +1426,7 @@ export default {
           const msgText = String((q && (q.message || q.msg || q.meg)) || '').trim()
           const isSensitive = (q && q.success === false) || /敏感/i.test(msgText)
           if (isSensitive) {
-            try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { /* no-op */ }
+            try { alert('生成包含敏感信息，请修改画面描述') } catch (e) { void 0 }
             return
           }
           if (msgText) {
@@ -1234,6 +1439,7 @@ export default {
               const scene = this.scenes[this.activeSceneIndex]
               scene.thumbnail = cleaned
               scene.clips = [{ url: cleaned, durationMs: 5000 }]
+              this.sceneDetail = { reference_image_url: cleaned, video_url: this.sceneDetail.video_url }
             }
           }
         } catch (e) {
@@ -1289,7 +1495,7 @@ export default {
               })
               if (allDone) {
                 if (this._storyboardQueryInterval) {
-                  try { clearInterval(this._storyboardQueryInterval) } catch (e) { /* no-op */ }
+                  try { clearInterval(this._storyboardQueryInterval) } catch (e) { void 0 }
                   this._storyboardQueryInterval = null
                 }
                 this.isConverting = false

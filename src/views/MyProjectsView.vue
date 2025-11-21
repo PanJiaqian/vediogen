@@ -79,13 +79,13 @@ export default {
           const avatar = []
 
           for (const item of resp.data) {
-            const name = item?.name || '未命名作品'
+            const name = item?.title || '未命名作品'
             const rawCover = String(item?.coverUrl || '').trim().replace(/^`+|`+$/g, '')
             const isUrl = /^https?:\/\//i.test(rawCover)
             const thumb = isUrl ? rawCover : generateGradientPlaceholder(300, 200, '667eea', '764ba2', '')
 
             const mapped = {
-              id: item?.id,
+              id: (item?.recentVideoId ?? item?.conversationId),
               name,
               createdAt: item?.createdAt || '',
               thumbnail: thumb,

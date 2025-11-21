@@ -4,7 +4,24 @@
     <div class="left-content" ref="leftContent">
       <!-- 题目和时间 -->
       <div class="project-header">
-        <h1 class="project-title">{{ project.title }}</h1>
+        <div class="project-title-row">
+          <h1 class="project-title">{{ project.title }}</h1>
+          <div class="version-selector">
+            <button class="version-button" @click.prevent.stop="toggleVersions">历史文件</button>
+            <div v-if="versionsMenuOpen" class="version-popover" @click.stop>
+              <div v-for="(v, idx) in versions" :key="v.videoId || idx" class="version-item" :class="{ selected: idx === selectedVersionIndex }" @click.prevent.stop="selectVersion(idx)">
+                <div class="version-item-left">
+                  <svg class="version-doc-icon" viewBox="0 0 24 24"><path d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#e5e7eb"/><path d="M14 2v6h6" fill="#f3f4f6"/></svg>
+                  <div class="version-item-text">
+                    <div class="version-title">{{ v.title || '未命名版本' }}</div>
+                    <div class="version-time">{{ formatDateTime(v.createdAt) }}</div>
+                  </div>
+                </div>
+                <div class="version-tag">{{ 'V' + (idx + 1) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
         <p class="project-time">创建于 {{ project.createdAt }}</p>
       </div>
       <div>
@@ -243,6 +260,7 @@
 
 <script>
 import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo, getWorksVideoStatus, queryStoryboardVideoStatus, getStoryboardImagesDetail, scriptGenStream } from '@/api'
+import { getMyWorksList, getVideoVersionsByConversation, getConversationMessages } from '@/api/index.js'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
 export default {
@@ -280,7 +298,10 @@ export default {
         contentSummary: '',
         highlights: [],
         scenes: []
-      }
+      },
+      versionsMenuOpen: false,
+      versions: [],
+      selectedVersionIndex: null
     }
   },
   computed: {
@@ -330,6 +351,108 @@ export default {
     }
   },
   methods: {
+    async resolveConversationIdViaMyWorks() {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return ''
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const text = await getMyWorksList(token)
+        let obj = null
+        try { obj = JSON.parse(text) } catch (e) { obj = null }
+        const arr = obj && Array.isArray(obj.data) ? obj.data : []
+        const found = arr.find(it => String(it.recentVideoId || '') === String(videoId))
+        const cid = found && found.conversationId ? String(found.conversationId) : ''
+        if (cid) {
+          try { localStorage.setItem(`project:conversationId:${projectId}`, cid) } catch (e) { /* no-op */ }
+        }
+        return cid
+      } catch (e) { return '' }
+    },
+    async loadVersionList() {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return
+        const projectId = this.$route.params.id
+        let conversationId = await this.resolveConversationIdViaMyWorks()
+        if (!conversationId) {
+          conversationId = localStorage.getItem(`project:conversationId:${projectId}`) || ''
+        }
+        if (!conversationId) return
+        const text2 = await getVideoVersionsByConversation({ conversationId, token })
+        let obj2 = null
+        try { obj2 = JSON.parse(text2) } catch (e) { obj2 = null }
+        const list = obj2 && obj2.code === 0 && Array.isArray(obj2.data) ? obj2.data : []
+        this.versions = list.map(it => ({
+          videoId: it.video_id,
+          title: it.title,
+          outline: it.script_outline || '',
+          createdAt: it.created_at,
+          updatedAt: it.updated_at
+        }))
+        // 默认选中与当前项目匹配的版本或第一个
+        const byTitle = this.versions.findIndex(v => String(v.title || '').trim() === String(this.project.title || '').trim())
+        const byVideo = this.versions.findIndex(v => String(v.videoId || '') === String(this.videoId || this.$route.params.id))
+        const idx = byTitle >= 0 ? byTitle : (byVideo >= 0 ? byVideo : 0)
+        this.selectedVersionIndex = idx >= 0 ? idx : 0
+        const chosen = this.versions[this.selectedVersionIndex]
+        if (chosen && chosen.createdAt) {
+          this.project.createdAt = this.formatDateTime(chosen.createdAt)
+        }
+      } catch (e) { /* no-op */ }
+    },
+    async loadConversationMessages() {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return
+        const projectId = this.$route.params.id
+        let conversationId = await this.resolveConversationIdViaMyWorks()
+        if (!conversationId) {
+          conversationId = localStorage.getItem(`project:conversationId:${projectId}`) || ''
+        }
+        if (!conversationId) return
+        const text2 = await getConversationMessages({ conversationId, token })
+        let obj2 = null
+        try { obj2 = JSON.parse(text2) } catch (e) { obj2 = null }
+        const list = obj2 && obj2.code === 0 && Array.isArray(obj2.data) ? obj2.data : []
+        const merged = []
+        for (let idx = 0; idx < list.length; idx++) {
+          const it = list[idx]
+          const baseId = Date.now() + idx * 2
+          merged.push({
+            id: baseId,
+            text: it.content || '',
+            side: String(it.role || '').toLowerCase() === 'user' ? 'right' : 'left'
+          })
+          merged.push({
+            id: baseId + 1,
+            text: '小梦收到了您的新idea！原来这样改故事会更精彩，让我现在来优化这个故事吧！',
+            side: 'left'
+          })
+        }
+        this.messages = merged
+      } catch (e) { /* no-op */ }
+    },
+    toggleVersions() {
+      this.versionsMenuOpen = !this.versionsMenuOpen
+      if (this.versionsMenuOpen && !this.versions.length) {
+        this.loadVersionList()
+      }
+    },
+    selectVersion(idx) {
+      this.selectedVersionIndex = idx
+      const v = this.versions[idx]
+      if (!v) return
+      if (v.title) this.project.title = v.title
+      if (v.outline) {
+        this.generated.scriptSummary = v.outline
+        this.project.contentSummary = v.outline
+      }
+      if (v.createdAt) {
+        this.project.createdAt = this.formatDateTime(v.createdAt)
+      }
+      this.versionsMenuOpen = false
+    },
     async startScriptGenStream() {
       const projectId = this.$route.params.id
       const stageDirections = (this.$route.query.q || '').trim()
@@ -431,8 +554,8 @@ export default {
         try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
         return
       }
-      // 跳转到生成步骤页，流式生成在 GenerationStepsView 中进行
-      this.$router.push(`/generation-steps/${projectId}`)
+      try { localStorage.setItem(`video-edit:generateStoryboard:${projectId}`, '1') } catch (e) { /* no-op */ }
+      this.$router.push(`/video-edit/${projectId}`)
     },
     saveProject() {
       console.log('保存项目')
@@ -548,6 +671,21 @@ export default {
         }
       }
       return objs
+    },
+    formatDateTime(str) {
+      const s = String(str || '').trim()
+      const d = new Date(s)
+      if (!isNaN(d.getTime())) {
+        const pad = n => String(n).padStart(2, '0')
+        const y = d.getFullYear()
+        const m = pad(d.getMonth() + 1)
+        const dd = pad(d.getDate())
+        const hh = pad(d.getHours())
+        const mm = pad(d.getMinutes())
+        const ss = pad(d.getSeconds())
+        return `${y}-${m}-${dd} ${hh}:${mm}:${ss}`
+      }
+      return s
     },
     async handleRegenerateScene(s) {
       try {
@@ -884,6 +1022,8 @@ export default {
       } else {
         await this.startScriptGenStream()
       }
+      await this.loadVersionList()
+      await this.loadConversationMessages()
     } catch (e) {
       console.warn('读取生成内容失败:', e)
     }
@@ -942,6 +1082,7 @@ export default {
 .project-header {
   margin-bottom: 16px;
   flex-shrink: 0;
+  position: relative;
 }
 
 .project-title {
@@ -950,6 +1091,78 @@ export default {
   color: #111827;
   margin-bottom: 4px;
   line-height: 1.2;
+}
+.project-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.version-selector {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.version-button {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  color: #374151;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+.version-popover {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  width: 280px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  border-radius: 12px;
+  padding: 12px;
+  z-index: 10;
+}
+.version-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.version-item:hover {
+  background: #f9fafb;
+}
+.version-item.selected {
+  border-color: #3b82f6;
+}
+.version-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.version-doc-icon {
+  width: 24px;
+  height: 24px;
+}
+.version-item-text {
+  display: flex;
+  flex-direction: column;
+}
+.version-title {
+  font-size: 13px;
+  color: #111827;
+}
+.version-time {
+  font-size: 12px;
+  color: #6b7280;
+}
+.version-tag {
+  border: 1px solid #e5e7eb;
+  color: #374151;
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
 }
 
 .project-time {
