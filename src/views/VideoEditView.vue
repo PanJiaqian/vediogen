@@ -530,6 +530,15 @@
       <CanvasEditView @close="toggleCanvasEditMode" />
     </div>
 
+    <CropStoryboardModal
+      :visible="showCropModal"
+      :videoUrl="cleanUrl(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || '')"
+      :imageUrl="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
+      :durationMs="(scenes[activeSceneIndex] && scenes[activeSceneIndex].clips && scenes[activeSceneIndex].clips[0] && Number(scenes[activeSceneIndex].clips[0].durationMs)) || 5000"
+      @close="closeCropModal"
+      @apply="applyCropSelection"
+    />
+
     <!-- 对口型页面覆盖层 -->
     <div v-if="showLipSyncView" class="lip-sync-overlay">
       <LipSyncView @close="toggleLipSyncView" />
@@ -549,6 +558,7 @@
 <script>
 import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
+import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, storyboardPictureGenStream, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
@@ -557,7 +567,8 @@ export default {
   name: 'VideoEditView',
   components: {
     LipSyncView,
-    CanvasEditView
+    CanvasEditView,
+    CropStoryboardModal
   },
   data() {
     return {
@@ -573,6 +584,7 @@ export default {
       scenes: [],
       draggedIndex: null,
       entryMode: 'canvas',
+      showCropModal: false,
       // 配音相关数据
       voiceScript: '',
       voiceGender: '女性',
@@ -816,6 +828,11 @@ export default {
           signal: this._ssePicCtrl.signal,
           onEvent: (obj) => {
             if (!obj || obj.type === 'connected') return
+            if (obj.status && String(obj.status).toLowerCase() === 'workflow_finished') {
+              this.isConverting = false
+              try { this._ssePicCtrl && this._ssePicCtrl.abort() } catch (e) { void 0 }
+              return
+            }
             if (obj.Storyboard_picture) {
               let prevRaw = null
               try { prevRaw = JSON.parse(localStorage.getItem(`project:storyboard_raw:${projectId}`) || 'null') } catch (e) { prevRaw = null }
@@ -1315,7 +1332,9 @@ export default {
       } catch (e) { void 0 }
     },
     async pollStoryboardImagesDetail() {
+      const prevConverting = this.isConverting
       try {
+        this.isConverting = false
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
@@ -1365,7 +1384,9 @@ export default {
             await new Promise(r => setTimeout(r, 10000))
           }
         }
-      } catch (e) { void 0 }
+      } catch (e) { void 0 } finally {
+        this.isConverting = prevConverting
+      }
     },
     async prefetchInitialScenesDetails() {
       try {
@@ -1743,13 +1764,29 @@ export default {
     },
     // 画布编辑模式相关方法
     toggleCanvasEditMode() {
-      this.isCanvasEditMode = !this.isCanvasEditMode
-      console.log('切换画布编辑模式:', this.isCanvasEditMode)
+      this.showCropModal = true
     },
     // 对口型页面相关方法
     toggleLipSyncView() {
       this.showLipSyncView = !this.showLipSyncView
       console.log('切换对口型页面显示状态:', this.showLipSyncView)
+    },
+    closeCropModal() {
+      this.showCropModal = false
+    },
+    applyCropSelection(sel) {
+      try {
+        const scene = this.scenes[this.activeSceneIndex] || {}
+        const span = Math.max(0, Number(sel.endMs || 0) - Number(sel.startMs || 0))
+        const dur = span > 0 ? span : (scene.clips && scene.clips[0] && Number(scene.clips[0].durationMs)) || 5000
+        if (Array.isArray(scene.clips) && scene.clips.length) {
+          scene.clips[0].durationMs = dur
+        } else {
+          const url = this.cleanUrl(scene.thumbnail || '')
+          if (url) scene.clips = [{ url, durationMs: dur }]
+        }
+        this.updateTimeMarkers()
+      } catch (e) { void 0 }
     },
     // 拖拽相关方法
     handleDragStart(index, event) {

@@ -474,6 +474,12 @@ export default {
       if (v.createdAt) {
         this.project.createdAt = this.formatDateTime(v.createdAt)
       }
+      this.videoId = v.videoId || ''
+      try {
+        const projectId = this.$route.params.id
+        if (this.videoId) localStorage.setItem(`project:videoId:${projectId}`, String(this.videoId))
+      } catch (e) { /* no-op */ }
+      this.fetchWorksStatus()
       this.versionsMenuOpen = false
     },
     async startScriptGenStream() {
@@ -490,6 +496,11 @@ export default {
         await scriptGenStream({
           stageDirections, materialId, category, token, signal: this._sseGenCtrl.signal, onEvent: (obj) => {
             if (!obj || obj.type === 'connected') return
+            if (obj.status && String(obj.status).toLowerCase() === 'workflow_finished') {
+              this.isSubmitting = false
+              this.loadingSections = { art: false, music: false, summary: false, people: false, scene: false, storyboard: false }
+              return
+            }
             this.applyParsedData([obj])
           }
         })
