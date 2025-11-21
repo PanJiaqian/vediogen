@@ -574,6 +574,7 @@ export default {
           localStorage.setItem(`video-edit:entryMode:${projectId}`, entryMode)
           localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(scenes))
           localStorage.setItem(`project:prompt:${projectId}`, String(this.project.title || this.prompt || ''))
+          localStorage.setItem(`video-edit:viewStoryboard:${projectId}`, '1')
         } catch (e) { console.warn('保存编辑页数据失败:', e) }
         this.$router.push(`/video-edit/${projectId}`)
       } else {

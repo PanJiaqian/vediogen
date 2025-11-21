@@ -3,17 +3,20 @@
     <!-- 顶部导航栏 -->
     <div class="top-navbar">
       <div class="navbar-left">
+        <img src="/logo.png" alt="VideoGen" class="logo-icon" />
+        <span class="project-title-text">{{ projectTitle }}</span>
         <button class="back-btn" @click="goBack">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
               stroke-linejoin="round" />
           </svg>
+          返回策划
         </button>
-        <input v-model="projectTitle" class="project-title-input" @blur="saveTitle" @keyup.enter="saveTitle" />
       </div>
       <div class="navbar-right">
         <button class="navbar-btn premium-btn">开通会员</button>
-        <button class="navbar-btn convert-btn" @click="convertToVideo" :disabled="!allImagesReady || isVideo(currentPreviewUrl)">一键转视频</button>
+        <button class="navbar-btn convert-btn" @click="convertToVideo"
+          :disabled="!allImagesReady || isVideo(currentPreviewUrl)">一键转视频</button>
         <button class="navbar-btn export-btn">导出视频</button>
       </div>
     </div>
@@ -65,248 +68,248 @@
           </div>
         </template>
         <template v-else>
-        <!-- 分镜内容 - 画面模式 -->
-        <div class="scene-content" v-if="activeTab === 'image'">
-          <!-- 可滚动内容区域 -->
-          <div class="scene-scrollable-content">
-            <!-- 图片提示词区域 -->
-            <div class="prompt-section">
-              <div class="prompt-header">
-                <div class="prompt-icon">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
-                    <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
-                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
-                  </svg>
-                </div>
-                <span class="prompt-title">图片提示词</span>
-                <div class="prompt-actions">
-                  <button class="action-btn edit-btn" @click="editPrompt" title="编辑提示词">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor"
-                        stroke-width="2" />
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor"
-                        stroke-width="2" />
-                    </svg>
-                  </button>
-                  <button class="action-btn copy-btn" @click="copyPrompt" title="复制提示词">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor"
-                        stroke-width="2" />
-                    </svg>
-                  </button>
-                  <button class="action-btn more-btn" @click="togglePromptExpansion"
-                    :title="isPromptExpanded ? '收缩提示词' : '展开提示词'">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                      :style="{ transform: isPromptExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }">
-                      <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <!-- 图片描述内容 -->
-              <div class="prompt-content" v-show="isPromptExpanded">
-                <!-- 显示模式 -->
-                <p v-if="!isEditingPrompt">{{ scenes[activeSceneIndex]?.description || '暂无描述' }}</p>
-                <!-- 编辑模式 -->
-                <div v-else class="prompt-edit-container">
-                  <textarea v-model="editingPromptText" class="prompt-edit-input" placeholder="请输入图片提示词..."
-                    @keyup.enter.ctrl="savePromptEdit"></textarea>
-                  <div class="prompt-edit-actions">
-                    <button class="prompt-edit-btn save-btn" @click="savePromptEdit">保存</button>
-                    <button class="prompt-edit-btn cancel-btn" @click="cancelPromptEdit">取消</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 图片展示 -->
-            <div class="image-container">
-              <video v-if="isVideo(sceneDetail.video_url)"
-                     :src="cleanUrl(sceneDetail.video_url)"
-                     :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')"
-                     preload="metadata"
-                     class="scene-image" playsinline muted loop controls></video>
-              <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url)"
-                     :src="cleanUrl(sceneDetail.reference_image_url)"
-                     alt="分镜图片" class="scene-image" decoding="async" fetchpriority="high" />
-            </div>
-
-            <!-- 底部操作按钮 -->
-            <div class="bottom-actions">
-              <button class="bottom-btn download-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" />
-                  <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" />
-                  <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" />
-                </svg>
-                下载
-              </button>
-              <button class="bottom-btn apply-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <polyline points="20,6 9,17 4,12" stroke="currentColor" stroke-width="2" />
-                </svg>
-                应用
-              </button>
-              <button v-if="!isVideo(currentPreviewUrl)" class="bottom-btn regenerate-btn" @click="handleRegenerateActiveScene">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
-                </svg>
-                重新生成
-              </button>
-            </div>
-          </div>
-
-          <!-- 固定的输入框区域 -->
-          <div class="input-section">
-            <div class="input-container">
-              <textarea v-model="sceneInput" class="scene-input" placeholder="输入你想要对当前画面修改的内容"></textarea>
-              <div class="input-actions">
-                <button class="input-action-btn send-btn">
-                  ↑
-                </button>
-              </div>
-            </div>
-            <div class="input-footer">
-              <button class="convert-video-btn" @click="convertToVideo" :disabled="entryMode === 'crop' || isVideo(currentPreviewUrl)">
-                <span>转视频</span>
-              </button>
-              <div class="input-footer-right">
-                <span class="input-hint">消耗</span>
-                <span class="input-count">1</span>
-                <button class="input-arrow">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                    <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 配音内容 - 配音模式 -->
-        <div class="voice-content" v-if="activeTab === 'voice'">
-          <!-- 可滚动内容区域 -->
-          <div class="voice-scrollable-content">
-            <!-- 画外音合词区域 -->
-            <div class="voice-script-section">
-              <div class="voice-script-header">
-                <span class="voice-script-title">画外音合词</span>
-              </div>
-              <div class="voice-script-container">
-                <textarea v-model="voiceScript" class="voice-script-input"
-                  placeholder="很久很久以前，玉皇大帝要举十二位守护神。"></textarea>
-                <div class="voice-script-controls">
-                  <button class="voice-control-btn play-btn" @click="togglePlay">
-                    <svg v-if="!isPlaying" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <polygon points="5,3 19,12 5,21" fill="currentColor" />
-                    </svg>
-                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <rect x="6" y="4" width="4" height="16" fill="currentColor" />
-                      <rect x="14" y="4" width="4" height="16" fill="currentColor" />
-                    </svg>
-                    {{ isPlaying ? '停止' : '试听' }}
-                  </button>
-                  <button class="voice-control-btn stop-btn">
+          <!-- 分镜内容 - 画面模式 -->
+          <div class="scene-content" v-if="activeTab === 'image'">
+            <!-- 可滚动内容区域 -->
+            <div class="scene-scrollable-content">
+              <!-- 图片提示词区域 -->
+              <div class="prompt-section">
+                <div class="prompt-header">
+                  <div class="prompt-icon">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
                     </svg>
-                    停顿
-                  </button>
-                  <span class="voice-duration">约5s 音频 20/240</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- 声音音色区域 -->
-            <div class="voice-settings-section">
-              <div class="voice-setting-item">
-                <div class="voice-setting-header">
-                  <span class="voice-setting-title">声音音色</span>
-                  <label class="voice-setting-checkbox">
-                    <input type="checkbox" v-model="applyToAllScenes" />
-                    <span class="checkbox-text">应用所有分镜</span>
-                  </label>
-                </div>
-                <div class="voice-setting-content">
-                  <div class="voice-type-selector">
-                    <button class="voice-type-btn active">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" stroke="currentColor"
+                  </div>
+                  <span class="prompt-title">图片提示词</span>
+                  <div class="prompt-actions">
+                    <button class="action-btn edit-btn" @click="editPrompt" title="编辑提示词">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor"
                           stroke-width="2" />
-                        <path d="M12 14c-3.87 0-7 3.13-7 7h14c0-3.87-3.13-7-7-7z" stroke="currentColor"
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor"
                           stroke-width="2" />
                       </svg>
-                      专业主播
                     </button>
-                    <button class="voice-refresh-btn">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <path d="M23 4v6h-6" stroke="currentColor" stroke-width="2" />
-                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                    <button class="action-btn copy-btn" @click="copyPrompt" title="复制提示词">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor"
+                          stroke-width="2" />
                       </svg>
                     </button>
-                  </div>
-                  <div class="voice-attributes">
-                    <span class="voice-attr">女性</span>
-                    <span class="voice-attr">中年</span>
-                    <span class="voice-attr">普通话</span>
-                  </div>
-                  <div class="voice-emotion-selector">
-                    <span class="emotion-label">情绪：</span>
-                    <div class="emotion-dropdown">
-                      <span class="selected-emotion">默认</span>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                    <button class="action-btn more-btn" @click="togglePromptExpansion"
+                      :title="isPromptExpanded ? '收缩提示词' : '展开提示词'">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                        :style="{ transform: isPromptExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }">
                         <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" />
                       </svg>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 图片描述内容 -->
+                <div class="prompt-content" v-show="isPromptExpanded">
+                  <!-- 显示模式 -->
+                  <p v-if="!isEditingPrompt">{{ scenes[activeSceneIndex]?.description || '暂无描述' }}</p>
+                  <!-- 编辑模式 -->
+                  <div v-else class="prompt-edit-container">
+                    <textarea v-model="editingPromptText" class="prompt-edit-input" placeholder="请输入图片提示词..."
+                      @keyup.enter.ctrl="savePromptEdit"></textarea>
+                    <div class="prompt-edit-actions">
+                      <button class="prompt-edit-btn save-btn" @click="savePromptEdit">保存</button>
+                      <button class="prompt-edit-btn cancel-btn" @click="cancelPromptEdit">取消</button>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <!-- 声音音量区域 -->
-              <div class="voice-setting-item">
-                <div class="voice-setting-header">
-                  <span class="voice-setting-title">声音音量</span>
-                  <label class="voice-setting-checkbox">
-                    <input type="checkbox" v-model="applyVolumeToAllScenes" />
-                    <span class="checkbox-text">应用所有分镜</span>
-                  </label>
-                </div>
-                <div class="voice-setting-content">
-                  <div class="volume-slider-container">
-                    <input type="range" v-model="voiceVolume" min="0" max="200" class="volume-slider" />
-                    <span class="volume-value">{{ voiceVolume }}</span>
-                  </div>
-                </div>
+              <!-- 图片展示 -->
+              <div class="image-container">
+                <video v-if="isVideo(sceneDetail.video_url)" :src="cleanUrl(sceneDetail.video_url)"
+                  :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')"
+                  preload="metadata" class="scene-image" playsinline muted loop controls></video>
+                <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url)"
+                  :src="cleanUrl(sceneDetail.reference_image_url)" alt="分镜图片" class="scene-image" decoding="async"
+                  fetchpriority="high" />
               </div>
 
-              <!-- 声音语速区域 -->
-              <div class="voice-setting-item">
-                <div class="voice-setting-header">
-                  <span class="voice-setting-title">声音语速</span>
-                  <label class="voice-setting-checkbox">
-                    <input type="checkbox" v-model="applySpeedToAllScenes" />
-                    <span class="checkbox-text">应用所有分镜</span>
-                  </label>
+              <!-- 底部操作按钮 -->
+              <div class="bottom-actions">
+                <button class="bottom-btn download-btn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" />
+                    <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" />
+                    <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" />
+                  </svg>
+                  下载
+                </button>
+                <button class="bottom-btn apply-btn">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <polyline points="20,6 9,17 4,12" stroke="currentColor" stroke-width="2" />
+                  </svg>
+                  应用
+                </button>
+                <button v-if="!isVideo(currentPreviewUrl)" class="bottom-btn regenerate-btn"
+                  @click="handleRegenerateActiveScene">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                  </svg>
+                  重新生成
+                </button>
+              </div>
+            </div>
+
+            <!-- 固定的输入框区域 -->
+            <div class="input-section">
+              <div class="input-container">
+                <textarea v-model="sceneInput" class="scene-input" placeholder="输入你想要对当前画面修改的内容"></textarea>
+                <div class="input-actions">
+                  <button class="input-action-btn send-btn">
+                    ↑
+                  </button>
                 </div>
-                <div class="voice-setting-content">
-                  <div class="speed-slider-container">
-                    <input type="range" v-model="voiceSpeed" min="50" max="200" class="speed-slider" />
-                    <span class="speed-value">{{ (voiceSpeed / 100).toFixed(1) }}x</span>
-                  </div>
+              </div>
+              <div class="input-footer">
+                <button class="convert-video-btn" @click="convertToVideo"
+                  :disabled="entryMode === 'crop' || isVideo(currentPreviewUrl)">
+                  <span>转视频</span>
+                </button>
+                <div class="input-footer-right">
+                  <span class="input-hint">消耗</span>
+                  <span class="input-count">1</span>
+                  <button class="input-arrow">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                      <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- 固定的应用修改按钮 -->
-          <div class="voice-apply-section">
-            <button class="voice-apply-btn">应用修改</button>
+          <!-- 配音内容 - 配音模式 -->
+          <div class="voice-content" v-if="activeTab === 'voice'">
+            <!-- 可滚动内容区域 -->
+            <div class="voice-scrollable-content">
+              <!-- 画外音合词区域 -->
+              <div class="voice-script-section">
+                <div class="voice-script-header">
+                  <span class="voice-script-title">画外音合词</span>
+                </div>
+                <div class="voice-script-container">
+                  <textarea v-model="voiceScript" class="voice-script-input"
+                    placeholder="很久很久以前，玉皇大帝要举十二位守护神。"></textarea>
+                  <div class="voice-script-controls">
+                    <button class="voice-control-btn play-btn" @click="togglePlay">
+                      <svg v-if="!isPlaying" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <polygon points="5,3 19,12 5,21" fill="currentColor" />
+                      </svg>
+                      <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <rect x="6" y="4" width="4" height="16" fill="currentColor" />
+                        <rect x="14" y="4" width="4" height="16" fill="currentColor" />
+                      </svg>
+                      {{ isPlaying ? '停止' : '试听' }}
+                    </button>
+                    <button class="voice-control-btn stop-btn">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                      </svg>
+                      停顿
+                    </button>
+                    <span class="voice-duration">约5s 音频 20/240</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 声音音色区域 -->
+              <div class="voice-settings-section">
+                <div class="voice-setting-item">
+                  <div class="voice-setting-header">
+                    <span class="voice-setting-title">声音音色</span>
+                    <label class="voice-setting-checkbox">
+                      <input type="checkbox" v-model="applyToAllScenes" />
+                      <span class="checkbox-text">应用所有分镜</span>
+                    </label>
+                  </div>
+                  <div class="voice-setting-content">
+                    <div class="voice-type-selector">
+                      <button class="voice-type-btn active">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" stroke="currentColor"
+                            stroke-width="2" />
+                          <path d="M12 14c-3.87 0-7 3.13-7 7h14c0-3.87-3.13-7-7-7z" stroke="currentColor"
+                            stroke-width="2" />
+                        </svg>
+                        专业主播
+                      </button>
+                      <button class="voice-refresh-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M23 4v6h-6" stroke="currentColor" stroke-width="2" />
+                          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div class="voice-attributes">
+                      <span class="voice-attr">女性</span>
+                      <span class="voice-attr">中年</span>
+                      <span class="voice-attr">普通话</span>
+                    </div>
+                    <div class="voice-emotion-selector">
+                      <span class="emotion-label">情绪：</span>
+                      <div class="emotion-dropdown">
+                        <span class="selected-emotion">默认</span>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                          <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 声音音量区域 -->
+                <div class="voice-setting-item">
+                  <div class="voice-setting-header">
+                    <span class="voice-setting-title">声音音量</span>
+                    <label class="voice-setting-checkbox">
+                      <input type="checkbox" v-model="applyVolumeToAllScenes" />
+                      <span class="checkbox-text">应用所有分镜</span>
+                    </label>
+                  </div>
+                  <div class="voice-setting-content">
+                    <div class="volume-slider-container">
+                      <input type="range" v-model="voiceVolume" min="0" max="200" class="volume-slider" />
+                      <span class="volume-value">{{ voiceVolume }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 声音语速区域 -->
+                <div class="voice-setting-item">
+                  <div class="voice-setting-header">
+                    <span class="voice-setting-title">声音语速</span>
+                    <label class="voice-setting-checkbox">
+                      <input type="checkbox" v-model="applySpeedToAllScenes" />
+                      <span class="checkbox-text">应用所有分镜</span>
+                    </label>
+                  </div>
+                  <div class="voice-setting-content">
+                    <div class="speed-slider-container">
+                      <input type="range" v-model="voiceSpeed" min="50" max="200" class="speed-slider" />
+                      <span class="speed-value">{{ (voiceSpeed / 100).toFixed(1) }}x</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 固定的应用修改按钮 -->
+            <div class="voice-apply-section">
+              <button class="voice-apply-btn">应用修改</button>
+            </div>
           </div>
-        </div>
         </template>
       </div>
 
@@ -319,7 +322,7 @@
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
               <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
               <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
-          </svg>
+            </svg>
             裁剪分镜
           </button>
           <button class="control-btn" @click="toggleLipSyncView">
@@ -337,25 +340,36 @@
           <div class="video-container" ref="videoContainer">
             <div v-if="isConverting" class="skeleton-image"></div>
             <template v-else>
-              <video v-if="isVideo(sceneDetail.video_url)" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')" preload="metadata" playsinline muted loop class="video-image"></video>
-              <img v-else :src="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)" :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" decoding="async" fetchpriority="high" />
+              <video v-if="isVideo(sceneDetail.video_url)" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)"
+                :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')"
+                preload="metadata" playsinline muted loop class="video-image"></video>
+              <img v-else :src="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)"
+                :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image"
+                decoding="async" fetchpriority="high" />
             </template>
           </div>
           <div class="preview-aside">
             <template v-if="isConverting">
-              <div class="thumb-card"><div class="skeleton-image"></div></div>
-              <div class="thumb-card"><div class="skeleton-image"></div></div>
+              <div class="thumb-card">
+                <div class="skeleton-image"></div>
+              </div>
+              <div class="thumb-card">
+                <div class="skeleton-image"></div>
+              </div>
             </template>
             <template v-else>
               <div v-if="isVideo(sceneDetail.video_url)" class="thumb-card">
                 <div class="thumb-label">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
+                      stroke-width="2" />
                   </svg>
                   <span>视频</span>
                 </div>
-                <video :src="cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')" class="thumb-image" muted loop playsinline preload="none" disablepictureinpicture></video>
+                <video :src="cleanUrl(sceneDetail.video_url)"
+                  :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '/logo.png')"
+                  class="thumb-image" muted loop playsinline preload="none" disablepictureinpicture></video>
               </div>
               <div v-if="shouldRenderImage(sceneDetail.reference_image_url)" class="thumb-card">
                 <div class="thumb-label">
@@ -366,7 +380,8 @@
                   </svg>
                   <span>图片</span>
                 </div>
-                <img :src="cleanUrl(sceneDetail.reference_image_url)" alt="图片" class="thumb-image" loading="lazy" decoding="async" fetchpriority="low" />
+                <img :src="cleanUrl(sceneDetail.reference_image_url)" alt="图片" class="thumb-image" loading="lazy"
+                  decoding="async" fetchpriority="low" />
               </div>
             </template>
           </div>
@@ -405,7 +420,9 @@
           <div class="timeline-section" ref="timelineSection">
             <template v-if="isConverting">
               <div class="timeline-header">
-                <span class="timeline-label"><div class="skeleton-line" style="width:80px;height:12px;"></div></span>
+                <span class="timeline-label">
+                  <div class="skeleton-line" style="width:80px;height:12px;"></div>
+                </span>
                 <label class="switch">
                   <span class="slider"></span>
                 </label>
@@ -416,12 +433,12 @@
                 </div>
               </div>
               <div class="timeline-tracks" ref="timelineTracks">
-                <div v-for="n in 3" :key="'skel-track-'+n" class="timeline-track">
+                <div v-for="n in 3" :key="'skel-track-' + n" class="timeline-track">
                   <div class="track-header">
                     <div class="skeleton-line" style="width:120px;height:12px;"></div>
                   </div>
                   <div class="track-clips">
-                    <div v-for="m in 10" :key="'skel-clip-'+n+'-'+m" class="scene-clip">
+                    <div v-for="m in 10" :key="'skel-clip-' + n + '-' + m" class="scene-clip">
                       <div class="skeleton-image" style="height:28px;"></div>
                     </div>
                   </div>
@@ -430,7 +447,7 @@
               <div class="playback-indicator" :style="{ left: playbackLeftPx + 'px' }"></div>
             </template>
             <template v-else>
-              
+
               <!-- 时间刻度 -->
               <div class="time-scale">
                 <div class="time-scale-inner" ref="timeScaleInner">
@@ -456,7 +473,8 @@
                     <div class="track-actions">
                       <button class="action-btn copy-btn" @click="copyScene(index)" title="复制分镜">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor"
+                            stroke-width="2" />
                           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor"
                             stroke-width="2" />
                         </svg>
@@ -474,8 +492,14 @@
                   <div class="track-clips" @click="selectScene(index)">
                     <div v-for="(clip, cidx) in getSceneClips(scene)" :key="cidx" class="scene-clip"
                       :class="{ active: index === activeSceneIndex }" :style="getClipStyle(scene, clip)">
-                      <video v-if="isVideo(clip.url || scene.thumbnail)" :src="cleanUrl(clip.url || scene.thumbnail)" :poster="cleanUrl(scene.thumbnail || '/logo.png')" class="clip-thumbnail" muted loop playsinline :preload="index < 4 ? 'metadata' : 'none'" disablepictureinpicture></video>
-                      <img v-else :src="cleanUrl(clip.url || scene.thumbnail)" :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async" fetchpriority="low" />
+                      <video v-if="isVideo(clip.url || scene.thumbnail) && index === activeSceneIndex"
+                        :src="cleanUrl(clip.url || scene.thumbnail)" :poster="cleanUrl(scene.thumbnail || '/logo.png')"
+                        class="clip-thumbnail" muted loop playsinline :preload="index < 4 ? 'metadata' : 'none'"
+                        disablepictureinpicture></video>
+                      <img v-else
+                        :src="cleanUrl(isVideo(clip.url || scene.thumbnail) ? (scene.thumbnail || '/logo.png') : (clip.url || scene.thumbnail))"
+                        :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async"
+                        fetchpriority="low" />
                     </div>
                   </div>
                   <div class="track-audio">
@@ -507,12 +531,12 @@
                     </template>
                   </div>
                 </div>
-                <div v-for="n in pendingSkeletonCount" :key="'pending-skel-'+n" class="timeline-track">
+                <div v-for="n in pendingSkeletonCount" :key="'pending-skel-' + n" class="timeline-track">
                   <div class="track-header">
                     <div class="skeleton-line" style="width:120px;height:12px;"></div>
                   </div>
                   <div class="track-clips">
-                    <div v-for="m in 10" :key="'pending-skel-clip-'+n+'-'+m" class="scene-clip">
+                    <div v-for="m in 10" :key="'pending-skel-clip-' + n + '-' + m" class="scene-clip">
                       <div class="skeleton-image" style="height:28px;"></div>
                     </div>
                   </div>
@@ -530,14 +554,11 @@
       <CanvasEditView @close="toggleCanvasEditMode" />
     </div>
 
-    <CropStoryboardModal
-      :visible="showCropModal"
+    <CropStoryboardModal :visible="showCropModal"
       :videoUrl="cleanUrl(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || '')"
       :imageUrl="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
       :durationMs="(scenes[activeSceneIndex] && scenes[activeSceneIndex].clips && scenes[activeSceneIndex].clips[0] && Number(scenes[activeSceneIndex].clips[0].durationMs)) || 5000"
-      @close="closeCropModal"
-      @apply="applyCropSelection"
-    />
+      @close="closeCropModal" @apply="applyCropSelection" />
 
     <!-- 对口型页面覆盖层 -->
     <div v-if="showLipSyncView" class="lip-sync-overlay">
@@ -655,10 +676,18 @@ export default {
       const title = localStorage.getItem(`project:prompt:${projectId}`)
       if (title) this.projectTitle = title
       const shouldGen = localStorage.getItem(`video-edit:generateStoryboard:${projectId}`) === '1'
+      const shouldView = localStorage.getItem(`video-edit:viewStoryboard:${projectId}`) === '1'
+      this._entryIsGenerate = !!shouldGen
       if (shouldGen) {
         this.isConverting = true
+        this.toastText = '分镜图片开始生成，首图预计两分钟后显示，全流程生成预计8~10分钟，请耐心等待'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 6000)
         this.startStoryboardSSE()
         try { localStorage.removeItem(`video-edit:generateStoryboard:${projectId}`) } catch (e) { void 0 }
+      }
+      if (shouldView) {
+        this.isConverting = true
       }
     } catch (e) {
       console.warn('读取分镜场景或标题失败:', e)
@@ -670,7 +699,7 @@ export default {
     } catch (e) {
       this._shotOrder = []
     }
-    
+
     // 同步时间刻度与轨道的水平滚动
     this.$nextTick(() => {
       const tracks = this.$refs.timelineTracks
@@ -707,7 +736,7 @@ export default {
     })
     this.fetchCurrentSceneDetail()
     this.prefetchInitialScenesDetails()
-    this.pollStoryboardImagesDetail()
+    if (!this._entryIsGenerate) this.pollStoryboardImagesDetail()
   },
   computed: {
     userStore() {
@@ -1332,10 +1361,10 @@ export default {
       } catch (e) { void 0 }
     },
     async pollStoryboardImagesDetail() {
-      const prevConverting = this.isConverting
+      const projectId = this.$route.params.id
+      const showSkel = localStorage.getItem(`video-edit:viewStoryboard:${projectId}`) === '1'
       try {
-        this.isConverting = false
-        const projectId = this.$route.params.id
+        if (showSkel) this.isConverting = true
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) return
@@ -1385,7 +1414,10 @@ export default {
           }
         }
       } catch (e) { void 0 } finally {
-        this.isConverting = prevConverting
+        this.isConverting = false
+        if (showSkel) {
+          try { localStorage.removeItem(`video-edit:viewStoryboard:${projectId}`) } catch (e) { void 0 }
+        }
       }
     },
     async prefetchInitialScenesDetails() {
@@ -1926,12 +1958,13 @@ export default {
 }
 
 .back-btn {
-  width: 32px;
+  width: 85px;
   height: 32px;
   border: none;
   background: #f3f4f6;
   border-radius: 6px;
   display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   cursor: pointer;
@@ -1956,6 +1989,13 @@ export default {
 .project-title-input:focus {
   background: #f9fafb;
   border: 1px solid #3b82f6;
+}
+
+.project-title-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  padding: 4px 8px;
 }
 
 .navbar-right {
@@ -2531,7 +2571,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(0,0,0,0.08);
+  background: rgba(0, 0, 0, 0.08);
   color: #374151;
   font-size: 12px;
   border-radius: 6px;
@@ -2662,7 +2702,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2674,7 +2714,7 @@ export default {
   border-radius: 12px;
   padding: 20px 24px;
   min-width: 260px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   text-align: center;
 }
 
@@ -2693,18 +2733,19 @@ export default {
   color: #ffffff;
   cursor: pointer;
 }
+
 .floating-toast {
   position: fixed;
   left: 50%;
   bottom: 80px;
   transform: translateX(-50%);
-  background: rgba(17,24,39,0.9);
+  background: rgba(17, 24, 39, 0.9);
   color: #fff;
   padding: 10px 14px;
   border-radius: 8px;
   font-size: 14px;
   z-index: 3000;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 /* 时间轴区域 */
@@ -3408,10 +3449,58 @@ input:checked+.slider:before {
   display: flex;
   flex-direction: column;
 }
-.skeleton-block { padding: 10px 12px; }
-.skeleton-line { height: 12px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; border-radius: 6px; margin-bottom: 8px; }
-.skeleton-paragraph { height: 80px; border-radius: 8px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; }
-.skeleton-image { width: 100%; height: 160px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; border-radius: 8px; }
-.skeleton-card { height: 60px; border-radius: 8px; margin-top: 8px; background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%); background-size: 400% 100%; animation: skeleton-shimmer 1.2s ease-in-out infinite; }
-@keyframes skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.skeleton-block {
+  padding: 10px 12px;
+}
+
+.skeleton-line {
+  height: 12px;
+  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.skeleton-paragraph {
+  height: 80px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-image {
+  width: 100%;
+  height: 160px;
+  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.skeleton-card {
+  height: 60px;
+  border-radius: 8px;
+  margin-top: 8px;
+  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.logo-icon {
+  width: 28px;
+  height: 28px;
+}
 </style>

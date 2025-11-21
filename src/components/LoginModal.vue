@@ -73,6 +73,7 @@
               </button>
             </div>
             <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
+            <div class="hint-text">密码须包含字母、数字和特殊字符，不少于6位</div>
           </div>
 
           <div v-if="!isLogin" class="form-group">
@@ -347,7 +348,7 @@ export default {
             console.error('登录失败:', data.message)
             const msg = String(data.message || '').trim()
             if (/密码|password/i.test(msg)) {
-              this.showPrompt('账号或密码错误')
+              this.showPrompt('账号或密码错误,请重试')
             } else {
               this.showPrompt(msg || '登录失败，请重试')
             }
@@ -381,7 +382,12 @@ export default {
           } else {
             // 注册失败，显示错误信息
             console.error('注册失败:', data.message)
-            this.showPrompt(data.message || '注册失败，请重试')
+            const msg = String(data.message || '').trim()
+            if (/密码|password/i.test(msg)) {
+              this.showPrompt('账号或密码错误,请重试')
+            } else {
+              this.showPrompt(msg || '注册失败，请重试')
+            }
           }
         }
 
@@ -537,7 +543,7 @@ export default {
   border-radius: 12px;
   width: 100%;
   max-width: 400px;
-  max-height: 90vh;
+  max-height: 95vh;
   overflow-y: auto;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   /* 隐藏滚动条但保持滚动功能 */
@@ -783,6 +789,12 @@ export default {
   display: block;
 }
 
+.hint-text {
+  color: red;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
 .submit-btn {
   width: 100%;
   padding: 12px;
@@ -851,7 +863,7 @@ export default {
   display: flex;
   justify-content: center;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 15px;
 }
 
 .social-btn {
