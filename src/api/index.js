@@ -531,6 +531,28 @@ export async function reorderStoryboardScenes({ videoId, orders, token }) {
   }
 }
 
+export async function clipStoryboardVideo({ videoId, sceneNumber, start_frame, end_frame, token }) {
+  const url = `${BASE_URL}/detail/storyboard/clip`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ videoId, sceneNumber, start_frame, end_frame })
+  const requestOptions = {
+    method: 'POST',
+    headers,
+    body,
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
 export default {
   scriptModifyStream,
   storyboardPictureGenStream,
@@ -553,4 +575,5 @@ export default {
   , getConversationMessages
   , copyStoryboardVideo
   , reorderStoryboardScenes
+  , clipStoryboardVideo
 }

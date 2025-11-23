@@ -460,6 +460,7 @@
               <div class="timeline-tracks" ref="timelineTracks">
                 <div v-for="(scene, index) in scenes" :key="scene.id" class="timeline-track" :data-index="index"
                   :class="{ active: index === activeSceneIndex }" draggable="true"
+                  :style="getTrackStyle(scene)"
                   @dragstart="handleDragStart(index, $event)" @dragover="handleDragOver($event)"
                   @drop="handleDrop(index, $event)" @dragend="handleDragEnd">
                   <div class="track-header">
@@ -580,9 +581,9 @@
 import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, storyboardPictureGenStream, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, storyboardPictureGenStream, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo } from '@/api'
 import { useUserStore } from '@/stores/user'
-import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
+import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
 export default {
   name: 'VideoEditView',
@@ -660,6 +661,7 @@ export default {
           this.scenes = parsed
           this.activeSceneIndex = 0
           this.updateTimeMarkers()
+          this.sortScenesByServerOrder()
         }
       }
       // 解析原始分镜，生成包含clips的场景数据
@@ -671,6 +673,7 @@ export default {
           this.scenes = scenesFromRaw
           this.activeSceneIndex = 0
           this.updateTimeMarkers()
+          this.sortScenesByServerOrder()
         }
       }
       const title = localStorage.getItem(`project:prompt:${projectId}`)
@@ -699,6 +702,7 @@ export default {
     } catch (e) {
       this._shotOrder = []
     }
+    this.loadServerOrderIndex()
 
     // 同步时间刻度与轨道的水平滚动
     this.$nextTick(() => {
@@ -753,12 +757,12 @@ export default {
     },
     // 动态时间显示：当前播放时间和总时长
     currentTimeText() {
-      const totalSeconds = (Array.isArray(this.scenes) ? this.scenes.length : 0) * 5
-      const currentSeconds = Math.round((Number(this.playbackPosition) || 0) / 100 * totalSeconds)
+      const totalSeconds = this.getTotalSeconds()
+      const currentSeconds = Math.floor((Number(this.playbackPosition) || 0) / 100 * totalSeconds)
       return this.formatTime(currentSeconds)
     },
     totalTimeText() {
-      const totalSeconds = (Array.isArray(this.scenes) ? this.scenes.length : 0) * 5
+      const totalSeconds = Math.floor(this.getTotalSeconds())
       return this.formatTime(totalSeconds)
     },
     // 只有当全部分镜的图片都有有效URL且能渲染时才可转视频
@@ -900,7 +904,7 @@ export default {
               if (added > 0) {
                 if (this.activeSceneIndex < 0 || this.activeSceneIndex >= this.scenes.length) this.activeSceneIndex = 0
                 this._shotOrder = this.getShotOrderFromRaw(projectId)
-                this.sortScenesByOrder()
+                this.sortScenesByServerOrder()
                 this.updateTimeMarkers()
                 try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
                 if (this.isConverting) this.isConverting = false
@@ -922,7 +926,7 @@ export default {
               }
               if (added > 0) {
                 if (this.activeSceneIndex < 0 || this.activeSceneIndex >= this.scenes.length) this.activeSceneIndex = 0
-                this.sortScenesByOrder()
+                this.sortScenesByServerOrder()
                 this.updateTimeMarkers()
                 try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
                 if (this.isConverting) this.isConverting = false
@@ -949,6 +953,11 @@ export default {
     },
     shouldRenderImage(u) {
       return shouldRenderImageUtil(u)
+    },
+    async getLocalUrl(u) {
+      const projectId = this.$route.params.id
+      const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+      return await getLocalMediaUrlUtil(videoId, u)
     },
     async toggleFullscreen() {
       try {
@@ -1127,26 +1136,23 @@ export default {
       }
     },
     // 将查询结果中的 video_url 替换到轨道 clips 中
-    updateScenesWithQueryItems(items) {
+    async updateScenesWithQueryItems(items) {
       if (!Array.isArray(items) || !items.length) return
       const shotOrder = Array.isArray(this._shotOrder) ? this._shotOrder : []
-      items.forEach(item => {
-        if (!item || item.status !== 'SUCCEEDED' || !item.video_url) return
+      for (let it = 0; it < items.length; it++) {
+        const item = items[it]
+        if (!item || item.status !== 'SUCCEEDED' || !item.video_url) continue
         const sceneKey = String(item.scene_number || '').trim()
         let idx = -1
-        if (sceneKey && shotOrder.length) {
-          idx = shotOrder.indexOf(sceneKey)
-        }
-        // 回退：若无映射，则替换第一个未是 mp4 的分镜
-        if (idx < 0) {
-          idx = this.scenes.findIndex(sc => !Array.isArray(sc.clips) || !sc.clips.length || !/\.mp4($|\?)/i.test(String(sc.clips[0].url || '')))
-        }
+        if (sceneKey && shotOrder.length) idx = shotOrder.indexOf(sceneKey)
+        if (idx < 0) idx = this.scenes.findIndex(sc => !Array.isArray(sc.clips) || !sc.clips.length || !/\.mp4($|\?)/i.test(String(sc.clips[0].url || '')))
         if (idx >= 0 && idx < this.scenes.length) {
           const url = this.cleanUrl(item.video_url)
+          const dur = this.isVideo(url) ? await this.measureVideoDurationMs(url) : 5000
           const scene = this.scenes[idx]
-          scene.clips = [{ url, durationMs: 5000 }]
+          scene.clips = [{ url, durationMs: dur }]
         }
-      })
+      }
       this.refreshSidebarFromLocal()
       const allDone = items.length > 0 && items.every(it => {
         const s = String(it.status || '').toLowerCase()
@@ -1156,36 +1162,31 @@ export default {
     },
     // 返回场景的clips，若无则回退到单一缩略图
     getSceneClips(scene) {
-      // 将单个图片分镜拆分为若干小片段，在5秒内重复排列
       let baseUrl = ''
       let duration = 0
       const isActive = scene && this.scenes[this.activeSceneIndex] === scene
       if (isActive) {
-        const fromApi = this.cleanUrl(this.sceneDetail.video_url || this.sceneDetail.reference_image_url || '')
-        if (fromApi) {
-          baseUrl = fromApi
-          duration = this.sceneDetail.video_url ? 5000 : 3000
-        }
+        const apiVid = this.cleanUrl((this.sceneDetail && this.sceneDetail.video_url) || '')
+        const apiImg = this.cleanUrl((this.sceneDetail && this.sceneDetail.reference_image_url) || '')
+        const fromApi = apiVid || apiImg
+        if (fromApi) baseUrl = fromApi
       }
-      if (scene && Array.isArray(scene.clips) && scene.clips.length) {
-        const first = scene.clips[0]
-        if (!baseUrl) {
-          baseUrl = this.cleanUrl(first?.url || scene.thumbnail || '')
-          duration = Number(first?.durationMs) || 5000
-        }
+      if (scene && Array.isArray(scene.clips) && scene.clips.length > 0) {
+        const first = scene.clips[0] || {}
+        if (!baseUrl) baseUrl = this.cleanUrl((first && first.url) || (scene && scene.thumbnail) || '')
+        duration = Number(first && first.durationMs) || 5000
       } else {
-        if (!baseUrl) {
-          baseUrl = this.cleanUrl(scene?.thumbnail || '')
-          duration = 3000
-        }
+        if (!baseUrl) baseUrl = this.cleanUrl((scene && scene.thumbnail) || '')
+        duration = 3000
       }
       if (!baseUrl) return []
-      // 每秒2张缩略图，总计10张以覆盖5秒
       const perSecondFrames = 2
       const totalSeconds = Math.max(1, Math.round(duration / 1000))
       const frames = Math.max(1, totalSeconds * perSecondFrames)
       const seg = Math.max(250, Math.round(duration / frames))
-      return Array.from({ length: frames }, () => ({ url: baseUrl, durationMs: seg }))
+      const result = []
+      for (let i = 0; i < frames; i++) result.push({ url: baseUrl, durationMs: seg })
+      return result
     },
     // 基于时长计算片段在轨的宽度百分比
     getClipStyle(scene, clip) {
@@ -1213,6 +1214,22 @@ export default {
         if (bi === -1) return -1
         return ai - bi
       })
+    },
+    sortScenesByServerOrder() {
+      const byServer = this._orderIndexMap && typeof this._orderIndexMap.size === 'number' && this._orderIndexMap.size > 0
+      if (byServer) {
+        const arr = Array.isArray(this.scenes) ? this.scenes.slice() : []
+        arr.sort((a, b) => {
+          const ak = String(a.scene_number || '').trim()
+          const bk = String(b.scene_number || '').trim()
+          const ai = Number(this._orderIndexMap.get(ak)) || Number(a.order_index) || Number.MAX_SAFE_INTEGER
+          const bi = Number(this._orderIndexMap.get(bk)) || Number(b.order_index) || Number.MAX_SAFE_INTEGER
+          return ai - bi
+        })
+        this.scenes = arr
+        return
+      }
+      this.sortScenesByOrder()
     },
     refreshSidebarFromLocal() {
       const imgApi = this.cleanUrl(this.sceneDetail.reference_image_url || '')
@@ -1257,11 +1274,17 @@ export default {
       const pxPerSecond = this.getPxPerSecond()
       let absolutePx = relX - tracks.offsetLeft + tracks.scrollLeft
       if (!Number.isFinite(absolutePx)) absolutePx = 0
-      const totalSeconds = (Array.isArray(this.scenes) ? this.scenes.length : 0) * 5
+      const totalSeconds = this.getTotalSeconds()
       let elapsedSec = Math.max(0, Math.min(totalSeconds, absolutePx / pxPerSecond))
       this.playbackPosition = totalSeconds > 0 ? (elapsedSec / totalSeconds) * 100 : 0
       this.playbackLeftPx = tracks.offsetLeft + (elapsedSec * pxPerSecond) - tracks.scrollLeft
-      const idx = Math.min(Math.max(0, Math.floor(elapsedSec / 5)), Math.max(0, this.scenes.length - 1))
+      let idx = 0
+      let acc = 0
+      for (let i = 0; i < this.scenes.length; i++) {
+        acc += this.getSceneSeconds(this.scenes[i])
+        if (elapsedSec < acc) { idx = i; break }
+        idx = i
+      }
       if (idx !== this.activeSceneIndex) {
         this.activeSceneIndex = idx
       }
@@ -1280,13 +1303,26 @@ export default {
         if (data) {
           const refImg = this.cleanUrl(data.reference_image_url || scene.thumbnail || '')
           const vurl = this.cleanUrl(data.video_url || '')
-          const vlocal = this.isVideo(this.currentPreviewUrl) ? this.cleanUrl(this.currentPreviewUrl) : ''
+          const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
+          const vlocal = vurl ? await this.getLocalUrl(vurl) : (this.isVideo(this.currentPreviewUrl) ? this.cleanUrl(this.currentPreviewUrl) : '')
           const incomingKey = String(data.scene_number || '').trim()
           const targetIndex = this.activeSceneIndex
           if (targetIndex >= 0 && targetIndex < this.scenes.length) {
             const target = this.scenes[targetIndex]
-            if (refImg) target.thumbnail = refImg
-            if (vurl) target.clips = [{ url: vurl, durationMs: 5000 }]
+            if (refLocal) target.thumbnail = refLocal
+            if (vlocal) {
+              const dur = this.isVideo(vlocal) ? await this.measureVideoDurationMs(vlocal) : 5000
+              target.clips = [{ url: vlocal, durationMs: dur }]
+            }
+            const oi = Number(data.order_index || data.orderIndex)
+            if (Number.isFinite(oi) && oi > 0) {
+              target.order_index = oi
+              const map = this._orderIndexMap instanceof Map ? this._orderIndexMap : new Map()
+              if (incomingKey) map.set(incomingKey, oi)
+              this._orderIndexMap = map
+              this.sortScenesByServerOrder()
+              this.updateTimeMarkers()
+            }
             const content = data && data.prompt && data.prompt.content ? data.prompt.content : null
             if (content) {
               const parts = []
@@ -1297,7 +1333,7 @@ export default {
               if (!target.scene_number) target.scene_number = incomingKey || content.shot_id || undefined
             }
           }
-          this.sceneDetail = { reference_image_url: refImg, video_url: vurl || vlocal }
+          this.sceneDetail = { reference_image_url: refLocal, video_url: vlocal }
         } else {
           this.refreshSidebarFromLocal()
         }
@@ -1326,7 +1362,9 @@ export default {
         }
         if (!arr || !arr.length) return
         const order = Array.isArray(this._shotOrder) ? this._shotOrder : []
-        arr.forEach((item, i) => {
+        const idxMap = new Map()
+        for (let i = 0; i < arr.length; i++) {
+          const item = arr[i]
           const key = String(item.scene_number || (item.scene_script && item.scene_script.content && item.scene_script.content.shot_id) || '').trim()
           let idx = this.scenes.findIndex(sc => String(sc.scene_number || '').trim() === key)
           if (idx < 0 && order.length) idx = order.indexOf(key)
@@ -1335,9 +1373,18 @@ export default {
             const sc = this.scenes[idx]
             const refImg = this.cleanUrl(item.reference_image_url || sc.thumbnail || '')
             const vurl = this.cleanUrl(item.video_url || '')
-            if (refImg) sc.thumbnail = refImg
-            if (vurl) sc.clips = [{ url: vurl, durationMs: 5000 }]
-            else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 3000 }]
+            const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
+            const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
+            if (refLocal) sc.thumbnail = refLocal
+            if (vLocal) {
+              const dur = this.isVideo(vLocal) ? await this.measureVideoDurationMs(vLocal) : 5000
+              sc.clips = [{ url: vLocal, durationMs: dur }]
+            } else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refLocal, durationMs: 3000 }]
+            const oi = Number(item.order_index || item.orderIndex)
+            if (Number.isFinite(oi) && oi > 0) {
+              sc.order_index = oi
+              if (key) idxMap.set(key, oi)
+            }
             const content = item && item.scene_script && item.scene_script.content ? item.scene_script.content : null
             if (content) {
               const parts = []
@@ -1348,7 +1395,13 @@ export default {
             }
             if (!sc.scene_number) sc.scene_number = key || undefined
           }
-        })
+        }
+        if (idxMap.size > 0) {
+          this._orderIndexMap = idxMap
+          this.sortScenesByServerOrder()
+          this.updateTimeMarkers()
+          try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
+        }
         // 同步当前分镜到界面展示
         const active = this.scenes[this.activeSceneIndex] || {}
         const activeKey = String(active.scene_number || '').trim()
@@ -1356,7 +1409,9 @@ export default {
         if (activeItem) {
           const refImg = this.cleanUrl(activeItem.reference_image_url || active.thumbnail || '')
           const vurl = this.cleanUrl(activeItem.video_url || '')
-          this.sceneDetail = { reference_image_url: refImg, video_url: vurl }
+          const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
+          const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
+          this.sceneDetail = { reference_image_url: refLocal, video_url: vLocal }
         }
       } catch (e) { void 0 }
     },
@@ -1376,7 +1431,9 @@ export default {
             const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
             if (list.length) {
               const order = Array.isArray(this._shotOrder) ? this._shotOrder : []
-              list.forEach((item, i) => {
+              const idxMap = new Map()
+              for (let i = 0; i < list.length; i++) {
+                const item = list[i]
                 const key = String(item.scene_number || (item.scene_script && item.scene_script.content && item.scene_script.content.shot_id) || '').trim()
                 let idx = this.scenes.findIndex(sc => String(sc.scene_number || '').trim() === key)
                 if (idx < 0 && order.length) idx = order.indexOf(key)
@@ -1385,9 +1442,18 @@ export default {
                   const sc = this.scenes[idx]
                   const refImg = this.cleanUrl(item.reference_image_url || sc.thumbnail || '')
                   const vurl = this.cleanUrl(item.video_url || '')
-                  if (refImg) sc.thumbnail = refImg
-                  if (vurl) sc.clips = [{ url: vurl, durationMs: 5000 }]
-                  else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 3000 }]
+                  const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
+                  const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
+                if (refLocal) sc.thumbnail = refLocal
+                if (vLocal) {
+                  const dur = this.isVideo(vLocal) ? await this.measureVideoDurationMs(vLocal) : 5000
+                  sc.clips = [{ url: vLocal, durationMs: dur }]
+                } else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refLocal, durationMs: 3000 }]
+                  const oi = Number(item.order_index || item.orderIndex)
+                  if (Number.isFinite(oi) && oi > 0) {
+                    sc.order_index = oi
+                    if (key) idxMap.set(key, oi)
+                  }
                   const content = item && item.scene_script && item.scene_script.content ? item.scene_script.content : null
                   if (content) {
                     const parts = []
@@ -1398,14 +1464,22 @@ export default {
                   }
                   if (!sc.scene_number) sc.scene_number = key || undefined
                 }
-              })
+              }
+              if (idxMap.size > 0) {
+                this._orderIndexMap = idxMap
+                this.sortScenesByServerOrder()
+                this.updateTimeMarkers()
+                try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
+              }
               const active = this.scenes[this.activeSceneIndex] || {}
               const activeKey = String(active.scene_number || '').trim()
               const activeItem = list.find(x => String(x.scene_number || '').trim() === activeKey) || null
               if (activeItem) {
                 const refImg = this.cleanUrl(activeItem.reference_image_url || active.thumbnail || '')
                 const vurl = this.cleanUrl(activeItem.video_url || '')
-                this.sceneDetail = { reference_image_url: refImg, video_url: vurl }
+                const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
+                const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
+                this.sceneDetail = { reference_image_url: refLocal, video_url: vLocal }
               }
             }
           } catch (e) { void 0 }
@@ -1436,12 +1510,17 @@ export default {
           if (data) {
             const refImg = this.cleanUrl(data.reference_image_url || sc.thumbnail || '')
             const vurl = this.cleanUrl(data.video_url || '')
+            const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
+            const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
             const incomingKey = String(data.scene_number || '').trim()
             const targetIndex = i
             if (targetIndex >= 0 && targetIndex < this.scenes.length) {
               const target = this.scenes[targetIndex]
-              if (refImg) target.thumbnail = refImg
-              if (vurl) target.clips = [{ url: vurl, durationMs: 5000 }]
+              if (refLocal) target.thumbnail = refLocal
+              if (vLocal) {
+                const dur = this.isVideo(vLocal) ? await this.measureVideoDurationMs(vLocal) : 5000
+                target.clips = [{ url: vLocal, durationMs: dur }]
+              }
               const content = data && data.prompt && data.prompt.content ? data.prompt.content : null
               if (content) {
                 const parts = []
@@ -1452,7 +1531,7 @@ export default {
                 if (!target.scene_number) target.scene_number = incomingKey || content.shot_id || undefined
               }
               if (targetIndex === this.activeSceneIndex) {
-                this.sceneDetail = { reference_image_url: refImg, video_url: vurl || this.sceneDetail.video_url }
+                this.sceneDetail = { reference_image_url: refLocal, video_url: vLocal || this.sceneDetail.video_url }
               }
             }
           }
@@ -1479,7 +1558,10 @@ export default {
           if (targetIndex >= 0 && targetIndex < this.scenes.length) {
             const target = this.scenes[targetIndex]
             if (refImg) target.thumbnail = refImg
-            if (vurl) target.clips = [{ url: vurl, durationMs: 5000 }]
+            if (vurl) {
+              const dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
+              target.clips = [{ url: vurl, durationMs: dur }]
+            }
             const content = data && data.prompt && data.prompt.content ? data.prompt.content : null
             if (content) {
               const parts = []
@@ -1496,9 +1578,43 @@ export default {
         }
       } catch (e) { void 0 }
     },
+    async loadServerOrderIndex() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return
+        const callers = [
+          () => getStoryboardSceneDetail({ videoId, token }),
+          () => getStoryboardSceneDetail({ videoId, sceneNumber: 'all', token }),
+          () => getStoryboardSceneDetail({ videoId, sceneNumber: 'scene_all', token })
+        ]
+        let arr = null
+        for (const call of callers) {
+          try {
+            const text = await call()
+            let json
+            try { json = JSON.parse(text) } catch { json = null }
+            if (json && Array.isArray(json.data)) { arr = json.data; break }
+          } catch (e) { void 0 }
+        }
+        if (!arr || !arr.length) return
+        const map = new Map()
+        for (let i = 0; i < arr.length; i++) {
+          const it = arr[i]
+          const key = String(it.scene_number || (it.scene_script && it.scene_script.content && it.scene_script.content.shot_id) || '').trim()
+          const idx = Number(it.order_index || it.orderIndex || i + 1)
+          if (key) map.set(key, idx)
+        }
+        this._orderIndexMap = map
+        this.sortScenesByServerOrder()
+        this.updateTimeMarkers()
+        try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
+      } catch (e) { void 0 }
+    },
     // 根据分镜数量生成时间刻度（每1秒一个刻度）
     updateTimeMarkers() {
-      const totalSeconds = (Array.isArray(this.scenes) ? this.scenes.length : 0) * 5
+      const totalSeconds = this.getTotalSeconds()
       const markers = []
       for (let s = 0; s <= totalSeconds; s += 5) {
         const mm = String(Math.floor(s / 60)).padStart(2, '0')
@@ -1506,6 +1622,43 @@ export default {
         markers.push(`${mm}:${ss}`)
       }
       this.timeMarkers = markers
+    },
+    getSceneSeconds(scene) {
+      const c = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
+      const url = this.cleanUrl((c && c.url) || (scene && scene.thumbnail) || '')
+      if (url && this.isVideo(url) && c && Number(c.durationMs)) {
+        return Math.max(0.5, Number(c.durationMs) / 1000)
+      }
+      return 5
+    },
+    getTotalSeconds() {
+      let sum = 0
+      const arr = Array.isArray(this.scenes) ? this.scenes : []
+      for (let i = 0; i < arr.length; i++) {
+        sum += this.getSceneSeconds(arr[i])
+      }
+      return Math.max(0, sum)
+    },
+    getTrackStyle(scene) {
+      const secs = this.getSceneSeconds(scene)
+      const w = `calc(var(--px-per-second) * ${secs})`
+      return { flex: `0 0 ${w}`, width: w, minWidth: w }
+    },
+    async measureVideoDurationMs(url) {
+      try {
+        const el = document.createElement('video')
+        el.preload = 'metadata'
+        try { el.muted = true } catch (e) { void 0 }
+        el.src = this.cleanUrl(url)
+        return await new Promise((resolve) => {
+          const done = () => {
+            const d = Number(el.duration) || 0
+            resolve(Math.max(500, Math.round(d * 1000)))
+          }
+          el.onloadedmetadata = done
+          el.onerror = () => resolve(5000)
+        })
+      } catch (e) { return 5000 }
     },
     async handleRegenerateActiveScene() {
       try {
@@ -1654,17 +1807,20 @@ export default {
     },
     selectScene(index) {
       this.activeSceneIndex = index
-      // 将指针与预览时间同步到所选分镜的起始处（每个分镜=5秒）
-      const totalScenes = Array.isArray(this.scenes) ? this.scenes.length : 0
-      const totalSeconds = totalScenes * 5
-      if (totalScenes > 0 && totalSeconds > 0) {
-        const targetSec = index * 5
-        // 更新播放进度百分比供时间显示使用
-        this.playbackPosition = (targetSec / totalSeconds) * 100
-        // 计算指针像素位置，考虑滚动与容器偏移
+      const arr = Array.isArray(this.scenes) ? this.scenes : []
+      if (arr.length > 0) {
         const pxPerSecond = this.getPxPerSecond()
-        const section = this.$refs.timelineSection
         const tracks = this.$refs.timelineTracks
+        let totalMs = 0
+        let startMs = 0
+        for (let i = 0; i < arr.length; i++) {
+          const ms = Math.round(this.getSceneSeconds(arr[i]) * 1000)
+          if (i < index) startMs += ms
+          totalMs += ms
+        }
+        const totalSeconds = Math.max(1, totalMs / 1000)
+        const targetSec = Math.max(0, startMs / 1000)
+        this.playbackPosition = (targetSec / totalSeconds) * 100
         if (tracks) {
           const absolutePx = targetSec * pxPerSecond
           this.playbackLeftPx = tracks.offsetLeft + absolutePx - tracks.scrollLeft
@@ -1684,12 +1840,12 @@ export default {
         this.startPlayback()
       }
     },
-    // 播放相关方法：按每个分镜5秒顺序播放
+    // 播放相关方法：按每个分镜自身时长顺序播放
     startPlayback() {
       if (!Array.isArray(this.scenes) || this.scenes.length === 0) return
       this.isPlaying = true
-      const stepMs = 5000
-      const totalMs = this.scenes.length * stepMs
+      const durations = this.scenes.map(sc => Math.round(this.getSceneSeconds(sc) * 1000))
+      const totalMs = durations.reduce((s, v) => s + v, 0)
       let priorMs = Math.max(0, Math.min(totalMs, (Number(this.playbackPosition) || 0) / 100 * totalMs))
       if (priorMs >= totalMs - 1) {
         priorMs = 0
@@ -1707,8 +1863,15 @@ export default {
         if (!this.isPlaying) return
         const elapsed = now - start
         const clamped = Math.min(elapsed, totalMs)
-        this.playbackPosition = (clamped / totalMs) * 100
-        const idx = Math.min(Math.floor(clamped / stepMs), this.scenes.length - 1)
+        this.playbackPosition = totalMs > 0 ? (clamped / totalMs) * 100 : 0
+        let acc = 0
+        let idx = 0
+        for (let i = 0; i < durations.length; i++) {
+          const next = acc + durations[i]
+          if (clamped < next) { idx = i; break }
+          acc = next
+          idx = i
+        }
         if (idx !== this.activeSceneIndex) {
           this.activeSceneIndex = idx
           this.syncPreviewPlayback()
@@ -1721,10 +1884,7 @@ export default {
           const absolutePx = elapsedSec * pxPerSecond
           this.playbackLeftPx = tracks.offsetLeft + absolutePx - tracks.scrollLeft
         }
-        if (clamped >= totalMs) {
-          this.stopPlayback()
-          return
-        }
+        if (clamped >= totalMs) { this.stopPlayback(); return }
         this._rafId = requestAnimationFrame(tick)
       }
       this._rafId = requestAnimationFrame(tick)
@@ -1806,19 +1966,46 @@ export default {
     closeCropModal() {
       this.showCropModal = false
     },
-    applyCropSelection(sel) {
+    async applyCropSelection(sel) {
       try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
         const scene = this.scenes[this.activeSceneIndex] || {}
-        const span = Math.max(0, Number(sel.endMs || 0) - Number(sel.startMs || 0))
-        const dur = span > 0 ? span : (scene.clips && scene.clips[0] && Number(scene.clips[0].durationMs)) || 5000
-        if (Array.isArray(scene.clips) && scene.clips.length) {
-          scene.clips[0].durationMs = dur
+        const sceneNumber = String(scene.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
+        const fps = 30
+        const start_frame = Math.max(0, Math.round((Number(sel.startMs || 0) / 1000) * fps))
+        const end_frame = Math.max(start_frame + 1, Math.round((Number(sel.endMs || 0) / 1000) * fps))
+        const resp = await clipStoryboardVideo({ videoId, sceneNumber, start_frame, end_frame, token })
+        let obj = null
+        try { obj = typeof resp === 'string' ? JSON.parse(resp) : resp } catch (e) { obj = null }
+        const data = obj && obj.data ? obj.data : null
+        if (obj && obj.code === 0 && data && data.video_url) {
+          const remote = this.cleanUrl(data.video_url || '')
+          const url = await this.getLocalUrl(remote)
+          const durMs = Number(data.duration) ? Math.round(Number(data.duration) * 1000) : Math.max(1, Number(sel.endMs || 0) - Number(sel.startMs || 0)) || 5000
+          if (Array.isArray(scene.clips) && scene.clips.length) {
+            scene.clips[0] = { url, durationMs: durMs }
+          } else {
+            scene.clips = [{ url: url || this.cleanUrl(scene.thumbnail || ''), durationMs: durMs }]
+          }
+          const thumbLocal = scene.thumbnail ? scene.thumbnail : ''
+          this.sceneDetail = { reference_image_url: thumbLocal, video_url: url }
+          this.updateTimeMarkers()
+          this.toastText = '裁剪成功'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
         } else {
-          const url = this.cleanUrl(scene.thumbnail || '')
-          if (url) scene.clips = [{ url, durationMs: dur }]
+          const msg = (obj && obj.message) ? String(obj.message) : '裁剪失败，请重试'
+          this.toastText = msg
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2500)
         }
-        this.updateTimeMarkers()
-      } catch (e) { void 0 }
+      } catch (e) {
+        this.toastText = '裁剪失败，请稍后重试'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2500)
+      }
     },
     // 拖拽相关方法
     handleDragStart(index, event) {
@@ -1858,6 +2045,16 @@ export default {
             }))
             await reorderStoryboardScenes({ videoId, orders, token })
           }
+          const idxMap = new Map()
+          for (let i = 0; i < this.scenes.length; i++) {
+            const sc = this.scenes[i]
+            sc.order_index = i + 1
+            const k = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[i] : `shot_${i + 1}`))
+            idxMap.set(k, i + 1)
+          }
+          this._orderIndexMap = idxMap
+          this.sortScenesByServerOrder()
+          try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
         } catch (e) { void 0 }
       }
     },
@@ -1896,7 +2093,7 @@ export default {
             const byIndex = prevScenes[(Number(it.order_index) || (idx + 1)) - 1]
             thumb = this.cleanUrl((byIndex && byIndex.thumbnail) || '')
           }
-          return { id: Date.now() + idx, title, description: '分镜视频', thumbnail: thumb || '/logo.png', clips: [{ url, durationMs: dur * 1000 }], scene_number: it.scene_number }
+          return { id: Date.now() + idx, title, description: '分镜视频', thumbnail: thumb || '/logo.png', clips: [{ url, durationMs: dur * 1000 }], scene_number: it.scene_number, order_index: Number(it.order_index) || idx + 1 }
         })
         this.scenes = mapped
         this.updateTimeMarkers()

@@ -211,23 +211,12 @@
 
         <!-- 问答消息列表 -->
         <div class="qa-messages">
-          <template v-if="isMessagesLoading">
-            <div class="skeleton-block">
-              <div class="skeleton-line"></div>
-              <div class="skeleton-line"></div>
-              <div class="skeleton-line short"></div>
-            </div>
-            <div class="skeleton-card"></div>
-            <div class="skeleton-card"></div>
-          </template>
-          <template v-else>
-            <div v-for="(m, i) in messages" :key="m.id" class="qa-message"
-              :class="{ 'qa-message-left': m.side === 'left' }">
-              <div class="qa-message-text">{{ m.text }}</div>
-              <div class="qa-message-status" v-if="m.status && m.status !== '思考中'">{{ m.status }}</div>
-            </div>
-            <div v-if="isSubmitting" class="qa-center-status">生成中...</div>
-          </template>
+          <div v-for="(m, i) in messages" :key="m.id" class="qa-message"
+            :class="{ 'qa-message-left': m.side === 'left' }">
+            <div class="qa-message-text">{{ m.text }}</div>
+            <div class="qa-message-status" v-if="m.status && m.status !== '思考中'">{{ m.status }}</div>
+          </div>
+          <div v-if="isSubmitting" class="qa-center-status">生成中...</div>
         </div>
 
         <!-- 操作按钮 -->
