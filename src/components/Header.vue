@@ -85,18 +85,18 @@
           </button>
         </div>
       </div>
-  </div>
+    </div>
 
-  <!-- 登录弹窗 -->
-  <LoginModal :visible="loginModalVisible" @close="hideLoginModal" @success="handleLoginSuccess"
+    <!-- 登录弹窗 -->
+    <LoginModal :visible="loginModalVisible" @close="hideLoginModal" @success="handleLoginSuccess"
       @social-login="handleSocialLogin" />
 
-  <div v-if="centerPromptVisible" class="center-prompt-overlay" @click="closeCenterPrompt">
-    <div class="center-prompt" @click.stop>
-      <div class="prompt-text">{{ centerPromptText }}</div>
-      <button class="prompt-close-btn" @click="closeCenterPrompt">确定</button>
+    <div v-if="centerPromptVisible" class="center-prompt-overlay" @click="closeCenterPrompt">
+      <div class="center-prompt" @click.stop>
+        <div class="prompt-text">{{ centerPromptText }}</div>
+        <button class="prompt-close-btn" @click="closeCenterPrompt">确定</button>
+      </div>
     </div>
-  </div>
   </header>
 </template>
 
@@ -375,7 +375,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -387,7 +387,7 @@ export default {
   border-radius: 12px;
   padding: 20px 24px;
   min-width: 280px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   text-align: center;
 }
 

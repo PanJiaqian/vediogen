@@ -128,8 +128,8 @@
               <!-- 图片展示 -->
               <div class="image-container">
                 <video v-if="isVideo(sceneDetail.video_url)" :src="cleanUrl(sceneDetail.video_url)"
-                  :poster="cleanUrl(sceneDetail.reference_image_url || '')"
-                  preload="metadata" class="scene-image" playsinline muted loop controls></video>
+                  :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" class="scene-image"
+                  playsinline muted loop controls></video>
                 <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url)"
                   :src="cleanUrl(sceneDetail.reference_image_url)" alt="分镜图片" class="scene-image" decoding="async"
                   fetchpriority="high" />
@@ -341,8 +341,8 @@
             <div v-if="isConverting" class="skeleton-image"></div>
             <template v-else>
               <video v-if="isVideo(sceneDetail.video_url)" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)"
-                :poster="cleanUrl(sceneDetail.reference_image_url || '')"
-                preload="metadata" playsinline muted loop class="video-image"></video>
+                :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" playsinline muted loop
+                class="video-image"></video>
               <img v-else :src="cleanUrl(sceneDetail.reference_image_url)"
                 :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image"
                 decoding="async" fetchpriority="high" />
@@ -367,8 +367,7 @@
                   </svg>
                   <span>视频</span>
                 </div>
-                <video :src="cleanUrl(sceneDetail.video_url)"
-                  :poster="cleanUrl(sceneDetail.reference_image_url || '')"
+                <video :src="cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
                   class="thumb-image" muted loop playsinline preload="none" disablepictureinpicture></video>
               </div>
               <div v-if="shouldRenderImage(sceneDetail.reference_image_url)" class="thumb-card">
@@ -459,8 +458,7 @@
               <!-- 分镜轨道 - 水平布局 -->
               <div class="timeline-tracks" ref="timelineTracks">
                 <div v-for="(scene, index) in scenes" :key="scene.id" class="timeline-track" :data-index="index"
-                  :class="{ active: index === activeSceneIndex }" draggable="true"
-                  :style="getTrackStyle(scene)"
+                  :class="{ active: index === activeSceneIndex }" draggable="true" :style="getTrackStyle(scene)"
                   @dragstart="handleDragStart(index, $event)" @dragover="handleDragOver($event)"
                   @drop="handleDrop(index, $event)" @dragend="handleDragEnd">
                   <div class="track-header">
@@ -491,19 +489,25 @@
                     </div>
                   </div>
                   <div class="track-clips" @click="selectScene(index)">
-                    <div v-for="(clip, cidx) in getSceneClips(scene)" :key="cidx" class="scene-clip"
-                      :class="{ active: index === activeSceneIndex }" :style="getClipStyle(scene, clip)">
-                      <video v-if="isVideo(clip.url || scene.thumbnail)"
-                        :src="cleanUrl(clip.url || scene.thumbnail)" :poster="cleanUrl(scene.thumbnail || '')"
-                        class="clip-thumbnail" muted loop playsinline :preload="index < 4 ? 'metadata' : 'none'"
-                        disablepictureinpicture></video>
-                      <img v-else-if="shouldRenderImage(clip.url || scene.thumbnail)"
-                        :src="cleanUrl(isVideo(clip.url || scene.thumbnail) ? (scene.thumbnail || '') : (clip.url || scene.thumbnail))"
-                        :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async"
-                        fetchpriority="low" />
-                      <div v-else class="clip-placeholder"></div>
-                    </div>
-                    <div v-if="getSceneClips(scene).length === 0" class="scene-clip clip-empty"></div>
+                    <template v-if="isSceneUpdating(scene, index)">
+                      <div v-for="m in 10" :key="'up-skel-' + index + '-' + m" class="scene-clip">
+                        <div class="skeleton-image" style="height:28px;"></div>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <div v-for="(clip, cidx) in getSceneClips(scene)" :key="cidx" class="scene-clip"
+                        :class="{ active: index === activeSceneIndex }" :style="getClipStyle(scene, clip)">
+                        <video v-if="isVideo(clip.url || scene.thumbnail)" :src="cleanUrl(clip.url || scene.thumbnail)"
+                          :poster="cleanUrl(scene.thumbnail || '')" class="clip-thumbnail" muted loop playsinline
+                          :preload="index < 4 ? 'metadata' : 'none'" disablepictureinpicture></video>
+                        <img v-else-if="shouldRenderImage(clip.url || scene.thumbnail)"
+                          :src="cleanUrl(isVideo(clip.url || scene.thumbnail) ? (scene.thumbnail || '') : (clip.url || scene.thumbnail))"
+                          :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async"
+                          fetchpriority="low" />
+                        <div v-else class="clip-placeholder"></div>
+                      </div>
+                      <div v-if="getSceneClips(scene).length === 0" class="scene-clip clip-empty"></div>
+                    </template>
                   </div>
                   <div class="track-audio">
                     <button v-if="index === activeSceneIndex" class="audio-btn add-audio">
@@ -609,6 +613,7 @@ export default {
       draggedIndex: null,
       entryMode: 'canvas',
       showCropModal: false,
+      updatingKeySet: new Set(),
       // 配音相关数据
       voiceScript: '',
       voiceGender: '女性',
@@ -951,6 +956,18 @@ export default {
     shouldRenderImage(u) {
       return shouldRenderImageUtil(u)
     },
+    getSceneKey(scene, index) {
+      const sn = String((scene && scene.scene_number) || '').trim()
+      if (sn) return 'sn:' + sn
+      const id = String((scene && scene.id) || index)
+      return 'id:' + id
+    },
+    isSceneUpdating(scene, index) {
+      const set = this.updatingKeySet instanceof Set ? this.updatingKeySet : null
+      if (!set) return false
+      const k = this.getSceneKey(scene, index)
+      return set.has(k)
+    },
     async getLocalUrl(u) {
       const projectId = this.$route.params.id
       const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -1144,10 +1161,14 @@ export default {
         if (sceneKey && shotOrder.length) idx = shotOrder.indexOf(sceneKey)
         if (idx < 0) idx = this.scenes.findIndex(sc => !Array.isArray(sc.clips) || !sc.clips.length || !/\.mp4($|\?)/i.test(String(sc.clips[0].url || '')))
         if (idx >= 0 && idx < this.scenes.length) {
+          const k = this.getSceneKey(this.scenes[idx] || {}, idx)
+          if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
+          this.updatingKeySet.add(k)
           const url = this.cleanUrl(item.video_url)
           const dur = this.isVideo(url) ? await this.measureVideoDurationMs(url) : 5000
           const scene = this.scenes[idx]
           scene.clips = [{ url, durationMs: dur }]
+          try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
         }
       }
       this.refreshSidebarFromLocal()
@@ -1276,10 +1297,13 @@ export default {
       }
     },
     async fetchCurrentSceneDetail() {
+      const projectId = this.$route.params.id
+      const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+      const scene = this.scenes[this.activeSceneIndex] || {}
+      const k = this.getSceneKey(scene, this.activeSceneIndex)
+      if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
+      this.updatingKeySet.add(k)
       try {
-        const projectId = this.$route.params.id
-        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-        const scene = this.scenes[this.activeSceneIndex] || {}
         const sceneNumber = String(scene.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : '') || `shot_${this.activeSceneIndex + 1}`)
         const token = (this.userStore && this.userStore.token) || ''
         const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
@@ -1325,6 +1349,8 @@ export default {
         }
       } catch (e) {
         this.refreshSidebarFromLocal()
+      } finally {
+        try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
       }
     },
     async fetchAllSceneDetails() {
@@ -1424,16 +1450,19 @@ export default {
                 if (idx < 0 && order.length) idx = order.indexOf(key)
                 if (idx < 0) idx = i < this.scenes.length ? i : -1
                 if (idx >= 0 && idx < this.scenes.length) {
+                  const k = this.getSceneKey(this.scenes[idx] || {}, idx)
+                  if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
+                  this.updatingKeySet.add(k)
                   const sc = this.scenes[idx]
                   const refImg = this.cleanUrl(item.reference_image_url || sc.thumbnail || '')
                   const vurl = this.cleanUrl(item.video_url || '')
                   const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
                   const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
-                if (refLocal) sc.thumbnail = refLocal
-                if (vLocal) {
-                  const dur = this.isVideo(vLocal) ? await this.measureVideoDurationMs(vLocal) : 5000
-                  sc.clips = [{ url: vLocal, durationMs: dur }]
-                } else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refLocal, durationMs: 5000 }]
+                  if (refLocal) sc.thumbnail = refLocal
+                  if (vLocal) {
+                    const dur = this.isVideo(vLocal) ? await this.measureVideoDurationMs(vLocal) : 5000
+                    sc.clips = [{ url: vLocal, durationMs: dur }]
+                  } else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refLocal, durationMs: 5000 }]
                   const oi = Number(item.order_index || item.orderIndex)
                   if (Number.isFinite(oi) && oi > 0) {
                     sc.order_index = oi
@@ -1448,6 +1477,7 @@ export default {
                     if (desc) sc.description = desc
                   }
                   if (!sc.scene_number) sc.scene_number = key || undefined
+                  try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
                 }
               }
               if (idxMap.size > 0) {
@@ -1466,11 +1496,11 @@ export default {
                 const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
                 this.sceneDetail = { reference_image_url: refLocal, video_url: vLocal }
               }
+              const needsMore = list.some(x => !this.cleanUrl(x.reference_image_url || ''))
+              if (!needsMore) break
             }
           } catch (e) { void 0 }
-          if (attempt < 2) {
-            await new Promise(r => setTimeout(r, 10000))
-          }
+          if (attempt < 2) await new Promise(r => setTimeout(r, 30000))
         }
       } catch (e) { void 0 } finally {
         this.isConverting = false
@@ -1488,6 +1518,9 @@ export default {
         for (let i = 0; i < count; i++) {
           const sc = this.scenes[i] || {}
           const sceneNumber = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[i] : '') || `shot_${i + 1}`)
+          const k = this.getSceneKey(sc, i)
+          if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
+          this.updatingKeySet.add(k)
           const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
           let json
           try { json = JSON.parse(text) } catch { json = null }
@@ -1520,6 +1553,7 @@ export default {
               }
             }
           }
+          try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
         }
         if (!this.sceneDetail.reference_image_url && !this.sceneDetail.video_url) this.refreshSidebarFromLocal()
       } catch (e) { void 0 }
@@ -1531,6 +1565,9 @@ export default {
         const token = (this.userStore && this.userStore.token) || ''
         const sc = this.scenes[i] || {}
         const sceneNumber = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[i] : '') || `shot_${i + 1}`)
+        const k = this.getSceneKey(sc, i)
+        if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
+        this.updatingKeySet.add(k)
         const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
         let json
         try { json = JSON.parse(text) } catch { json = null }
@@ -1561,6 +1598,7 @@ export default {
             this.sceneDetail = { reference_image_url: refImg, video_url: vurl || this.sceneDetail.video_url }
           }
         }
+        try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
       } catch (e) { void 0 }
     },
     async loadServerOrderIndex() {
@@ -1952,11 +1990,15 @@ export default {
       this.showCropModal = false
     },
     async applyCropSelection(sel) {
+      let upKey = null
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
         const scene = this.scenes[this.activeSceneIndex] || {}
+        upKey = this.getSceneKey(scene, this.activeSceneIndex)
+        if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
+        this.updatingKeySet.add(upKey)
         const sceneNumber = String(scene.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
         const fps = 30
         const start_frame = Math.max(0, Math.round((Number(sel.startMs || 0) / 1000) * fps))
@@ -1990,6 +2032,8 @@ export default {
         this.toastText = '裁剪失败，请稍后重试'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 2500)
+      } finally {
+        try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(upKey) } catch (e) { void 0 }
       }
     },
     // 拖拽相关方法
@@ -3010,7 +3054,7 @@ input:checked+.slider:before {
   flex-wrap: nowrap;
   /* 单行 */
   white-space: nowrap;
-  gap: calc(var(--px-per-second) * 5 + var(--timeline-track-gap));
+  gap: calc(var(--px-per-second) * 4.35 + var(--timeline-track-gap));
   /* 刻度间隔与分镜宽度严格对齐 */
   will-change: transform;
   transform: translateX(0);

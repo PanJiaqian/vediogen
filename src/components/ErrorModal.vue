@@ -58,14 +58,16 @@ export default {
   justify-content: center;
   z-index: 3000;
 }
+
 .modal-container {
   width: 420px;
   max-width: 92%;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
   overflow: hidden;
 }
+
 .modal-header {
   display: flex;
   align-items: center;
@@ -73,12 +75,14 @@ export default {
   padding: 14px 16px;
   border-bottom: 1px solid #eee;
 }
+
 .modal-title {
   font-size: 18px;
   font-weight: 600;
   color: #1f2937;
   margin: 0;
 }
+
 .close-btn {
   width: 32px;
   height: 32px;
@@ -87,24 +91,29 @@ export default {
   cursor: pointer;
   color: #6b7280;
 }
+
 .modal-body {
   padding: 24px 20px;
   text-align: center;
 }
+
 .icon {
   font-size: 28px;
   margin-bottom: 10px;
 }
+
 .message {
   font-size: 16px;
   color: #374151;
 }
+
 .modal-footer {
   padding: 14px 16px;
   border-top: 1px solid #eee;
   display: flex;
   justify-content: center;
 }
+
 .primary-btn {
   padding: 8px 16px;
   background: #3b82f6;

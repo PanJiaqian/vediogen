@@ -13,10 +13,7 @@
         <button class="tab-button">上传配音</button>
       </div>
       <div class="text-input-section">
-        <textarea
-          placeholder="输入想要人物讲述的台词"
-          class="text-input"
-        ></textarea>
+        <textarea placeholder="输入想要人物讲述的台词" class="text-input"></textarea>
 
         <!-- 朗读控制 -->
         <div class="playback-controls">
@@ -81,10 +78,7 @@
     <!-- 下部分：画面描述区域（固定高度） -->
     <div class="scene-description-area">
       <h3 class="section-title">画面描述 (选填)</h3>
-      <textarea
-        placeholder="输入对画面内容的描述"
-        class="description-input"
-      ></textarea>
+      <textarea placeholder="输入对画面内容的描述" class="description-input"></textarea>
 
       <!-- 分辨率选择 -->
       <div class="resolution-options">
@@ -226,7 +220,8 @@ export default {
   padding: 0 5px;
 }
 
-.play-button, .pause-button {
+.play-button,
+.pause-button {
   width: 30px;
   height: 30px;
   border: none;
@@ -239,12 +234,14 @@ export default {
   color: #666;
 }
 
-.play-button:hover, .pause-button:hover {
+.play-button:hover,
+.pause-button:hover {
   color: #333;
   background-color: #f0f0f0;
 }
 
-.play-icon, .pause-icon {
+.play-icon,
+.pause-icon {
   font-size: 14px;
 }
 
@@ -330,7 +327,8 @@ export default {
 }
 
 /* 声音音量和语速 */
-.voice-volume, .voice-speed {
+.voice-volume,
+.voice-speed {
   padding: 0 10px;
   margin-bottom: 15px;
 }

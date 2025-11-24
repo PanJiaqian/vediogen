@@ -16,17 +16,11 @@
           <div class="image-upload-area" @click="triggerImageUpload">
             <div v-if="!newSubject.image" class="upload-placeholder">
               <div class="upload-icon">📷</div>
-              <p class="upload-text">点击/拖拽从本地上传<br/>用图描述生成</p>
+              <p class="upload-text">点击/拖拽从本地上传<br />用图描述生成</p>
             </div>
             <img v-else :src="imagePreview" alt="预览图" class="preview-image" />
           </div>
-          <input
-            ref="imageInput"
-            type="file"
-            accept="image/*"
-            @change="handleImageUpload"
-            style="display: none;"
-          />
+          <input ref="imageInput" type="file" accept="image/*" @change="handleImageUpload" style="display: none;" />
         </div>
 
         <!-- 右侧表单区域 -->
@@ -34,12 +28,7 @@
           <!-- 形象名称 -->
           <div class="form-group">
             <label class="form-label">形象名称</label>
-            <input
-              v-model="newSubject.name"
-              type="text"
-              placeholder="请输入形象名称"
-              class="form-input"
-            />
+            <input v-model="newSubject.name" type="text" placeholder="请输入形象名称" class="form-input" />
           </div>
 
           <!-- 类别和性别 -->
@@ -47,12 +36,9 @@
             <div class="form-group half">
               <label class="form-label">类别</label>
               <div class="button-group">
-                <button
-                  v-for="category in ['人类', '动物', '其他']"
-                  :key="category"
+                <button v-for="category in ['人类', '动物', '其他']" :key="category"
                   :class="['option-btn', { 'active': newSubject.category === category }]"
-                  @click="newSubject.category = category"
-                >
+                  @click="newSubject.category = category">
                   {{ category }}
                 </button>
               </div>
@@ -61,12 +47,9 @@
             <div class="form-group half">
               <label class="form-label">性别</label>
               <div class="button-group">
-                <button
-                  v-for="gender in ['男性', '女性']"
-                  :key="gender"
+                <button v-for="gender in ['男性', '女性']" :key="gender"
                   :class="['option-btn', { 'active': newSubject.gender === gender }]"
-                  @click="newSubject.gender = gender"
-                >
+                  @click="newSubject.gender = gender">
                   {{ gender }}
                 </button>
               </div>
@@ -77,12 +60,8 @@
           <div class="form-group">
             <label class="form-label">年龄</label>
             <div class="button-group">
-              <button
-                v-for="age in ['儿童', '少年', '青年', '中年', '老年']"
-                :key="age"
-                :class="['option-btn', { 'active': newSubject.age === age }]"
-                @click="newSubject.age = age"
-              >
+              <button v-for="age in ['儿童', '少年', '青年', '中年', '老年']" :key="age"
+                :class="['option-btn', { 'active': newSubject.age === age }]" @click="newSubject.age = age">
                 {{ age }}
               </button>
             </div>
@@ -91,12 +70,7 @@
           <!-- 主体描述 -->
           <div class="form-group">
             <label class="form-label">主体描述</label>
-            <textarea
-              v-model="newSubject.description"
-              placeholder="请输入主体描述"
-              class="form-textarea"
-              rows="4"
-            ></textarea>
+            <textarea v-model="newSubject.description" placeholder="请输入主体描述" class="form-textarea" rows="4"></textarea>
           </div>
         </div>
       </div>
@@ -189,7 +163,7 @@ export default {
       if (file) {
         // 保存文件对象用于上传
         this.imageFile = file
-        
+
         const reader = new FileReader()
         reader.onload = (e) => {
           this.imagePreview = e.target.result
@@ -211,25 +185,25 @@ export default {
           this.showMessage('请先登录', 'error')
           return
         }
-        
+
         const formdata = new FormData()
         formdata.append("name", this.newSubject.name)
         formdata.append("category", this.newSubject.category)
         formdata.append("gender", this.newSubject.gender === '男性' ? '男' : '女')
         formdata.append("ageRange", this.newSubject.age)
         formdata.append("themeDescription", this.newSubject.description || '')
-        
+
         // 如果有图片文件，添加到formdata
         if (this.imageFile) {
           formdata.append("imagefile", this.imageFile)
         }
-        
+
         // 使用统一 API 上传素材
         const result = await uploadMaterial({ token, formData: formdata })
         const data = JSON.parse(result)
-        
+
         console.log('上传素材响应:', data)
-        
+
         if (data.code === 0) {
           this.showMessage('素材上传成功！')
           // 发送提交事件，通知父组件刷新列表
@@ -239,7 +213,7 @@ export default {
         } else {
           this.showMessage('上传失败: ' + data.message, 'error')
         }
-        
+
       } catch (error) {
         console.error('上传素材失败:', error)
         this.showMessage('上传失败，请重试', 'error')
@@ -531,6 +505,7 @@ export default {
     opacity: 0;
     transform: translateX(-50%) translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);

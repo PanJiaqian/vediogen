@@ -242,9 +242,9 @@ export default {
         }
       ],
       searchSuggestions: [
-        { id: 1, text: '小羊介绍新疆伊犁的...' },
-        { id: 2, text: '女娲后人与修道者三...' },
-        { id: 3, text: '婚礼现场揭穿未婚夫...' }
+        { id: 1, text: '小羊介绍新疆伊犁的自然风光' },
+        { id: 2, text: '女娲后人与修道者大战' },
+        { id: 3, text: '末世逃亡' }
       ],
       recommendations: [],
       // 页面消息
@@ -307,7 +307,14 @@ export default {
     },
     applySuggestion(suggestionText) {
       this.searchQuery = suggestionText
-      this.handleSearch()
+      try {
+        const input = this.$el && this.$el.querySelector && this.$el.querySelector('.search-input')
+        if (input) {
+          input.focus()
+          const len = String(this.searchQuery || '').length
+          if (input.setSelectionRange) input.setSelectionRange(len, len)
+        }
+      } catch (e) { /* no-op */ }
     },
     openRecommendation(item) {
       // 跳转到灵感详情页面

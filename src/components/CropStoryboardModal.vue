@@ -8,8 +8,8 @@
       <div class="modal-body">
         <div class="preview-area">
           <div class="preview-box">
-            <video v-if="isVideo" ref="previewVideo" :src="clean(videoUrl)" :poster="clean(imageUrl)" class="preview-video" muted loop
-              playsinline preload="metadata"></video>
+            <video v-if="isVideo" ref="previewVideo" :src="clean(videoUrl)" :poster="clean(imageUrl)"
+              class="preview-video" muted loop playsinline preload="metadata"></video>
             <img v-else :src="clean(imageUrl)" class="preview-image" />
           </div>
         </div>
@@ -20,7 +20,8 @@
             <div ref="trackInner" class="track-inner">
               <div class="frames" :style="{ backgroundImage: 'url(' + clean(frameUrl) + ')' }"></div>
               <div class="selection" :style="selectionStyle"></div>
-              <div class="handle handle-start" :style="startStyle" @mousedown.stop="onHandleDown('start', $event)"></div>
+              <div class="handle handle-start" :style="startStyle" @mousedown.stop="onHandleDown('start', $event)">
+              </div>
               <div class="handle handle-end" :style="endStyle" @mousedown.stop="onHandleDown('end', $event)"></div>
             </div>
           </div>
@@ -62,7 +63,14 @@ export default {
   computed: {
     isVideo() {
       const s = this.clean(this.videoUrl)
-      return /\.(mp4|webm|mov|m3u8)(\?|#|$)/i.test(s)
+      if (!s) return false
+      if (/\.(png|jpe?g|gif|webp|bmp)(\?|#|$)/i.test(s)) return false
+      if (/^blob:/i.test(s)) return true
+      if (/^data:video\//i.test(s)) return true
+      if (/\.(mp4|webm|mov|m3u8)(\?|#|$)/i.test(s)) return true
+      const lower = s.toLowerCase()
+      if (lower.includes('type=video') || lower.includes('mediatype=video')) return true
+      return false
     },
     frameUrl() {
       return this.clean(this.imageUrl || this.videoUrl)
@@ -118,6 +126,8 @@ export default {
         const s = Math.max(0, Math.min(dur, (this.startPct / 100) * dur))
         const e = Math.max(s + 0.05, Math.min(dur, (this.endPct / 100) * dur))
         try { el.loop = false } catch (err) { void 0 }
+        try { el.muted = true } catch (err) { void 0 }
+        try { el.playsInline = true } catch (err) { void 0 }
         try { el.currentTime = s } catch (err) { void 0 }
         this._endBoundary = e
         const onTime = () => {

@@ -263,11 +263,11 @@ export default {
       //     this.errors.phone = '请输入正确的手机号'
       //   }
       // } else {
-        if (!this.formData.email) {
-          this.errors.email = '请输入邮箱'
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.formData.email)) {
-          this.errors.email = '请输入正确的邮箱格式'
-        }
+      if (!this.formData.email) {
+        this.errors.email = '请输入邮箱'
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.formData.email)) {
+        this.errors.email = '请输入正确的邮箱格式'
+      }
       // }
 
       // 验证密码
@@ -696,7 +696,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -708,7 +708,7 @@ export default {
   border-radius: 12px;
   padding: 20px 24px;
   min-width: 280px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   text-align: center;
 }
 
