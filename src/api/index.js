@@ -553,6 +553,17 @@ export async function clipStoryboardVideo({ videoId, sceneNumber, start_frame, e
   }
 }
 
+export async function deleteConversation({ conversationId, token }) {
+  const url = `${BASE_URL}/detail/conversation/delete?conversationId=${encodeURIComponent(conversationId)}`
+  const requestOptions = {
+    method: 'POST',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  return res.text()
+}
+
 export default {
   scriptModifyStream,
   storyboardPictureGenStream,
@@ -576,4 +587,5 @@ export default {
   , copyStoryboardVideo
   , reorderStoryboardScenes
   , clipStoryboardVideo
+  , deleteConversation
 }

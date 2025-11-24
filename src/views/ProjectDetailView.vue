@@ -485,6 +485,35 @@ export default {
         await scriptGenStream({
           stageDirections, materialId, category, token, signal: this._sseGenCtrl.signal, onEvent: (obj) => {
             if (!obj || obj.type === 'connected') return
+            const arr = obj && obj.videoIdArray
+            const cid = obj && obj.conversationId
+            const vid = obj && obj.videoId
+            if (Array.isArray(arr) && arr.length && cid && vid) {
+              const projectId = this.$route.params.id
+              try { localStorage.setItem(`project:conversationId:${projectId}`, String(cid)) } catch (e) { /* no-op */ }
+              try { localStorage.setItem(`project:videoId:${projectId}`, String(vid)) } catch (e) { /* no-op */ }
+              try { localStorage.setItem(`project:script_gen_finished:${projectId}`, '1') } catch (e) { /* no-op */ }
+              const token2 = (this.userStore && this.userStore.token) || ''
+              if (token2) {
+                (async () => {
+                  try {
+                    const text = await getScriptDetailByVideo({ videoId: String(vid), token: token2 })
+                    try { localStorage.setItem(`project:script_detail_json:${projectId}`, text) } catch (e) { /* no-op */ }
+                    let objj = null
+                    try { objj = JSON.parse(text) } catch (e) { objj = null }
+                    const dataObj = objj && objj.data ? objj.data : objj
+                    if (dataObj && dataObj.title) {
+                      this.project.title = dataObj.title
+                      try { localStorage.setItem(`project:prompt:${projectId}`, String(dataObj.title)) } catch (e) { /* no-op */ }
+                    }
+                  } catch (e) { /* no-op */ }
+                  try { await this.loadVersionList() } catch (e) { /* no-op */ }
+                })()
+              }
+              this.isSubmitting = false
+              this.loadingSections = { art: false, music: false, summary: false, people: false, scene: false, storyboard: false }
+              return
+            }
             if (obj.status && String(obj.status).toLowerCase() === 'workflow_finished') {
               this.isSubmitting = false
               this.loadingSections = { art: false, music: false, summary: false, people: false, scene: false, storyboard: false }
@@ -619,6 +648,32 @@ export default {
           signal: this._sseModCtrl.signal,
           onEvent: (obj) => {
             if (!obj || obj.type === 'connected') return
+            const arr = obj && obj.videoIdArray
+            const cid = obj && obj.conversationId
+            const vid = obj && obj.videoId
+            if (Array.isArray(arr) && arr.length && cid && vid) {
+              const projectId = this.$route.params.id
+              try { localStorage.setItem(`project:conversationId:${projectId}`, String(cid)) } catch (e) { /* no-op */ }
+              try { localStorage.setItem(`project:videoId:${projectId}`, String(vid)) } catch (e) { /* no-op */ }
+              const token2 = (this.userStore && this.userStore.token) || ''
+              if (token2) {
+                (async () => {
+                  try {
+                    const text = await getScriptDetailByVideo({ videoId: String(vid), token: token2 })
+                    try { localStorage.setItem(`project:script_detail_json:${projectId}`, text) } catch (e) { /* no-op */ }
+                    let objj = null
+                    try { objj = JSON.parse(text) } catch (e) { objj = null }
+                    const dataObj = objj && objj.data ? objj.data : objj
+                    if (dataObj && dataObj.title) {
+                      this.project.title = dataObj.title
+                      try { localStorage.setItem(`project:prompt:${projectId}`, String(dataObj.title)) } catch (e) { /* no-op */ }
+                    }
+                  } catch (e) { /* no-op */ }
+                  try { await this.loadVersionList() } catch (e) { /* no-op */ }
+                })()
+              }
+              return
+            }
             this.applyParsedData([obj])
           }
         })
@@ -1086,7 +1141,10 @@ export default {
           this.applyParsedData([dataObj])
         }
       } else {
-        await this.startScriptGenStream()
+        const done = localStorage.getItem(`project:script_gen_finished:${projectId}`) === '1'
+        if (!done) {
+          await this.startScriptGenStream()
+        }
       }
       await this.loadVersionList()
       await this.loadConversationMessages()

@@ -32,12 +32,23 @@
         class="project-card"
         @click="openProject(project)"
       >
+        <button class="delete-fab" @click.stop="confirmDelete(project)">×</button>
         <div class="project-thumbnail">
           <img :src="project.thumbnail" :alt="project.name" />
         </div>
         <div class="project-info">
           <h3 class="project-name">{{ project.name }}</h3>
           <p class="project-date">{{ formatDateTime(project.createdAt) }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="deleteConfirmVisible" class="delete-modal-overlay" @click="closeDeleteConfirm">
+      <div class="delete-modal" @click.stop>
+        <div class="delete-modal-title">是否要删除该作品</div>
+        <div class="delete-modal-actions">
+          <button class="delete-cancel" @click="closeDeleteConfirm">取消</button>
+          <button class="delete-confirm" @click="doDelete">确认</button>
         </div>
       </div>
     </div>
@@ -51,7 +62,7 @@
 
 <script>
 import { generateGradientPlaceholder } from '@/utils/placeholder'
-import { getMyWorksList, getStoryboardImagesDetail, queryStoryboardVideoStatus, getWorksVideoStatus, getScriptDetailByVideo } from '@/api/index.js'
+import { getMyWorksList, getStoryboardImagesDetail, queryStoryboardVideoStatus, getWorksVideoStatus, getScriptDetailByVideo, deleteConversation } from '@/api/index.js'
 import { useUserStore } from '@/stores/user.js'
 
 export default {
@@ -65,7 +76,9 @@ export default {
       ],
       storyProjects: [],
       avatarProjects: [],
-      isLoading: true
+      isLoading: true,
+      deleteConfirmVisible: false,
+      deleteTarget: null
     }
   },
   computed: {
@@ -99,6 +112,7 @@ export default {
 
             const mapped = {
               id: (item?.recentVideoId ?? item?.conversationId),
+              conversationId: item?.conversationId,
               name,
               createdAt: item?.createdAt || '',
               thumbnail: thumb,
@@ -252,8 +266,33 @@ export default {
     duplicateProject(project) {
       // 实现复制项目逻辑
     },
-    deleteProject(project) {
-      // 实现删除项目逻辑
+    confirmDelete(project) {
+      this.deleteTarget = project
+      this.deleteConfirmVisible = true
+    },
+    closeDeleteConfirm() {
+      this.deleteConfirmVisible = false
+      this.deleteTarget = null
+    },
+    async doDelete() {
+      try {
+        const token = this.userStore?.token || ''
+        const conversationId = String(this.deleteTarget?.conversationId || '')
+        if (!token || !conversationId) { this.closeDeleteConfirm(); return }
+        const text = await deleteConversation({ conversationId, token })
+        let resp
+        try { resp = JSON.parse(text) } catch { resp = null }
+        const ok = !!(resp && resp.code === 0 && (resp.data && resp.data.success === true))
+        if (ok) {
+          const id = this.deleteTarget.id
+          if (this.deleteTarget.type === 'story') {
+            this.storyProjects = this.storyProjects.filter(p => p.id !== id)
+          } else {
+            this.avatarProjects = this.avatarProjects.filter(p => p.id !== id)
+          }
+        }
+      } catch (e) { console.warn('删除作品失败:', e) }
+      this.closeDeleteConfirm()
     },
     getStatusText(status) {
       const statusMap = {
@@ -343,6 +382,7 @@ export default {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   cursor: pointer;
+  position: relative;
 }
 
 .project-card:hover {
@@ -462,6 +502,81 @@ export default {
   .project-card {
     margin-bottom: 15px;
   }
+}
+</style>
+<style scoped>
+.delete-fab {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: #ffffff;
+  font-size: 16px;
+  line-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  z-index: 10;
+}
+
+.delete-fab:hover {
+  background: #e5e7eb;
+}
+
+.delete-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2500;
+}
+
+.delete-modal {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  min-width: 280px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  text-align: center;
+}
+
+.delete-modal-title {
+  font-size: 14px;
+  color: #111827;
+  margin-bottom: 12px;
+}
+
+.delete-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.delete-cancel {
+  padding: 8px 16px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  border-radius: 6px;
+  color: #374151;
+}
+
+.delete-confirm {
+  padding: 8px 16px;
+  border: none;
+  background: #ef4444;
+  border-radius: 6px;
+  color: #ffffff;
 }
 </style>
 .project-date {
