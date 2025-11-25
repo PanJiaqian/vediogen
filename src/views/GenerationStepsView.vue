@@ -72,6 +72,11 @@
     </div>
   </div>
   <ErrorModal :visible="errorModalVisible" :message="errorMessage" @close="errorModalVisible = false" />
+  <div v-if="timeoutPromptVisible" class="center-prompt-overlay">
+    <div class="center-prompt">
+      <div class="prompt-text">由于任务生成时间过长，自动为您转到后台运行</div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -100,12 +105,16 @@ export default {
       progressIntervalMs: 1000,
       isContentComplete: false,
       errorModalVisible: false,
-      errorMessage: '分镜生成失败，请稍后再试'
+      errorMessage: '分镜生成失败，请稍后再试',
+      generationTimeout: null,
+      timeoutPromptVisible: false,
+      timeoutRedirectTimer: null
     }
   },
   mounted() {
     this.startGeneration()
     this.startSSE()
+    this.startGenerationTimeout()
   },
   beforeUnmount() {
     if (this.progressTimer) {
@@ -115,6 +124,12 @@ export default {
       clearTimeout(this.stepTimer)
     }
     try { if (this._ssePicCtrl && this._ssePicCtrl.abort) this._ssePicCtrl.abort() } catch (e) { void e }
+    if (this.generationTimeout) {
+      clearTimeout(this.generationTimeout)
+    }
+    if (this.timeoutRedirectTimer) {
+      clearTimeout(this.timeoutRedirectTimer)
+    }
   },
   methods: {
     cleanUrl(u) {
@@ -175,6 +190,9 @@ export default {
               if (!obj || obj.type === 'connected') return
               if (obj.Storyboard_picture) {
                 this.isContentComplete = true
+                if (this.generationTimeout) clearTimeout(this.generationTimeout)
+                if (this.timeoutRedirectTimer) clearTimeout(this.timeoutRedirectTimer)
+                this.timeoutPromptVisible = false
                 this.handleStoryboardPicture(obj.Storyboard_picture)
               }
             }
@@ -186,10 +204,23 @@ export default {
             this.errorModalVisible = true
             this.currentStep = this.steps.length - 1
             this.progress = 97.7
+            if (this.generationTimeout) clearTimeout(this.generationTimeout)
+            if (this.timeoutRedirectTimer) clearTimeout(this.timeoutRedirectTimer)
             return
           }
         }
       }
+    },
+    startGenerationTimeout() {
+      if (this.generationTimeout) clearTimeout(this.generationTimeout)
+      this.generationTimeout = setTimeout(() => {
+        this.timeoutPromptVisible = true
+        try { if (this._ssePicCtrl && this._ssePicCtrl.abort) this._ssePicCtrl.abort() } catch (e) { void e }
+        if (this.timeoutRedirectTimer) clearTimeout(this.timeoutRedirectTimer)
+        this.timeoutRedirectTimer = setTimeout(() => {
+          this.$router.push('/')
+        }, 8000)
+      }, 300000)
     },
     handleStoryboardPicture(sb) {
       const projectId = this.$route.params.id
@@ -430,6 +461,34 @@ export default {
 .status-completed {
   color: #10b981;
   font-weight: 500;
+}
+
+.center-prompt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2500;
+}
+
+.center-prompt {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  min-width: 280px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.prompt-text {
+  font-size: 14px;
+  color: #111827;
+  margin-bottom: 12px;
 }
 
 /* 响应式设计 */

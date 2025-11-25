@@ -16,7 +16,7 @@
       <div class="navbar-right">
         <button class="navbar-btn premium-btn">开通会员</button>
         <button class="navbar-btn convert-btn" @click="convertToVideo"
-          :disabled="!allImagesReady || isVideo(currentPreviewUrl)">一键转视频</button>
+          :disabled="!allImagesReady || isVideo(currentPreviewUrl) || previewImgErrored">一键转视频</button>
         <button class="navbar-btn export-btn">导出视频</button>
       </div>
     </div>
@@ -174,7 +174,7 @@
               </div>
               <div class="input-footer">
                 <button class="convert-video-btn" @click="convertToVideo"
-                  :disabled="entryMode === 'crop' || isVideo(currentPreviewUrl)">
+                  :disabled="entryMode === 'crop' || isVideo(currentPreviewUrl) || previewImgErrored">
                   <span>转视频</span>
                 </button>
                 <div class="input-footer-right">
@@ -343,9 +343,12 @@
               <video v-if="isVideo(sceneDetail.video_url)" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)"
                 :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" playsinline muted loop
                 class="video-image"></video>
-              <img v-else :src="cleanUrl(sceneDetail.reference_image_url)"
+              <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url)" :src="cleanUrl(sceneDetail.reference_image_url)"
                 :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image"
-                decoding="async" fetchpriority="high" />
+                decoding="async" fetchpriority="high" @error="onPreviewImgError" />
+              <div v-if="!isVideo(sceneDetail.video_url) && previewImgErrored" class="video-overlay">
+                <div class="error-banner">小梦刚刚打了个盹，快来试试重新生成吧~</div>
+              </div>
             </template>
           </div>
           <div class="preview-aside">
@@ -500,10 +503,10 @@
                         <video v-if="isVideo(clip.url || scene.thumbnail)" :src="cleanUrl(clip.url || scene.thumbnail)"
                           :poster="cleanUrl(scene.thumbnail || '')" class="clip-thumbnail" muted loop playsinline
                           :preload="index < 4 ? 'metadata' : 'none'" disablepictureinpicture></video>
-                        <img v-else-if="shouldRenderImage(clip.url || scene.thumbnail)"
-                          :src="cleanUrl(isVideo(clip.url || scene.thumbnail) ? (scene.thumbnail || '') : (clip.url || scene.thumbnail))"
+                        <img v-else-if="shouldRenderImage(clip.url || scene.thumbnail) && !isClipImgErrored(index, cidx)"
+                          :src="cleanUrl(clip.url || scene.thumbnail)"
                           :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async"
-                          fetchpriority="low" />
+                          fetchpriority="low" @error="onClipImgError(index, cidx)" />
                         <div v-else class="clip-placeholder"></div>
                       </div>
                       <div v-if="getSceneClips(scene).length === 0" class="scene-clip clip-empty"></div>
@@ -640,7 +643,9 @@ export default {
       isConverting: false,
       sceneDetail: { reference_image_url: '', video_url: '' },
       toastVisible: false,
-      toastText: ''
+      toastText: '',
+      previewImgErrored: false,
+      clipImgErrorMap: {}
     }
   },
   beforeUnmount() {
@@ -666,6 +671,17 @@ export default {
         const parsed = JSON.parse(scenesStr)
         if (Array.isArray(parsed) && parsed.length) {
           this.scenes = parsed
+          try {
+            for (let i = 0; i < this.scenes.length; i++) {
+              const sc = this.scenes[i] || {}
+              const thumb = this.cleanUrl(sc.thumbnail || '')
+              if (/^blob:/i.test(thumb)) sc.thumbnail = ''
+              if (Array.isArray(sc.clips) && sc.clips.length) {
+                const u = this.cleanUrl(sc.clips[0].url || '')
+                if (/^blob:/i.test(u)) sc.clips[0].url = this.cleanUrl(sc.thumbnail || '')
+              }
+            }
+          } catch (e) { void 0 }
           this.activeSceneIndex = 0
           this.updateTimeMarkers()
           this.sortScenesByServerOrder()
@@ -748,6 +764,7 @@ export default {
     this.fetchCurrentSceneDetail()
     this.prefetchInitialScenesDetails()
     if (!this._entryIsGenerate) this.pollStoryboardImagesDetail()
+    this.precacheSceneThumbnails()
   },
   computed: {
     userStore() {
@@ -783,6 +800,7 @@ export default {
   },
   watch: {
     activeSceneIndex() {
+      this.previewImgErrored = false
       this.fetchCurrentSceneDetail()
     },
     scenes: {
@@ -1153,6 +1171,7 @@ export default {
     async updateScenesWithQueryItems(items) {
       if (!Array.isArray(items) || !items.length) return
       const shotOrder = Array.isArray(this._shotOrder) ? this._shotOrder : []
+      let anySucceeded = false
       for (let it = 0; it < items.length; it++) {
         const item = items[it]
         if (!item || item.status !== 'SUCCEEDED' || !item.video_url) continue
@@ -1168,10 +1187,19 @@ export default {
           const dur = this.isVideo(url) ? await this.measureVideoDurationMs(url) : 5000
           const scene = this.scenes[idx]
           scene.clips = [{ url, durationMs: dur }]
+          if (idx === this.activeSceneIndex) {
+            const thumb = this.cleanUrl(scene.thumbnail || '')
+            this.sceneDetail = { reference_image_url: thumb, video_url: url }
+          }
           try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
+          anySucceeded = true
         }
       }
       this.refreshSidebarFromLocal()
+      if (anySucceeded) {
+        this.isConverting = false
+        this.updateTimeMarkers()
+      }
       const allDone = items.length > 0 && items.every(it => {
         const s = String(it.status || '').toLowerCase()
         return s === 'succeeded' || s === 'success' || s === 'failed'
@@ -1182,7 +1210,13 @@ export default {
     getSceneClips(scene) {
       let baseUrl = ''
       let duration = 0
-      if (scene && Array.isArray(scene.clips) && scene.clips.length > 0) {
+      const active = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+      const useActiveImage = active && scene === active && this.shouldRenderImage(this.sceneDetail.reference_image_url)
+      if (useActiveImage) {
+        baseUrl = this.cleanUrl(this.sceneDetail.reference_image_url || '')
+        const c = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
+        duration = Number(c && c.durationMs) || 5000
+      } else if (scene && Array.isArray(scene.clips) && scene.clips.length > 0) {
         const first = scene.clips[0] || {}
         baseUrl = this.cleanUrl((first && first.url) || (scene && scene.thumbnail) || '')
         duration = Number(first && first.durationMs) || 5000
@@ -1205,6 +1239,20 @@ export default {
       const total = clips.reduce((sum, c) => sum + (Number(c.durationMs) || 5000), 0) || 1
       const widthPct = Math.max(2, Math.round(((Number(clip.durationMs) || 5000) / total) * 100))
       return { width: widthPct + '%', minWidth: '28px' }
+    },
+    onPreviewImgError() {
+      this.previewImgErrored = true
+    },
+    getClipKey(index, cidx) {
+      return String(index) + ':' + String(cidx)
+    },
+    isClipImgErrored(index, cidx) {
+      const k = this.getClipKey(index, cidx)
+      return !!this.clipImgErrorMap[k]
+    },
+    onClipImgError(index, cidx) {
+      const k = this.getClipKey(index, cidx)
+      this.$set ? this.$set(this.clipImgErrorMap, k, true) : (this.clipImgErrorMap[k] = true)
     },
     sortScenesByOrder() {
       const order = Array.isArray(this._shotOrder) ? this._shotOrder : []
@@ -1319,10 +1367,10 @@ export default {
           const targetIndex = this.activeSceneIndex
           if (targetIndex >= 0 && targetIndex < this.scenes.length) {
             const target = this.scenes[targetIndex]
-            if (refLocal) target.thumbnail = refLocal
-            if (vlocal) {
-              const dur = this.isVideo(vlocal) ? await this.measureVideoDurationMs(vlocal) : 5000
-              target.clips = [{ url: vlocal, durationMs: dur }]
+            if (refImg) target.thumbnail = refImg
+            if (vurl) {
+              const dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
+              target.clips = [{ url: vurl, durationMs: dur }]
             }
             const oi = Number(data.order_index || data.orderIndex)
             if (Number.isFinite(oi) && oi > 0) {
@@ -1386,11 +1434,11 @@ export default {
             const vurl = this.cleanUrl(item.video_url || '')
             const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
             const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
-            if (refLocal) sc.thumbnail = refLocal
-            if (vLocal) {
-              const dur = this.isVideo(vLocal) ? await this.measureVideoDurationMs(vLocal) : 5000
-              sc.clips = [{ url: vLocal, durationMs: dur }]
-            } else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refLocal, durationMs: 5000 }]
+            if (refImg) sc.thumbnail = refImg
+            if (vurl) {
+              const dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
+              sc.clips = [{ url: vurl, durationMs: dur }]
+            } else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 5000 }]
             const oi = Number(item.order_index || item.orderIndex)
             if (Number.isFinite(oi) && oi > 0) {
               sc.order_index = oi
@@ -1458,11 +1506,11 @@ export default {
                   const vurl = this.cleanUrl(item.video_url || '')
                   const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
                   const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
-                  if (refLocal) sc.thumbnail = refLocal
-                  if (vLocal) {
-                    const dur = this.isVideo(vLocal) ? await this.measureVideoDurationMs(vLocal) : 5000
-                    sc.clips = [{ url: vLocal, durationMs: dur }]
-                  } else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refLocal, durationMs: 5000 }]
+                  if (refImg) sc.thumbnail = refImg
+                  if (vurl) {
+                    const dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
+                    sc.clips = [{ url: vurl, durationMs: dur }]
+                  } else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 5000 }]
                   const oi = Number(item.order_index || item.orderIndex)
                   if (Number.isFinite(oi) && oi > 0) {
                     sc.order_index = oi
@@ -1534,10 +1582,10 @@ export default {
             const targetIndex = i
             if (targetIndex >= 0 && targetIndex < this.scenes.length) {
               const target = this.scenes[targetIndex]
-              if (refLocal) target.thumbnail = refLocal
-              if (vLocal) {
-                const dur = this.isVideo(vLocal) ? await this.measureVideoDurationMs(vLocal) : 5000
-                target.clips = [{ url: vLocal, durationMs: dur }]
+              if (refImg) target.thumbnail = refImg
+              if (vurl) {
+                const dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
+                target.clips = [{ url: vurl, durationMs: dur }]
               }
               const content = data && data.prompt && data.prompt.content ? data.prompt.content : null
               if (content) {
@@ -1556,6 +1604,17 @@ export default {
           try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
         }
         if (!this.sceneDetail.reference_image_url && !this.sceneDetail.video_url) this.refreshSidebarFromLocal()
+      } catch (e) { void 0 }
+    },
+    async precacheSceneThumbnails() {
+      try {
+        const arr = Array.isArray(this.scenes) ? this.scenes : []
+        for (let i = 0; i < arr.length; i++) {
+          const sc = arr[i] || {}
+          const u = this.cleanUrl(sc.thumbnail || '')
+          if (!u) continue
+          try { await this.getLocalUrl(u) } catch (e) { void 0 }
+        }
       } catch (e) { void 0 }
     },
     async prefetchSceneDetailByIndex(i) {
@@ -1790,7 +1849,9 @@ export default {
         let result
         try { result = JSON.parse(text) } catch { result = { raw: text } }
         console.log('一键转视频接口返回:', result)
-        this.successModalVisible = true
+        this.toastText = '第一个视频会在1分钟左右显示，5~7分钟'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 4000)
         // 每30秒轮询一次分镜视频生成状态（localhost）
         if (this._storyboardQueryInterval) clearInterval(this._storyboardQueryInterval)
         this._storyboardQueryInterval = setInterval(async () => {
@@ -2012,11 +2073,11 @@ export default {
           const url = await this.getLocalUrl(remote)
           const durMs = Number(data.duration) ? Math.round(Number(data.duration) * 1000) : Math.max(1, Number(sel.endMs || 0) - Number(sel.startMs || 0)) || 5000
           if (Array.isArray(scene.clips) && scene.clips.length) {
-            scene.clips[0] = { url, durationMs: durMs }
+            scene.clips[0] = { url: remote, durationMs: durMs }
           } else {
-            scene.clips = [{ url: url || this.cleanUrl(scene.thumbnail || ''), durationMs: durMs }]
+            scene.clips = [{ url: remote || this.cleanUrl(scene.thumbnail || ''), durationMs: durMs }]
           }
-          const thumbLocal = scene.thumbnail ? scene.thumbnail : ''
+          const thumbLocal = scene.thumbnail ? await this.getLocalUrl(this.cleanUrl(scene.thumbnail || '')) : ''
           this.sceneDetail = { reference_image_url: thumbLocal, video_url: url }
           this.updateTimeMarkers()
           this.toastText = '裁剪成功'
@@ -2817,6 +2878,14 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.error-banner {
+  background: rgba(17, 24, 39, 0.85);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
 }
 
 .play-button {

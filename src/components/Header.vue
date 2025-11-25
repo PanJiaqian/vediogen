@@ -166,7 +166,8 @@ export default {
         this.userStore.setToken(user.token)
       }
       this.hideLoginModal()
-      this.openCenterPrompt('登录成功！')
+      const t = String(payload && payload.type || '').toLowerCase()
+      this.openCenterPrompt(t === 'register' ? '注册成功！' : '登录成功！')
     },
 
     // 第三方登录处理

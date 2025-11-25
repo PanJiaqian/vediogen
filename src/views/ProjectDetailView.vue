@@ -91,9 +91,9 @@
               <div class="detail-sub">外观：{{ p.Appearance }}</div>
             </div>
             <div class="detail-card-image">
-              <img v-if="p.Character_picture && !isGenerateFailed(p.Character_picture)"
+              <img v-if="p.Character_picture && !isGenerateFailed(p.Character_picture) && !isCharacterImgErrored(p)"
                 :src="cleanUrl(p.Character_picture)" alt="人物图片" class="image-clickable"
-                @click="openImagePreview(cleanUrl(p.Character_picture))" />
+                @click="openImagePreview(cleanUrl(p.Character_picture))" @error="onCharacterImgError(p)" />
               <div v-else class="detail-card-placeholder" @click="handleRegenerateCharacter(p)">重新生成</div>
             </div>
           </div>
@@ -118,9 +118,9 @@
               <div class="detail-sub">场景元素：{{ s.Scene_Elements }}</div>
             </div>
             <div class="detail-card-image">
-              <img v-if="s.Scene_picture_url && !isGenerateFailed(s.Scene_picture_url)"
+              <img v-if="s.Scene_picture_url && !isGenerateFailed(s.Scene_picture_url) && !isSceneImgErrored(s)"
                 :src="cleanUrl(s.Scene_picture_url)" alt="场景图片" class="image-clickable"
-                @click="openImagePreview(cleanUrl(s.Scene_picture_url))" />
+                @click="openImagePreview(cleanUrl(s.Scene_picture_url))" @error="onSceneImgError(s)" />
               <div v-else class="detail-card-placeholder" @click="handleRegenerateScene(s)">重新生成</div>
             </div>
           </div>
@@ -310,7 +310,9 @@ export default {
       versions: [],
       selectedVersionIndex: null,
       toastVisible: false,
-      toastText: ''
+      toastText: '',
+      sceneImgErrorMap: {},
+      characterImgErrorMap: {}
     }
   },
   computed: {
@@ -715,6 +717,12 @@ export default {
       this.imagePreviewVisible = false
       this.imagePreviewSrc = ''
     },
+    getSceneKey(s) { try { return String(s.Scene_Name || s.scene_title || '').trim() || String(s.scene_id || '').trim() } catch (e) { return '' } },
+    isSceneImgErrored(s) { const k = this.getSceneKey(s); return !!(k && this.sceneImgErrorMap[k]) },
+    onSceneImgError(s) { const k = this.getSceneKey(s); if (k) { this.$set ? this.$set(this.sceneImgErrorMap, k, true) : (this.sceneImgErrorMap[k] = true) } },
+    getCharacterKey(p) { try { return String(p.Character_Name || '').trim() } catch (e) { return '' } },
+    isCharacterImgErrored(p) { const k = this.getCharacterKey(p); return !!(k && this.characterImgErrorMap[k]) },
+    onCharacterImgError(p) { const k = this.getCharacterKey(p); if (k) { this.$set ? this.$set(this.characterImgErrorMap, k, true) : (this.characterImgErrorMap[k] = true) } },
     scrollToSection(title) {
       try {
         const container = this.$refs && this.$refs.leftContent

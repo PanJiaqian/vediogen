@@ -26,8 +26,8 @@
       <div class="search-container">
         <div class="search-box">
           <div class="search-input-container">
-            <input v-model="searchQuery" type="text" maxlength="250" class="search-input" placeholder="输入你的想法，小梦会帮你自动为你创作"
-              @keyup.enter="handleSearch" />
+            <textarea v-model="searchQuery" rows="3" maxlength="250" class="search-input" placeholder="输入你的想法，小梦会帮你自动为你创作"
+              @keyup.enter="handleSearch"></textarea>
           </div>
           <div class="search-actions-container">
             <div class="left-actions">
@@ -271,9 +271,18 @@ export default {
     document.addEventListener('click', this.handleClickOutside)
     this.loadCreativeWorks()
     this.loadPersonalSubjects()
+    try {
+      const saved = localStorage.getItem('home:searchQuery')
+      if (typeof saved === 'string') this.searchQuery = saved
+    } catch (e) { /* no-op */ }
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside)
+  },
+  watch: {
+    searchQuery(val) {
+      try { localStorage.setItem('home:searchQuery', String(val || '')) } catch (e) { /* no-op */ }
+    }
   },
   methods: {
     showMessage(text, type = 'success') {
@@ -304,6 +313,7 @@ export default {
         localStorage.setItem(`project:videoId:${projectId}`, projectId)
       } catch (e) { /* no-op */ }
       this.$router.push({ name: 'ProjectDetail', params: { id: projectId }, query: { q: stageDirections, category, materialId } })
+      this.searchQuery = ''
     },
     applySuggestion(suggestionText) {
       this.searchQuery = suggestionText
@@ -596,6 +606,17 @@ export default {
   background: transparent;
   padding: 0.5rem 0;
   text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  resize: vertical;
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.search-input::-webkit-scrollbar {
+  display: none;
 }
 
 .search-input::placeholder {

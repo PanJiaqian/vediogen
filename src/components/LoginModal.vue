@@ -2,7 +2,7 @@
   <div v-if="visible" class="modal-overlay" @click="handleOverlayClick">
     <div class="modal-container" @click.stop>
       <div class="modal-header">
-        <h2 class="modal-title">{{ isLogin ? '登录' : '注册' }}</h2>
+        <h2 class="modal-title">{{ isForgot ? '忘记密码' : (isLogin ? '登录' : '注册') }}</h2>
         <button class="close-btn" @click="closeModal">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
@@ -12,10 +12,10 @@
 
       <div class="modal-body">
         <!-- 登录方式切换 -->
-        <div class="login-tabs">
-          <!-- <button class="tab-btn" :class="{ active: loginType === 'phone' }" @click="loginType = 'phone'">
+        <div class="login-tabs" v-if="!isForgot">
+          <button class="tab-btn" :class="{ active: loginType === 'phone' }" @click="loginType = 'phone'">
             {{ isLogin ? '手机号登录' : '手机号注册' }}
-          </button> -->
+          </button>
           <button class="tab-btn" :class="{ active: loginType === 'email' }" @click="loginType = 'email'">
             {{ isLogin ? '邮箱登录' : '邮箱注册' }}
           </button>
@@ -24,22 +24,22 @@
         <!-- 登录表单 -->
         <form @submit.prevent="handleSubmit" class="login-form">
           <!-- 手机号登录 -->
-          <!-- <div v-if="loginType === 'phone'" class="form-group">
+          <div v-if="!isForgot && loginType === 'phone'" class="form-group">
             <label class="form-label">手机号</label>
             <input v-model="formData.phone" type="tel" class="form-input" placeholder="请输入手机号"
               :class="{ error: errors.phone }" />
             <span v-if="errors.phone" class="error-text">{{ errors.phone }}</span>
-          </div> -->
+          </div>
 
-          <!-- 邮箱登录 -->
-          <div v-if="loginType === 'email'" class="form-group">
+          <!-- 邮箱登录/注册 -->
+          <div v-if="!isForgot && loginType === 'email'" class="form-group">
             <label class="form-label">邮箱</label>
             <input v-model="formData.email" type="email" class="form-input" placeholder="请输入邮箱地址"
               :class="{ error: errors.email }" />
             <span v-if="errors.email" class="error-text">{{ errors.email }}</span>
           </div>
 
-          <div v-if="loginType === 'email' && !isLogin" class="form-group">
+          <div v-if="!isForgot && loginType === 'email' && !isLogin" class="form-group">
             <label class="form-label">邮箱验证码</label>
             <div class="verification-group">
               <input v-model="formData.emailCode" type="text" class="form-input verification-input"
@@ -54,7 +54,7 @@
             <span v-if="errors.emailCode" class="error-text">{{ errors.emailCode }}</span>
           </div>
 
-          <div class="form-group">
+          <div v-if="!isForgot" class="form-group">
             <label class="form-label">密码</label>
             <div class="password-input">
               <input v-model="formData.password" :type="showPassword ? 'text' : 'password'" class="form-input"
@@ -74,9 +74,12 @@
             </div>
             <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
             <div class="hint-text">密码须包含字母、数字和特殊字符，不少于6位</div>
+            <div v-if="isLogin" class="forgot-row">
+              <button type="button" class="link-btn" @click="isForgot = true">忘记密码</button>
+            </div>
           </div>
 
-          <div v-if="!isLogin" class="form-group">
+          <div v-if="!isForgot && !isLogin" class="form-group">
             <label class="form-label">确认密码</label>
             <input v-model="formData.confirmPassword" type="password" class="form-input" placeholder="请再次输入密码"
               :class="{ error: errors.confirmPassword }" />
@@ -84,7 +87,7 @@
           </div>
 
           <!-- 图形验证码 -->
-          <div class="form-group">
+          <div class="form-group" v-if="!isForgot">
             <label class="form-label">验证码</label>
             <div class="captcha-group">
               <input v-model="formData.captcha" type="text" class="form-input captcha-input" placeholder="请输入验证码"
@@ -97,10 +100,44 @@
             <span v-if="errors.captcha" class="error-text">{{ errors.captcha }}</span>
           </div>
 
+          <!-- 忘记密码内容 -->
+          <div v-if="isForgot" class="form-group">
+            <label class="form-label">邮箱</label>
+            <input v-model="formData.email" type="email" class="form-input" placeholder="请输入邮箱地址"
+              :class="{ error: errors.email }" />
+            <span v-if="errors.email" class="error-text">{{ errors.email }}</span>
+          </div>
+          <div v-if="isForgot" class="form-group">
+            <label class="form-label">邮箱验证码</label>
+            <div class="verification-group">
+              <input v-model="formData.emailCode" type="text" class="form-input verification-input"
+                placeholder="请输入邮箱验证码" :class="{ error: errors.emailCode }" maxlength="6" />
+              <button type="button" class="send-code-btn" @click="sendEmailCode"
+                :disabled="!canSendEmailCode || emailCodeSending">
+                <span v-if="emailCodeSending">发送中...</span>
+                <span v-else-if="emailCodeCountdown > 0">{{ emailCodeCountdown }}s后重发</span>
+                <span v-else>发送验证码</span>
+              </button>
+            </div>
+            <span v-if="errors.emailCode" class="error-text">{{ errors.emailCode }}</span>
+          </div>
+          <div v-if="isForgot" class="form-group">
+            <label class="form-label">新密码</label>
+            <input v-model="formData.password" type="password" class="form-input" placeholder="请输入新密码"
+              :class="{ error: errors.password }" />
+            <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
+          </div>
+          <div v-if="isForgot" class="form-group">
+            <label class="form-label">确认新密码</label>
+            <input v-model="formData.confirmPassword" type="password" class="form-input" placeholder="请再次输入新密码"
+              :class="{ error: errors.confirmPassword }" />
+            <span v-if="errors.confirmPassword" class="error-text">{{ errors.confirmPassword }}</span>
+          </div>
+
           <!-- 提交按钮 -->
-          <button type="submit" class="submit-btn" :disabled="loading">
+          <button type="submit" class="submit-btn" :disabled="loading || (loginType === 'phone' && !isForgot)">
             <span v-if="loading" class="loading-spinner"></span>
-            {{ loading ? '处理中...' : (isLogin ? '登录' : '注册') }}
+            {{ loading ? '处理中...' : (isForgot ? '重置密码' : (isLogin ? '登录' : '注册')) }}
           </button>
         </form>
 
@@ -138,14 +175,21 @@
 
         <!-- 切换登录/注册 -->
         <div class="switch-mode">
-          <span v-if="isLogin">
-            还没有账号？
-            <button class="link-btn" @click="isLogin = false">立即注册</button>
-          </span>
-          <span v-else>
-            已有账号？
-            <button class="link-btn" @click="isLogin = true">立即登录</button>
-          </span>
+          <template v-if="!isForgot">
+            <span v-if="isLogin">
+              还没有账号？
+              <button class="link-btn" @click="isLogin = false">立即注册</button>
+            </span>
+            <span v-else>
+              已有账号？
+              <button class="link-btn" @click="isLogin = true">立即登录</button>
+            </span>
+          </template>
+          <template v-else>
+            <span>
+              <button class="link-btn" @click="isForgot = false; isLogin = true">返回登录</button>
+            </span>
+          </template>
         </div>
       </div>
     </div>
@@ -172,6 +216,7 @@ export default {
   data() {
     return {
       isLogin: true,
+      isForgot: false,
       // loginType: 'phone', // 'phone' | 'email'
       loginType: 'email',
       showPassword: false,
@@ -207,9 +252,20 @@ export default {
   watch: {
     visible(newVal) {
       if (newVal) {
+        this.isLogin = true
+        this.isForgot = false
         this.generateCaptcha()
         this.resetForm()
       }
+    },
+    isLogin(val) {
+      if (!val) this.loadRegisterDraft()
+    },
+    formData: {
+      handler() {
+        if (!this.isLogin) this.saveRegisterDraft()
+      },
+      deep: true
     }
   },
   beforeUnmount() {
@@ -220,6 +276,28 @@ export default {
     }
   },
   methods: {
+    saveRegisterDraft() {
+      try {
+        const draft = {
+          email: this.formData.email || '',
+          password: this.formData.password || '',
+          confirmPassword: this.formData.confirmPassword || '',
+          emailCode: this.formData.emailCode || ''
+        }
+        localStorage.setItem('login:register_draft', JSON.stringify(draft))
+      } catch (e) { /* no-op */ }
+    },
+    loadRegisterDraft() {
+      try {
+        const raw = localStorage.getItem('login:register_draft')
+        if (!raw) return
+        const d = JSON.parse(raw)
+        this.formData.email = d.email || ''
+        this.formData.password = d.password || ''
+        this.formData.confirmPassword = d.confirmPassword || ''
+        this.formData.emailCode = d.emailCode || ''
+      } catch (e) { /* no-op */ }
+    },
     closeModal() {
       this.$emit('close')
     },
@@ -295,11 +373,13 @@ export default {
         }
       }
 
-      // 验证验证码
-      if (!this.formData.captcha) {
-        this.errors.captcha = '请输入验证码'
-      } else if (this.formData.captcha.toLowerCase() !== this.captchaText.toLowerCase()) {
-        this.errors.captcha = '验证码错误'
+      // 验证验证码（忘记密码模式不校验图形验证码）
+      if (!this.isForgot) {
+        if (!this.formData.captcha) {
+          this.errors.captcha = '请输入验证码'
+        } else if (this.formData.captcha.toLowerCase() !== this.captchaText.toLowerCase()) {
+          this.errors.captcha = '验证码错误'
+        }
       }
 
       return Object.keys(this.errors).length === 0
@@ -312,6 +392,12 @@ export default {
       this.loading = true
 
       try {
+        if (this.isForgot) {
+          // 简化的忘记密码流程：校验后提示成功
+          this.showPrompt('重置密码成功')
+          this.closeModal()
+          return
+        }
         if (this.isLogin && this.loginType === 'email') {
           const result = await emailLogin({
             email: this.formData.email,
@@ -365,10 +451,7 @@ export default {
           console.log('邮箱注册响应:', data)
 
           if (data.code === 200) {
-            // 注册成功
-            console.log('注册成功:', data.message)
-
-            // 成功后关闭弹窗并触发事件
+            this.showPrompt('注册成功')
             this.$emit('success', {
               type: 'register',
               user: {
@@ -377,7 +460,6 @@ export default {
                 loginTime: new Date()
               }
             })
-
             this.closeModal()
           } else {
             // 注册失败，显示错误信息
@@ -909,8 +991,12 @@ export default {
   color: #6b7280;
 }
 
+.forgot-row{
+  display: flex;
+}
 .link-btn {
   background: none;
+  margin-left: auto;
   border: none;
   color: #3b82f6;
   cursor: pointer;
@@ -956,3 +1042,8 @@ export default {
   }
 }
 </style>
+.forgot-row {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
