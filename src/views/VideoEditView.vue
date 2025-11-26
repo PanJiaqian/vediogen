@@ -52,7 +52,7 @@
         <!-- 顶部标题区域 -->
         <div class="panel-header">
           <div class="scene-title-header">
-            <span class="scene-number">分镜{{ activeSceneIndex + 1 }}</span>
+            <span class="scene-number">分镜{{ (scenes && scenes[activeSceneIndex] && Number(scenes[activeSceneIndex].order_index) > 0) ? Number(scenes[activeSceneIndex].order_index) : '' }}</span>
             <span class="scene-type" v-if="activeTab === 'image'">镜头策划</span>
             <span class="scene-type" v-if="activeTab === 'voice'">配音编辑</span>
           </div>
@@ -470,7 +470,7 @@
                       <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
                       <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
                     </svg>
-                    <span class="track-title">分镜{{ index + 1 }}</span>
+                    <span class="track-title">分镜{{ (Number(scene.order_index) > 0 ? Number(scene.order_index) : '') }}</span>
                     <!-- 操作按钮 -->
                     <div class="track-actions">
                       <button class="action-btn copy-btn" @click="copyScene(index)" title="复制分镜">
@@ -505,7 +505,7 @@
                           :preload="index < 4 ? 'metadata' : 'none'" disablepictureinpicture></video>
                         <img v-else-if="shouldRenderImage(clip.url || scene.thumbnail) && !isClipImgErrored(index, cidx)"
                           :src="cleanUrl(clip.url || scene.thumbnail)"
-                          :alt="'分镜' + (index + 1)" class="clip-thumbnail" loading="lazy" decoding="async"
+                          :alt="'分镜' + (Number(scene.order_index) > 0 ? Number(scene.order_index) : '')" class="clip-thumbnail" loading="lazy" decoding="async"
                           fetchpriority="low" @error="onClipImgError(index, cidx)" />
                         <div v-else class="clip-placeholder"></div>
                       </div>
@@ -1287,7 +1287,7 @@ export default {
     sortScenesByOrder() {
       const order = Array.isArray(this._shotOrder) ? this._shotOrder : []
       if (!Array.isArray(this.scenes) || this.scenes.length === 0 || order.length === 0) return
-      this.scenes = this.scenes.slice().sort((a, b) => {
+      const sorted = this.scenes.slice().sort((a, b) => {
         const ak = String(a.scene_number || '').trim()
         const bk = String(b.scene_number || '').trim()
         const ai = order.indexOf(ak)
@@ -1303,6 +1303,13 @@ export default {
         if (bi === -1) return -1
         return ai - bi
       })
+      for (let i = 0; i < sorted.length; i++) {
+        const sc = sorted[i]
+        const oi = Number(sc.order_index)
+        sc.title = Number.isFinite(oi) && oi > 0 ? `分镜${oi}` : `分镜${i + 1}`
+      }
+      this.scenes = sorted
+      this.clipImgErrorMap = {}
     },
     sortScenesByServerOrder() {
       const byServer = this._orderIndexMap && typeof this._orderIndexMap.size === 'number' && this._orderIndexMap.size > 0
@@ -1315,10 +1322,31 @@ export default {
           const bi = Number(this._orderIndexMap.get(bk)) || Number(b.order_index) || Number.MAX_SAFE_INTEGER
           return ai - bi
         })
+        for (let i = 0; i < arr.length; i++) {
+          const sc = arr[i]
+          const ak = String(sc.scene_number || '').trim()
+          const oi = Number(this._orderIndexMap.get(ak)) || Number(sc.order_index)
+          sc.title = Number.isFinite(oi) && oi > 0 ? `分镜${oi}` : `分镜${i + 1}`
+        }
         this.scenes = arr
+        this.clipImgErrorMap = {}
         return
       }
-      this.sortScenesByOrder()
+      const arr = Array.isArray(this.scenes) ? this.scenes.slice() : []
+      arr.sort((a, b) => {
+        const ai = Number(a.order_index)
+        const bi = Number(b.order_index)
+        const av = Number.isFinite(ai) && ai > 0 ? ai : Number.MAX_SAFE_INTEGER
+        const bv = Number.isFinite(bi) && bi > 0 ? bi : Number.MAX_SAFE_INTEGER
+        return av - bv
+      })
+      for (let i = 0; i < arr.length; i++) {
+        const sc = arr[i]
+        const oi = Number(sc.order_index)
+        sc.title = Number.isFinite(oi) && oi > 0 ? `分镜${oi}` : `分镜${i + 1}`
+      }
+      this.scenes = arr
+      this.clipImgErrorMap = {}
     },
     refreshSidebarFromLocal() {
       const imgApi = this.cleanUrl(this.sceneDetail.reference_image_url || '')
@@ -1400,8 +1428,12 @@ export default {
             if (refImg) target.thumbnail = refImg
             if (vurl) {
               const dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
-              target.clips = [{ url: vurl, durationMs: dur }]
+              target.clips = [{ url: vlocal || vurl, durationMs: dur }]
+            } else if (!Array.isArray(target.clips) || !target.clips.length) {
+              target.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
             }
+            this.clearClipErrorsForIndex(targetIndex)
+
             const oi = Number(data.order_index || data.orderIndex)
             if (Number.isFinite(oi) && oi > 0) {
               target.order_index = oi
@@ -1617,8 +1649,11 @@ export default {
               if (refImg) target.thumbnail = refImg
               if (vurl) {
                 const dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
-                target.clips = [{ url: vurl, durationMs: dur }]
+                target.clips = [{ url: vLocal || vurl, durationMs: dur }]
+              } else if (!Array.isArray(target.clips) || !target.clips.length) {
+                target.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
               }
+              this.clearClipErrorsForIndex(targetIndex)
               const content = data && data.prompt && data.prompt.content ? data.prompt.content : null
               if (content) {
                 const parts = []
@@ -1636,6 +1671,13 @@ export default {
           try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
         }
         if (!this.sceneDetail.reference_image_url && !this.sceneDetail.video_url) this.refreshSidebarFromLocal()
+      } catch (e) { void 0 }
+    },
+    clearClipErrorsForIndex(i) {
+      try {
+        const keys = Object.keys(this.clipImgErrorMap || {})
+        const prefix = String(i) + ':'
+        for (const k of keys) { if (k.indexOf(prefix) === 0) { if (this.$delete) this.$delete(this.clipImgErrorMap, k); else delete this.clipImgErrorMap[k] } }
       } catch (e) { void 0 }
     },
     async precacheSceneThumbnails() {
@@ -1673,8 +1715,13 @@ export default {
             if (refImg) target.thumbnail = refImg
             if (vurl) {
               const dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
-              target.clips = [{ url: vurl, durationMs: dur }]
+              const vLocal = await this.getLocalUrl(vurl)
+              target.clips = [{ url: vLocal || vurl, durationMs: dur }]
+            } else if (!Array.isArray(target.clips) || !target.clips.length) {
+              const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
+              target.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
             }
+            this.clearClipErrorsForIndex(targetIndex)
             const content = data && data.prompt && data.prompt.content ? data.prompt.content : null
             if (content) {
               const parts = []
@@ -1686,7 +1733,9 @@ export default {
             }
           }
           if (i === this.activeSceneIndex) {
-            this.sceneDetail = { reference_image_url: refImg, video_url: vurl || this.sceneDetail.video_url }
+            const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
+            const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
+            this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || vurl || this.sceneDetail.video_url }
           }
         }
         try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
@@ -1838,6 +1887,7 @@ export default {
               scene.thumbnail = cleaned
               scene.clips = [{ url: refLocal || cleaned, durationMs: 5000 }]
               this.sceneDetail = { reference_image_url: refLocal || cleaned, video_url: this.sceneDetail.video_url }
+              this.clearClipErrorsForIndex(this.activeSceneIndex)
             }
             this.toastText = '生成成功'
             setTimeout(() => { this.toastVisible = false }, 2000)

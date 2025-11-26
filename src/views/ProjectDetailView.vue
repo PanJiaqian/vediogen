@@ -657,6 +657,7 @@ export default {
               const projectId = this.$route.params.id
               try { localStorage.setItem(`project:conversationId:${projectId}`, String(cid)) } catch (e) { /* no-op */ }
               try { localStorage.setItem(`project:videoId:${projectId}`, String(vid)) } catch (e) { /* no-op */ }
+              this.videoId = String(vid)
               const token2 = (this.userStore && this.userStore.token) || ''
               if (token2) {
                 (async () => {
@@ -672,6 +673,7 @@ export default {
                     }
                   } catch (e) { /* no-op */ }
                   try { await this.loadVersionList() } catch (e) { /* no-op */ }
+                  try { await this.fetchWorksStatus() } catch (e) { /* no-op */ }
                 })()
               }
               return
@@ -689,6 +691,7 @@ export default {
         }
         this.isSubmitting = false
         this.$nextTick(() => { this.scrollToMessagesBottom() })
+        try { await this.fetchWorksStatus() } catch (e) { /* no-op */ }
       }
     },
     scrollToMessagesBottom() {
