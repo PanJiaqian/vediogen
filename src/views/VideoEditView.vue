@@ -666,6 +666,9 @@ export default {
   },
   mounted() {
     const projectId = this.$route.params.id
+    let initialLoading = false
+    try { initialLoading = localStorage.getItem(`video-edit:loading:${projectId}`) === '1' } catch (e) { initialLoading = false }
+    if (initialLoading) this.isConverting = true
     try {
       const mode = localStorage.getItem(`video-edit:entryMode:${projectId}`)
       if (mode === 'crop' || mode === 'canvas') this.entryMode = mode
@@ -733,6 +736,12 @@ export default {
     this.loadServerOrderIndex()
 
     this.$nextTick(() => { this.initTimelineSync() })
+    if (initialLoading) {
+      setTimeout(() => {
+        this.isConverting = false
+        try { localStorage.removeItem(`video-edit:loading:${projectId}`) } catch (e) { void 0 }
+      }, 800)
+    }
     this.fetchCurrentSceneDetail()
     this.prefetchInitialScenesDetails()
     if (!this._entryIsGenerate) this.pollStoryboardImagesDetail()
