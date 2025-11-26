@@ -243,7 +243,7 @@
       <!-- 固定在底部的输入框 -->
       <div class="input-section">
         <div class="input-container">
-          <input v-model="userInput" placeholder="输入你的想法" class="user-input" />
+          <textarea v-model="userInput" placeholder="输入你的想法" class="user-input"></textarea>
           <button class="submit-btn" @click="submitInput" :disabled="isSubmitting">
             <svg class="submit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M12 19l7-7 3 3-7 7-3-3z" />
@@ -1836,6 +1836,9 @@ export default {
   font-size: calc(14px * var(--font-scale));
   color: #333;
   background: transparent;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .user-input::placeholder {

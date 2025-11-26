@@ -609,7 +609,7 @@ export default {
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
-  resize: vertical;
+  resize: none;
   overflow: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;

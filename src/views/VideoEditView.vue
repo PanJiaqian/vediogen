@@ -657,6 +657,11 @@ export default {
       try { this._io.disconnect() } catch (e) { void 0 }
       this._io = null
     }
+    if (this._timelineTracksEl && this._timelineScrollHandler) {
+      try { this._timelineTracksEl.removeEventListener('scroll', this._timelineScrollHandler) } catch (e) { void 0 }
+      this._timelineTracksEl = null
+      this._timelineScrollHandler = null
+    }
     try { if (this._ssePicCtrl && this._ssePicCtrl.abort) this._ssePicCtrl.abort() } catch (e) { void 0 }
   },
   mounted() {
@@ -727,40 +732,7 @@ export default {
     }
     this.loadServerOrderIndex()
 
-    // 同步时间刻度与轨道的水平滚动
-    this.$nextTick(() => {
-      const tracks = this.$refs.timelineTracks
-      const scaleInner = this.$refs.timeScaleInner
-      if (tracks && scaleInner) {
-        const sync = () => {
-          scaleInner.style.transform = `translateX(${-tracks.scrollLeft}px)`
-          const pxPerSecond = this.getPxPerSecond()
-          const elapsedSec = (this.playbackPosition / 100) * (this.scenes.length * 5)
-          const absolutePx = elapsedSec * pxPerSecond
-          this.playbackLeftPx = tracks.offsetLeft + absolutePx - tracks.scrollLeft
-        }
-        tracks.addEventListener('scroll', sync)
-        sync()
-        this._prefetchedSceneIndices = new Set()
-        try {
-          const io = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-              if (entry && entry.isIntersecting) {
-                const el = entry.target
-                const idx = Number(el.getAttribute('data-index'))
-                if (Number.isFinite(idx) && idx >= 4 && !(this._prefetchedSceneIndices && this._prefetchedSceneIndices.has(idx))) {
-                  this._prefetchedSceneIndices && this._prefetchedSceneIndices.add(idx)
-                  this.prefetchSceneDetailByIndex(idx)
-                  io.unobserve(el)
-                }
-              }
-            })
-          }, { root: this.$refs.timelineTracks, threshold: 0.25 })
-          this._io = io
-          tracks.querySelectorAll('.timeline-track').forEach(el => io.observe(el))
-        } catch (err) { void 0 }
-      }
-    })
+    this.$nextTick(() => { this.initTimelineSync() })
     this.fetchCurrentSceneDetail()
     this.prefetchInitialScenesDetails()
     if (!this._entryIsGenerate) this.pollStoryboardImagesDetail()
@@ -803,14 +775,63 @@ export default {
       this.previewImgErrored = false
       this.fetchCurrentSceneDetail()
     },
+    isConverting(val) {
+      if (!val) this.$nextTick(() => { this.initTimelineSync() })
+    },
     scenes: {
       deep: true,
       handler() {
         this.refreshSidebarFromLocal()
+        this.$nextTick(() => {
+          const tracks = this.$refs.timelineTracks
+          if (tracks && this._io) {
+            tracks.querySelectorAll('.timeline-track').forEach(el => this._io.observe(el))
+          } else {
+            this.initTimelineSync()
+          }
+        })
       }
     }
   },
   methods: {
+    initTimelineSync() {
+      const tracks = this.$refs.timelineTracks
+      const scaleInner = this.$refs.timeScaleInner
+      if (!tracks || !scaleInner) return
+      if (this._timelineTracksEl && this._timelineScrollHandler) {
+        try { this._timelineTracksEl.removeEventListener('scroll', this._timelineScrollHandler) } catch (e) { void 0 }
+      }
+      const sync = () => {
+        scaleInner.style.transform = `translateX(${-tracks.scrollLeft}px)`
+        const pxPerSecond = this.getPxPerSecond()
+        const elapsedSec = (this.playbackPosition / 100) * (this.scenes.length * 5)
+        const absolutePx = elapsedSec * pxPerSecond
+        this.playbackLeftPx = tracks.offsetLeft + absolutePx - tracks.scrollLeft
+      }
+      this._timelineTracksEl = tracks
+      this._timelineScrollHandler = sync
+      tracks.addEventListener('scroll', sync)
+      sync()
+      this._prefetchedSceneIndices = new Set()
+      try {
+        if (this._io) { try { this._io.disconnect() } catch (e) { void 0 } }
+        const io = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry && entry.isIntersecting) {
+              const el = entry.target
+              const idx = Number(el.getAttribute('data-index'))
+              if (Number.isFinite(idx) && idx >= 4 && !(this._prefetchedSceneIndices && this._prefetchedSceneIndices.has(idx))) {
+                this._prefetchedSceneIndices && this._prefetchedSceneIndices.add(idx)
+                this.prefetchSceneDetailByIndex(idx)
+                io.unobserve(el)
+              }
+            }
+          })
+        }, { root: this.$refs.timelineTracks, threshold: 0.25 })
+        this._io = io
+        tracks.querySelectorAll('.timeline-track').forEach(el => io.observe(el))
+      } catch (err) { void 0 }
+    },
     parseIncrementalResultToScenes(result) {
       const scenes = []
       try {
@@ -826,8 +847,9 @@ export default {
             if (v.visual_description) descParts.push(v.visual_description)
             const description = descParts.length ? descParts.join('：') : '暂无描述'
             const sceneNumber = String(v.shot_id || v.shot_number || '').trim()
-            const title = String(result.scene_title || sceneNumber || '分镜')
-            scenes.push({ id: id++, title, description, thumbnail: thumb, scene_number: sceneNumber })
+            const oi = Number(v.order_index || v.orderIndex || result.order_index || result.orderIndex)
+            const title = Number.isFinite(oi) && oi > 0 ? `分镜${oi}` : String(result.scene_title || sceneNumber || '分镜')
+            scenes.push({ id: id++, title, description, thumbnail: thumb, scene_number: sceneNumber, order_index: Number.isFinite(oi) ? oi : undefined })
           }
           return scenes
         }
@@ -847,7 +869,9 @@ export default {
             if (v.shot_title) descParts.push(v.shot_title)
             if (v.visual_description) descParts.push(v.visual_description)
             const description = descParts.length ? descParts.join('：') : '暂无描述'
-            scenes.push({ id: id++, title: String(result.scene_title || `分镜${id - 1}`), description, thumbnail: thumb, scene_number: k })
+            const oi = Number(v.order_index || v.orderIndex || result.order_index || result.orderIndex)
+            const title = Number.isFinite(oi) && oi > 0 ? `分镜${oi}` : String(result.scene_title || `分镜${id}`)
+            scenes.push({ id: id++, title, description, thumbnail: thumb, scene_number: k, order_index: Number.isFinite(oi) ? oi : undefined })
           }
           return scenes
         }
@@ -859,7 +883,9 @@ export default {
         if (result.visual_description) descParts.push(result.visual_description)
         const description = descParts.length ? descParts.join('：') : '暂无描述'
         const sceneNumber = String(result.scene_number || result.shot_id || result.scene_id || '').trim()
-        scenes.push({ id: (Array.isArray(this.scenes) ? this.scenes.length : 0) + 1, title: String(result.scene_title || sceneNumber || '分镜'), description, thumbnail: thumb, scene_number: sceneNumber })
+        const oi = Number(result.order_index || result.orderIndex)
+        const title = Number.isFinite(oi) && oi > 0 ? `分镜${oi}` : String(result.scene_title || sceneNumber || '分镜')
+        scenes.push({ id: (Array.isArray(this.scenes) ? this.scenes.length : 0) + 1, title, description, thumbnail: thumb, scene_number: sceneNumber, order_index: Number.isFinite(oi) ? oi : undefined })
       } catch (e) { void 0 }
       return scenes
     },
@@ -1088,7 +1114,9 @@ export default {
               const description = descParts.length ? descParts.join('：') : '暂无描述'
               // 每张图片一个分镜，统一5秒
               const scene_number = shot.scene_number || shot.shot_number || undefined
-              scenes.push({ id: id++, title: `分镜${id - 1}`, description, thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number })
+              const oi = Number(shot.order_index || shot.orderIndex)
+              const title = Number.isFinite(oi) && oi > 0 ? `分镜${oi}` : `分镜${id}`
+              scenes.push({ id: id++, title, description, thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number, order_index: Number.isFinite(oi) ? oi : undefined })
             })
           })
         } else if (raw && typeof raw === 'object') {
@@ -1122,7 +1150,9 @@ export default {
               if (shot.shot_title) descParts.push(shot.shot_title)
               if (shot.visual_description) descParts.push(shot.visual_description)
               const description = descParts.length ? descParts.join('：') : '暂无描述'
-              scenes.push({ id: id++, title: `分镜${id - 1}`, description, thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number: shot.scene_number })
+              const oi = Number(shot.order_index || shot.orderIndex)
+              const title = Number.isFinite(oi) && oi > 0 ? `分镜${oi}` : `分镜${id}`
+              scenes.push({ id: id++, title, description, thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number: shot.scene_number, order_index: Number.isFinite(oi) ? oi : undefined })
             })
           }
         }
@@ -1375,6 +1405,7 @@ export default {
             const oi = Number(data.order_index || data.orderIndex)
             if (Number.isFinite(oi) && oi > 0) {
               target.order_index = oi
+              target.title = `分镜${oi}`
               const map = this._orderIndexMap instanceof Map ? this._orderIndexMap : new Map()
               if (incomingKey) map.set(incomingKey, oi)
               this._orderIndexMap = map
@@ -1514,6 +1545,7 @@ export default {
                   const oi = Number(item.order_index || item.orderIndex)
                   if (Number.isFinite(oi) && oi > 0) {
                     sc.order_index = oi
+                    sc.title = `分镜${oi}`
                     if (key) idxMap.set(key, oi)
                   }
                   const content = item && item.scene_script && item.scene_script.content ? item.scene_script.content : null
@@ -1800,11 +1832,12 @@ export default {
           }
           if (url) {
             const cleaned = this.cleanUrl(url)
+            const refLocal = await this.getLocalUrl(cleaned)
             if (this.activeSceneIndex >= 0 && this.activeSceneIndex < this.scenes.length) {
               const scene = this.scenes[this.activeSceneIndex]
               scene.thumbnail = cleaned
-              scene.clips = [{ url: cleaned, durationMs: 5000 }]
-              this.sceneDetail = { reference_image_url: cleaned, video_url: this.sceneDetail.video_url }
+              scene.clips = [{ url: refLocal || cleaned, durationMs: 5000 }]
+              this.sceneDetail = { reference_image_url: refLocal || cleaned, video_url: this.sceneDetail.video_url }
             }
             this.toastText = '生成成功'
             setTimeout(() => { this.toastVisible = false }, 2000)
