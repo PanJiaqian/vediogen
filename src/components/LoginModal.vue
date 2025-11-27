@@ -123,14 +123,38 @@
           </div>
           <div v-if="isForgot" class="form-group">
             <label class="form-label">新密码</label>
-            <input v-model="formData.password" type="password" class="form-input" placeholder="请输入新密码"
-              :class="{ error: errors.password }" />
+            <div class="password-input">
+              <input v-model="formData.password" :type="showForgotPassword ? 'text' : 'password'" class="form-input" placeholder="请输入新密码"
+                :class="{ error: errors.password }" />
+              <button type="button" class="password-toggle" @click="showForgotPassword = !showForgotPassword">
+                <svg v-if="showForgotPassword" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke="currentColor" stroke-width="2" />
+                  <path d="M1 1l22 22" stroke="currentColor" stroke-width="2" />
+                </svg>
+                <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" stroke="currentColor" stroke-width="2" />
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+                </svg>
+              </button>
+            </div>
             <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
           </div>
           <div v-if="isForgot" class="form-group">
             <label class="form-label">确认新密码</label>
-            <input v-model="formData.confirmPassword" type="password" class="form-input" placeholder="请再次输入新密码"
-              :class="{ error: errors.confirmPassword }" />
+            <div class="password-input">
+              <input v-model="formData.confirmPassword" :type="showForgotConfirmPassword ? 'text' : 'password'" class="form-input" placeholder="请再次输入新密码"
+                :class="{ error: errors.confirmPassword }" />
+              <button type="button" class="password-toggle" @click="showForgotConfirmPassword = !showForgotConfirmPassword">
+                <svg v-if="showForgotConfirmPassword" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" stroke="currentColor" stroke-width="2" />
+                  <path d="M1 1l22 22" stroke="currentColor" stroke-width="2" />
+                </svg>
+                <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z" stroke="currentColor" stroke-width="2" />
+                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
+                </svg>
+              </button>
+            </div>
             <span v-if="errors.confirmPassword" class="error-text">{{ errors.confirmPassword }}</span>
           </div>
 
@@ -220,6 +244,8 @@ export default {
       // loginType: 'phone', // 'phone' | 'email'
       loginType: 'email',
       showPassword: false,
+      showForgotPassword: false,
+      showForgotConfirmPassword: false,
       loading: false,
       captchaText: '',
       // 邮箱验证码相关
@@ -351,6 +377,12 @@ export default {
       // 验证密码
       if (!this.formData.password) {
         this.errors.password = '请输入密码'
+      } else if (this.isForgot) {
+        const strong = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/
+        if (!strong.test(this.formData.password)) {
+          this.errors.password = '密码必须包含字母、数字和特殊字符，且长度至少为6位'
+          this.showPrompt(this.errors.password)
+        }
       } else if (this.formData.password.length < 6) {
         this.errors.password = '密码至少6位'
       }

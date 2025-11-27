@@ -461,10 +461,11 @@
               </div>
               <!-- 分镜轨道 - 水平布局 -->
               <div class="timeline-tracks" ref="timelineTracks">
-                <div v-for="(scene, index) in scenes" :key="scene.id" class="timeline-track" :data-index="index"
-                  :class="{ active: index === activeSceneIndex }" draggable="true" :style="getTrackStyle(scene)"
-                  @dragstart="handleDragStart(index, $event)" @dragover="handleDragOver($event)"
-                  @drop="handleDrop(index, $event)" @dragend="handleDragEnd">
+                <div class="tracks-row scenes-row">
+                  <div v-for="(scene, index) in scenes" :key="scene.id" class="timeline-track" :data-index="index"
+                    :class="{ active: index === activeSceneIndex }" draggable="true" :style="getTrackStyle(scene)"
+                    @dragstart="handleDragStart(index, $event)" @dragover="handleDragOver($event)"
+                    @drop="handleDrop(index, $event)" @dragend="handleDragEnd">
                   <div class="track-header">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
@@ -541,26 +542,29 @@
                         </svg>
                         配音
                       </button>
-                      <button class="audio-btn">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                          <path d="M9 18V5l12-2v13" stroke="currentColor" stroke-width="2" />
-                          <circle cx="6" cy="18" r="3" stroke="currentColor" stroke-width="2" />
-                          <circle cx="18" cy="16" r="3" stroke="currentColor" stroke-width="2" />
-                        </svg>
-                        背景音乐
-                      </button>
                     </template>
                   </div>
-                </div>
-                <div v-for="n in pendingSkeletonCount" :key="'pending-skel-' + n" class="timeline-track">
-                  <div class="track-header">
-                    <div class="skeleton-line" style="width:120px;height:12px;"></div>
                   </div>
-                  <div class="track-clips">
-                    <div v-for="m in 10" :key="'pending-skel-clip-' + n + '-' + m" class="scene-clip">
-                      <div class="skeleton-image" style="height:28px;"></div>
+                  <div v-for="n in pendingSkeletonCount" :key="'pending-skel-' + n" class="timeline-track">
+                    <div class="track-header">
+                      <div class="skeleton-line" style="width:120px;height:12px;"></div>
+                    </div>
+                    <div class="track-clips">
+                      <div v-for="m in 10" :key="'pending-skel-clip-' + n + '-' + m" class="scene-clip">
+                        <div class="skeleton-image" style="height:28px;"></div>
+                      </div>
                     </div>
                   </div>
+                </div>
+                <div class="tracks-row bgm-row">
+                  <button class="audio-btn bgm-button" :style="getBgmTrackStyle()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                      <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
+                        stroke-width="2" />
+                    </svg>
+                    背景音乐
+                  </button>
                 </div>
               </div>
               <!-- 播放进度指示器 -->
@@ -849,7 +853,8 @@ export default {
       const sync = () => {
         scaleInner.style.transform = `translateX(${-tracks.scrollLeft}px)`
         const pxPerSecond = this.getPxPerSecond()
-        const elapsedSec = (this.playbackPosition / 100) * (this.scenes.length * 5)
+        const totalSeconds = this.getTotalSeconds()
+        const elapsedSec = (this.playbackPosition / 100) * totalSeconds
         const absolutePx = elapsedSec * pxPerSecond
         this.playbackLeftPx = tracks.offsetLeft + absolutePx - tracks.scrollLeft
       }
@@ -1901,6 +1906,10 @@ export default {
       this.timeMarkers = markers
     },
     getSceneSeconds(scene) {
+      const actual = this.getActualSceneSeconds(scene)
+      return Math.max(2, actual)
+    },
+    getActualSceneSeconds(scene) {
       const c = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
       const url = this.cleanUrl((c && c.url) || (scene && scene.thumbnail) || '')
       if (url && this.isVideo(url) && c && Number(c.durationMs)) {
@@ -1918,6 +1927,11 @@ export default {
     },
     getTrackStyle(scene) {
       const secs = this.getSceneSeconds(scene)
+      const w = secs > 0 ? `calc(var(--px-per-second) * ${secs})` : '56px'
+      return { flex: `0 0 ${w}`, width: w, minWidth: w }
+    },
+    getBgmTrackStyle() {
+      const secs = this.getTotalSeconds()
       const w = secs > 0 ? `calc(var(--px-per-second) * ${secs})` : '56px'
       return { flex: `0 0 ${w}`, width: w, minWidth: w }
     },
@@ -3026,7 +3040,7 @@ export default {
 .edit-controls {
   display: flex;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
 }
 
 .control-btn {
@@ -3390,19 +3404,23 @@ input:checked+.slider:before {
 }
 
 .timeline-tracks {
-  display: flex;
-  gap: 0;
+  display: block;
   position: relative;
   overflow-x: scroll;
-  /* 显示横向滚动条 */
   overflow-y: hidden;
-  /* 仅横向滚动 */
   scrollbar-width: thin;
-  /* Firefox 显示细滚动条 */
   scrollbar-color: #cbd5e1 #f1f5f9;
-  /* Firefox 滚动条颜色 */
   padding: 8px 0;
   content-visibility: auto;
+}
+
+.tracks-row {
+  display: flex;
+  gap: 0;
+}
+
+.bgm-row {
+  margin-top: 8px;
 }
 
 .timeline-tracks::-webkit-scrollbar {
@@ -3436,6 +3454,10 @@ input:checked+.slider:before {
   transition: all 0.2s;
   overflow: hidden;
   cursor: move;
+}
+
+.bgm-track {
+  cursor: default;
 }
 
 .timeline-track:hover {
@@ -3510,6 +3532,25 @@ input:checked+.slider:before {
   background: white;
 }
 
+.bgm-track .track-clips {
+  min-height: 40px;
+}
+
+.bgm-clip {
+  height: 24px;
+  width: 100%;
+  background: repeating-linear-gradient(45deg, #e0f2fe, #e0f2fe 10px, #bfdbfe 10px, #bfdbfe 20px);
+  border-radius: 4px;
+  margin: 8px 12px;
+}
+
+.bgm-button {
+  /* 复用 .audio-btn 外观，仅覆盖布局以占满宽度 */
+  flex: 0 0 auto;
+  width: 100%;
+  justify-content: flex-start;
+}
+
 .scene-clip {
   width: auto;
   height: 28px;
@@ -3570,6 +3611,12 @@ input:checked+.slider:before {
 .audio-btn svg {
   width: 10px;
   height: 10px;
+}
+
+/* 覆盖 audio-btn 的水平居中，确保“背景音乐”文本靠最左 */
+.audio-btn.bgm-button {
+  justify-content: flex-start;
+  width: 100%;
 }
 
 .audio-btn:hover {

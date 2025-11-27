@@ -108,8 +108,13 @@ export default {
     },
     apply() {
       const total = Math.max(1, Number(this.durationMs) || 5000)
-      const startMs = Math.round(total * (this.startPct / 100))
-      const endMs = Math.round(total * (this.endPct / 100))
+      const minSpanMs = 1000
+      let startMs = Math.round(total * (this.startPct / 100))
+      let endMs = Math.round(total * (this.endPct / 100))
+      if (endMs - startMs < minSpanMs) {
+        endMs = Math.min(total, startMs + minSpanMs)
+        startMs = Math.max(0, endMs - minSpanMs)
+      }
       this.$emit('apply', { startMs, endMs })
       this.emitClose()
     },
@@ -186,10 +191,14 @@ export default {
       this.dragTarget = null
     },
     updatePct(pct) {
+      const total = Math.max(1, Number(this.durationMs) || 5000)
+      const minSpanPct = Math.min(100, (1000 / total) * 100)
       if (this.dragTarget === 'start') {
-        this.startPct = Math.max(0, Math.min(this.endPct, pct))
+        const maxStart = this.endPct - minSpanPct
+        this.startPct = Math.max(0, Math.min(maxStart, pct))
       } else if (this.dragTarget === 'end') {
-        this.endPct = Math.max(this.startPct, Math.min(100, pct))
+        const minEnd = this.startPct + minSpanPct
+        this.endPct = Math.max(minEnd, Math.min(100, pct))
       }
     }
   }
