@@ -180,6 +180,8 @@ export default {
       showCreateModal: false,
       // 已选择的主体ID（用于 materialId）
       selectedSubjectId: null,
+      // 已选择的主体ID列表（支持多主体）
+      selectedSubjectIds: [],
       // 已选择的主体名称（用于替换“主体”字样）
       selectedSubjectName: '',
       // 主体数据
@@ -276,6 +278,12 @@ export default {
         try { arr = JSON.parse(chips) } catch (e) { arr = null }
         if (Array.isArray(arr)) this.selectedSubjects = arr.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim())
       }
+      const ids = localStorage.getItem('home:selectedSubjectIds')
+      if (ids) {
+        let arr2
+        try { arr2 = JSON.parse(ids) } catch (e) { arr2 = null }
+        if (Array.isArray(arr2)) this.selectedSubjectIds = arr2.filter(x => x != null).map(x => String(x))
+      }
     } catch (e) { /* no-op */ }
   },
   beforeUnmount() {
@@ -305,7 +313,8 @@ export default {
 
       const stageDirections = this.searchQuery.trim()
       const category = this.activeFeature === 'script' ? '0' : '1'
-      const materialId = this.selectedSubjectId ? String(this.selectedSubjectId) : ''
+      const materialIds = Array.isArray(this.selectedSubjectIds) ? this.selectedSubjectIds.filter(x => String(x).trim()).map(x => String(x).trim()) : []
+      const materialId = materialIds.length ? materialIds.join(',') : (this.selectedSubjectId ? String(this.selectedSubjectId) : '')
 
       const projectId = Date.now().toString()
       try {
@@ -316,6 +325,14 @@ export default {
       } catch (e) { /* no-op */ }
       this.$router.push({ name: 'ProjectDetail', params: { id: projectId }, query: { q: stageDirections, category, materialId } })
       this.searchQuery = ''
+      this.selectedSubjects = []
+      this.selectedSubjectIds = []
+      this.selectedSubjectId = null
+      this.selectedSubjectName = ''
+      try {
+        localStorage.setItem('home:selectedSubjects', JSON.stringify(this.selectedSubjects))
+        localStorage.setItem('home:selectedSubjectIds', JSON.stringify(this.selectedSubjectIds))
+      } catch (e) { /* no-op */ }
     },
     applySuggestion(suggestionText) {
       this.searchQuery = suggestionText
@@ -378,6 +395,14 @@ export default {
         }
       }
       this.selectedSubjectId = subject.id
+      if (!this.selectedSubjectIds.includes(String(subject.id))) {
+        if (this.selectedSubjectIds.length < 4) {
+          this.selectedSubjectIds.push(String(subject.id))
+          try { localStorage.setItem('home:selectedSubjectIds', JSON.stringify(this.selectedSubjectIds)) } catch (e) { /* no-op */ }
+        } else {
+          this.showMessage('最多选择4个主体', 'error')
+        }
+      }
       this.selectedSubjectName = subject.name
       this.showSubjectDropdown = false
     },
@@ -413,6 +438,15 @@ export default {
       const idx = this.selectedSubjects.indexOf(name)
       if (idx >= 0) this.selectedSubjects.splice(idx, 1)
       try { localStorage.setItem('home:selectedSubjects', JSON.stringify(this.selectedSubjects)) } catch (e) { /* no-op */ }
+      try {
+        const subj = (this.subjects || []).find(s => String(s?.name || '').trim() === String(name).trim())
+        const idStr = subj && subj.id != null ? String(subj.id) : ''
+        if (idStr) {
+          const i2 = this.selectedSubjectIds.indexOf(idStr)
+          if (i2 >= 0) this.selectedSubjectIds.splice(i2, 1)
+          localStorage.setItem('home:selectedSubjectIds', JSON.stringify(this.selectedSubjectIds))
+        }
+      } catch (e) { /* no-op */ }
     },
 
     handleClickOutside(event) {

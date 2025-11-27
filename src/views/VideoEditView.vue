@@ -797,7 +797,15 @@ export default {
       const idx = this.activeSceneIndex
       const scene = Array.isArray(this.scenes) ? this.scenes[idx] : null
       const set = this.pendingVideoSet instanceof Set ? this.pendingVideoSet : null
-      if (!set || !scene) return false
+      if (!scene) return false
+      const first = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
+      const existingVid = this.cleanUrl((scene && scene.video_url) || (first && first.url) || '')
+      const processed = !!(scene && scene.hasVideo) || (!!existingVid && this.isVideo(existingVid))
+      if (processed) {
+        if (set) { const k = this.getSceneKey(scene, idx); try { set.delete(k) } catch (e) { void 0 } }
+        return false
+      }
+      if (!set) return false
       const k = this.getSceneKey(scene, idx)
       return set.has(k)
     }
@@ -1290,10 +1298,25 @@ export default {
           this.updatingKeySet.add(k)
           const url = this.cleanUrl(item.video_url)
           const oi = Number(item.order_index || item.orderIndex)
-          if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
-          this.pendingVideoSet.add(k)
-          this.queueVideoForScene(idx, url, Number.isFinite(oi) ? oi : undefined, sceneKey, k)
-          anySucceeded = true
+          const scene = this.scenes[idx]
+          const first = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
+          const existingVid = this.cleanUrl((scene && scene.video_url) || (first && first.url) || '')
+          const alreadyProcessed = !!(scene && scene.hasVideo) && (!!existingVid && this.isVideo(existingVid))
+          if (alreadyProcessed && existingVid === url) {
+            if (Number.isFinite(oi) && oi > 0) {
+              scene.order_index = oi
+              if (!(this._orderIndexMap instanceof Map)) this._orderIndexMap = new Map()
+              if (sceneKey) this._orderIndexMap.set(sceneKey, oi)
+            }
+            if (this.pendingVideoSet instanceof Set) this.pendingVideoSet.delete(k)
+            try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
+            anySucceeded = true
+          } else {
+            if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
+            this.pendingVideoSet.add(k)
+            this.queueVideoForScene(idx, url, Number.isFinite(oi) ? oi : undefined, sceneKey, k)
+            anySucceeded = true
+          }
         }
       }
       this.refreshSidebarFromLocal()
@@ -1502,9 +1525,14 @@ export default {
             const target = this.scenes[targetIndex]
             if (refImg) target.thumbnail = refImg
             if (vurl) {
-              if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
-              this.pendingVideoSet.add(k)
-              this.queueVideoForScene(targetIndex, vurl, undefined, incomingKey, k)
+              const first = (target && Array.isArray(target.clips) && target.clips[0]) || null
+              const existingVid = this.cleanUrl((target && target.video_url) || (first && first.url) || '')
+              const alreadyProcessed = !!(target && target.hasVideo) && (!!existingVid && this.isVideo(existingVid))
+              if (!(alreadyProcessed && existingVid === vurl)) {
+                if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
+                this.pendingVideoSet.add(k)
+                this.queueVideoForScene(targetIndex, vurl, undefined, incomingKey, k)
+              }
             } else if (!this.isVideoGenerating && (!Array.isArray(target.clips) || !target.clips.length)) {
               target.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
             }
@@ -1722,11 +1750,16 @@ export default {
             const targetIndex = i
             if (targetIndex >= 0 && targetIndex < this.scenes.length) {
               const target = this.scenes[targetIndex]
-              if (refImg) target.thumbnail = refImg
+            if (refImg) target.thumbnail = refImg
             if (vurl) {
-              if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
-              this.pendingVideoSet.add(k)
-              this.queueVideoForScene(targetIndex, vurl, undefined, incomingKey, k)
+              const first = (target && Array.isArray(target.clips) && target.clips[0]) || null
+              const existingVid = this.cleanUrl((target && target.video_url) || (first && first.url) || '')
+              const alreadyProcessed = !!(target && target.hasVideo) && (!!existingVid && this.isVideo(existingVid))
+              if (!(alreadyProcessed && existingVid === vurl)) {
+                if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
+                this.pendingVideoSet.add(k)
+                this.queueVideoForScene(targetIndex, vurl, undefined, incomingKey, k)
+              }
             } else if (!this.isVideoGenerating && (!Array.isArray(target.clips) || !target.clips.length)) {
               target.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
             }

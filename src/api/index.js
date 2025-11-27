@@ -480,6 +480,20 @@ export async function emailRegister({ email, password, checkCode }) {
   return res.text()
 }
 
+// 邮箱重置密码（忘记密码）
+export async function emailResetPassword({ email, password, checkCode }) {
+  const url = `${BASE_URL}/user/emailResetPassword`
+  const body = JSON.stringify({ email, password, checkCode })
+  const requestOptions = {
+    method: 'POST',
+    body,
+    headers: { 'Content-Type': 'application/json' },
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  return res.text()
+}
+
 // 发送邮箱验证码
 export async function sendCheckCodeByEmail({ email }) {
   const url = `${BASE_URL}/user/sendCheckCodeByEmail?email=${encodeURIComponent(email)}`
@@ -575,6 +589,7 @@ export default {
   emailLogin,
   emailRegister,
   sendCheckCodeByEmail
+  , emailResetPassword
   , regenerateImage
   , queryRegenerateImage
   , getStoryboardImagesDetail

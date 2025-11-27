@@ -203,7 +203,7 @@
 </template>
 
 <script>
-import { emailLogin, emailRegister, sendCheckCodeByEmail } from '@/api'
+import { emailLogin, emailRegister, sendCheckCodeByEmail, emailResetPassword } from '@/api'
 import { useUserStore } from '@/stores/user'
 export default {
   name: 'LoginModal',
@@ -393,9 +393,24 @@ export default {
 
       try {
         if (this.isForgot) {
-          // 简化的忘记密码流程：校验后提示成功
-          this.showPrompt('重置密码成功')
-          this.closeModal()
+          const result = await emailResetPassword({
+            email: this.formData.email,
+            password: this.formData.password,
+            checkCode: this.formData.emailCode
+          })
+          const data = JSON.parse(result)
+          if (data && data.code === 200) {
+            this.showPrompt('重置密码成功,请重新登录')
+            this.isForgot = false
+            this.isLogin = true
+            this.resetForm()
+            this.$nextTick(() => {
+              this.generateCaptcha()
+            })
+          } else {
+            const msg = String((data && (data.message || data.msg)) || '').trim()
+            this.showPrompt(msg || '重置密码失败，请重试')
+          }
           return
         }
         if (this.isLogin && this.loginType === 'email') {
