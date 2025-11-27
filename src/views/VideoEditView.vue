@@ -798,15 +798,17 @@ export default {
       const scene = Array.isArray(this.scenes) ? this.scenes[idx] : null
       const set = this.pendingVideoSet instanceof Set ? this.pendingVideoSet : null
       if (!scene) return false
+      const k = this.getSceneKey(scene, idx)
       const first = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
       const existingVid = this.cleanUrl((scene && scene.video_url) || (first && first.url) || '')
-      const processed = !!(scene && scene.hasVideo) || (!!existingVid && this.isVideo(existingVid))
-      if (processed) {
-        if (set) { const k = this.getSceneKey(scene, idx); try { set.delete(k) } catch (e) { void 0 } }
+      const processedVideo = !!(scene && scene.hasVideo) || (!!existingVid && this.isVideo(existingVid))
+      const hasImg = this.shouldRenderImage(this.cleanUrl(scene.thumbnail || ''))
+        || this.shouldRenderImage(this.cleanUrl(this.sceneDetail.reference_image_url || ''))
+      if (processedVideo || hasImg) {
+        if (processedVideo && set) { try { set.delete(k) } catch (e) { void 0 } }
         return false
       }
       if (!set) return false
-      const k = this.getSceneKey(scene, idx)
       return set.has(k)
     }
   },
@@ -1453,7 +1455,9 @@ export default {
         this.sceneDetail = { reference_image_url: imgApi, video_url: vidApi }
         return
       }
-      this.sceneDetail = { reference_image_url: '', video_url: '' }
+      const active = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+      const thumb = this.cleanUrl((active && active.thumbnail) || '')
+      this.sceneDetail = { reference_image_url: thumb, video_url: '' }
     },
     onPointerDown(e) {
       this.isDraggingPointer = true
