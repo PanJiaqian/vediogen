@@ -939,6 +939,15 @@ export default {
         if (o.Script_Summary) {
           this.generated.scriptSummary = o.Script_Summary
           this.project.contentSummary = o.Script_Summary
+          try {
+            const s = String(o.Script_Summary || '')
+            const m = s.match(/《([^》]+)》/)
+            if (m && m[1]) {
+              this.project.title = `《${m[1].trim()}》`
+              const pid = this.$route.params.id
+              try { localStorage.setItem(`project:prompt:${pid}`, this.project.title) } catch (e) { /* no-op */ }
+            }
+          } catch (e) { /* no-op */ }
           this.loadingSections.summary = false
         }
         if (o.Storyboard) {

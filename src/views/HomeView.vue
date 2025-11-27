@@ -26,7 +26,13 @@
       <div class="search-container">
         <div class="search-box">
           <div class="search-input-container">
-            <textarea v-model="searchQuery" rows="3" maxlength="250" class="search-input" placeholder="输入你的想法，小梦会帮你自动为你创作"
+            <div v-if="selectedSubjects.length" class="input-chip-row">
+              <span v-for="n in selectedSubjects" :key="n" class="input-chip">
+                @{{ n }}
+                <button type="button" class="chip-close" @click="removeSubjectChip(n)">×</button>
+              </span>
+            </div>
+            <textarea v-model="searchQuery" rows="3" maxlength="250" class="search-input" :placeholder="selectedSubjects.length ? '' : '输入你的想法，小梦会帮你自动为你创作'"
               @keyup.enter="handleSearch"></textarea>
           </div>
           <div class="search-actions-container">
@@ -37,7 +43,7 @@
                   <div class="action-icon-wrapper">
                     <span class="at-symbol">@</span>
                   </div>
-                  <span>{{ selectedSubjectName || '主体' }}</span>
+                  <span>主体</span>
                 </button>
 
                 <!-- 主体下拉菜单 -->
@@ -182,65 +188,55 @@ export default {
       artStyles: [
         {
           id: 1,
-          name: '皮克斯',
-          image: '/api/placeholder/120/80'
+          name: '2D日漫风格',
+          description: '典型的日本二维动画风格，具有鲜明的线条、大眼睛、鲜艳配色和赛璐璐着色（cel shading），常见于电视动画和漫画插画。',
+          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/2D日漫风格.png'
         },
         {
           id: 2,
-          name: '2D古风',
-          image: '/api/placeholder/120/80'
+          name: '3D动画风格',
+          description: '采用三维建模并以卡通渲染（如三渲二）呈现的角色风格，兼具立体感与动漫美感，代表作品包括《原神》《蜘蛛侠：平行宇宙》。',
+          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/3D动画风格.png'
         },
         {
           id: 3,
-          name: '3D古风',
-          image: '/api/placeholder/120/80'
+          name: '都市写实风格',
+          description: '以真实城市环境为背景的写实人像风格，强调自然光影、皮肤质感和现代服饰，接近摄影效果但带有电影感构图。',
+          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/都市写实风格.png'
         },
         {
           id: 4,
-          name: '韩漫二次元',
-          image: '/api/placeholder/120/80'
+          name: '复古手绘风格',
+          description: '模仿20世纪80-90年代手绘动画的质感，带有胶片颗粒、有限色板和粗手绘线稿，如《新世纪福音战士》《猫眼三姐妹》。',
+          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/复古手绘风格.png'
         },
         {
           id: 5,
-          name: '现代都市',
-          image: '/api/placeholder/120/80'
+          name: '吉卜力风格',
+          description: '日本吉卜力工作室特有的手绘动画风格，色彩柔和、背景细腻、充满自然光影与童话氛围，如《千与千寻》《龙猫》。',
+          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/吉卜力风格.png'
         },
         {
           id: 6,
-          name: '3D卡通',
-          image: '/api/placeholder/120/80'
+          name: '赛博朋克',
+          description: '未来都市题材，融合霓虹灯光、雨夜街道、高科技低生活氛围，主色调为紫、蓝、青、粉，强调科技与人性冲突。',
+          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/赛博朋克.png'
         },
         {
           id: 7,
-          name: '日漫二次元',
-          image: '/api/placeholder/120/80'
+          name: '水墨画',
+          description: '中国传统水墨风格，以墨色浓淡表现意境，强调留白、笔触流动与写意精神，常用于山水或文人肖像。',
+          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/水墨画.png'
         },
         {
           id: 8,
-          name: '中国工笔画',
-          image: '/api/placeholder/120/80'
-        },
-        {
-          id: 9,
-          name: '写实',
-          image: '/api/placeholder/120/80'
-        },
-        {
-          id: 10,
-          name: '水彩',
-          image: '/api/placeholder/120/80'
-        },
-        {
-          id: 11,
-          name: '油画',
-          image: '/api/placeholder/120/80'
-        },
-        {
-          id: 12,
-          name: '素描',
-          image: '/api/placeholder/120/80'
+          name: '古代风格',
+          description: '中国古典人物形象，身着汉服或古装，背景多为庭院、山水或宫殿，融合历史服饰与东方美学，兼具写实与诗意。',
+          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/古代风格.png'
         }
       ],
+      selectedSubjects: [],
+      selectedStyleName: '',
       searchSuggestions: [
         { id: 1, text: '小羊介绍新疆伊犁的自然风光' },
         { id: 2, text: '女娲后人与修道者大战' },
@@ -274,6 +270,12 @@ export default {
     try {
       const saved = localStorage.getItem('home:searchQuery')
       if (typeof saved === 'string') this.searchQuery = saved
+      const chips = localStorage.getItem('home:selectedSubjects')
+      if (chips) {
+        let arr
+        try { arr = JSON.parse(chips) } catch (e) { arr = null }
+        if (Array.isArray(arr)) this.selectedSubjects = arr.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim())
+      }
     } catch (e) { /* no-op */ }
   },
   beforeUnmount() {
@@ -364,7 +366,17 @@ export default {
 
     selectSubject(subject) {
       console.log('选择主体:', subject)
-      // 不再把主体拼接到输入框，直接记录选择并替换按钮文字
+      // 允许选择最多四个主体，作为输入内容前缀（@名称），后续输入跟在其后
+      const name = String(subject?.name || '').trim()
+      if (!name) return
+      if (!this.selectedSubjects.includes(name)) {
+        if (this.selectedSubjects.length >= 4) {
+          this.showMessage('最多选择4个主体', 'error')
+        } else {
+          this.selectedSubjects.push(name)
+          try { localStorage.setItem('home:selectedSubjects', JSON.stringify(this.selectedSubjects)) } catch (e) { /* no-op */ }
+        }
+      }
       this.selectedSubjectId = subject.id
       this.selectedSubjectName = subject.name
       this.showSubjectDropdown = false
@@ -372,8 +384,35 @@ export default {
 
     selectStyle(style) {
       console.log('选择画风:', style)
-      this.searchQuery += `画风:${style.name} `
+      // 只能选择一种画风：写入输入框并替换已有画风字段
+      const name = String(style?.name || '').trim()
+      this.selectedStyleName = name
+      this.searchQuery = this.replaceFieldInQuery('画风', name)
       this.showStyleDropdown = false
+    },
+    replaceFieldInQuery(field, value) {
+      try {
+        const f = String(field).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const re = new RegExp(`(?:^|\\r?\\n|[ \\t])${f}[ \\t]*:[^\\r\\n]*`, 'g')
+        const base = String(this.searchQuery || '').replace(re, '').trim()
+        const addition = `${field}:${value}`
+        return base ? `${base} ${addition} ` : `${addition} `
+      } catch (e) {
+        return `${field}:${value} `
+      }
+    },
+    stripSubjectTokens(text) {
+      try {
+        const s = String(text || '')
+        return s.replace(/(?:^|\s)@[^\s]+/g, '').trim()
+      } catch (e) {
+        return String(text || '')
+      }
+    },
+    removeSubjectChip(name) {
+      const idx = this.selectedSubjects.indexOf(name)
+      if (idx >= 0) this.selectedSubjects.splice(idx, 1)
+      try { localStorage.setItem('home:selectedSubjects', JSON.stringify(this.selectedSubjects)) } catch (e) { /* no-op */ }
     },
 
     handleClickOutside(event) {
@@ -578,7 +617,7 @@ export default {
 .search-box {
   display: flex;
   flex-direction: column;
-  height: 160px;
+  min-height: 160px;
   background: white;
   border: 1px solid #e5e7eb;
   border-radius: 30px;
@@ -595,10 +634,13 @@ export default {
 
 .search-input-container {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
 }
 
 .search-input {
-  width: 100%;
   border: none;
   outline: none;
   font-size: 1rem;
@@ -1065,7 +1107,6 @@ export default {
   }
 
   .search-input {
-    order: -1;
     text-align: center;
   }
 
@@ -1104,5 +1145,31 @@ export default {
     font-size: 0.7rem;
     padding: 0.4rem 0.6rem;
   }
+}
+.input-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.input-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #60a5fa;
+  color: #ffffff;
+  border-radius: 999px;
+  font-size: 0.9rem;
+}
+
+.chip-close {
+  background: transparent;
+  border: none;
+  color: #e5f0ff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
 }
 </style>
