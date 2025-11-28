@@ -428,14 +428,9 @@ export default {
       console.log('选择画风:', style)
       const name = String(style?.name || '').trim()
       if (!name) return
-      if (!this.selectedStyles.includes(name)) {
-        if (this.selectedStyles.length >= 4) {
-          this.showMessage('最多选择4个画风', 'error')
-        } else {
-          this.selectedStyles.push(name)
-          try { localStorage.setItem('home:selectedStyles', JSON.stringify(this.selectedStyles)) } catch (e) { /* no-op */ }
-        }
-      }
+      // 画风只能选择一个：直接替换为当前选择
+      this.selectedStyles = [name]
+      try { localStorage.setItem('home:selectedStyles', JSON.stringify(this.selectedStyles)) } catch (e) { /* no-op */ }
       this.selectedStyleName = name
       this.showStyleDropdown = false
     },
