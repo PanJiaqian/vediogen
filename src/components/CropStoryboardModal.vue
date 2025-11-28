@@ -16,7 +16,10 @@
         <div class="timeline-area">
           <div class="duration-label">{{ selectedSeconds }}s</div>
           <div ref="timeline" class="timeline" @mousedown="onMouseDown">
-            <button class="play-btn" @click="togglePlay">▶</button>
+            <button class="play-btn" @click="togglePlay">
+              <span v-if="!playing">▶</span>
+              <span v-else>⏸</span>
+            </button>
             <div ref="trackInner" class="track-inner">
               <div class="frames" :style="{ backgroundImage: 'url(' + clean(frameUrl) + ')' }"></div>
               <div class="selection" :style="selectionStyle"></div>
@@ -37,6 +40,7 @@
 
 <script>
 import { cleanUrl } from '@/utils/media'
+import Hls from 'hls.js'
 
 export default {
   name: 'CropStoryboardModal',
@@ -99,6 +103,32 @@ export default {
     clean(u) {
       return cleanUrl(u)
     },
+    isM3u8(u) {
+      const s = this.clean(u || '')
+      return /\.m3u8(\?|#|$)/i.test(s)
+    },
+    async attachHls(videoEl, src) {
+      if (!videoEl) return null
+      const url = this.clean(src || '')
+      if (!this.isM3u8(url)) {
+        try { videoEl.src = url } catch (e) { void 0 }
+        return null
+      }
+      try {
+        if (videoEl.canPlayType && videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+          try { videoEl.src = url } catch (e) { void 0 }
+          return null
+        }
+      } catch (e) { void 0 }
+      if (Hls.isSupported()) {
+        const hls = new Hls({ maxBufferLength: 10 })
+        hls.loadSource(url)
+        hls.attachMedia(videoEl)
+        return hls
+      }
+      try { videoEl.src = url } catch (e) { void 0 }
+      return null
+    },
     emitClose() {
       this.$emit('close')
     },
@@ -126,6 +156,7 @@ export default {
       }
       const el = this.$refs.previewVideo
       if (!el) return
+      this.attachHls(el, this.videoUrl)
       const start = () => {
         const dur = Number(el.duration) || Math.max(1, (Number(this.durationMs) || 5000) / 1000)
         const s = Math.max(0, Math.min(dur, (this.startPct / 100) * dur))
