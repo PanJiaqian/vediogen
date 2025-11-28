@@ -127,8 +127,8 @@
 
               <!-- 图片展示 -->
               <div class="image-container">
-                <div v-if="isPreviewPending" class="skeleton-image"></div>
-                <video v-else-if="isVideo(sceneDetail.video_url)" :src="cleanUrl(sceneDetail.video_url)"
+                <div v-if="isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)" class="skeleton-image"></div>
+                <video v-else-if="isVideo(sceneDetail.video_url)" ref="sceneVideo" :src="cleanUrl(sceneDetail.video_url)"
                   :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" class="scene-image"
                   playsinline muted loop controls></video>
                 <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url) && !previewImgErrored"
@@ -339,7 +339,7 @@
         <!-- 视频画面 -->
           <div class="video-preview">
           <div class="video-container" ref="videoContainer">
-            <div v-if="isConverting || isPreviewPending" class="skeleton-image"></div>
+            <div v-if="((!isVideo(sceneDetail.video_url)) && (isVideoGenerating || isConverting)) || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)" class="skeleton-image"></div>
             <template v-else>
               <video v-if="isVideo(sceneDetail.video_url)" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)"
                 :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" playsinline muted loop
@@ -353,7 +353,7 @@
             </template>
           </div>
           <div class="preview-aside">
-            <template v-if="isConverting || isPreviewPending">
+            <template v-if="((!isVideo(sceneDetail.video_url)) && (isVideoGenerating || isConverting)) || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)">
               <div class="thumb-card">
                 <div class="skeleton-image"></div>
               </div>
@@ -504,7 +504,7 @@
                         <div class="skeleton-image" style="height:28px;"></div>
                       </div>
                     </template>
-                    <template v-else-if="index === activeSceneIndex && isPreviewPending">
+                    <template v-else-if="index === activeSceneIndex && (isPreviewPending || isActiveImageMissing)">
                       <div v-for="m in 10" :key="'prev-skel-' + index + '-' + m" class="scene-clip">
                         <div class="skeleton-image" style="height:28px;"></div>
                       </div>
@@ -519,9 +519,9 @@
                           :src="cleanUrl(clip.url || scene.thumbnail)"
                           :alt="'分镜' + (Number(scene.order_index) > 0 ? Number(scene.order_index) : '')" class="clip-thumbnail" loading="lazy" decoding="async"
                           fetchpriority="low" @error="onClipImgError(index, cidx)" />
-                        <div v-else class="clip-placeholder"></div>
+                        <div v-else class="skeleton-image" style="height:28px;"></div>
                       </div>
-                      <div v-if="getSceneClips(scene).length === 0" class="scene-clip clip-empty"></div>
+                      <div v-if="getSceneClips(scene).length === 0" class="scene-clip"><div class="skeleton-image" style="height:28px;"></div></div>
                     </template>
                   </div>
                   <div class="track-audio">
@@ -605,7 +605,8 @@
 import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, storyboardPictureGenStream, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo } from '@/api'
+import Hls from 'hls.js'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -664,7 +665,11 @@ export default {
       isVideoGenerating: false,
       pendingVideoSet: new Set()
       , videoQueue: [],
-      videoProcessing: false
+      videoProcessing: false,
+      durationMap: new Map(),
+      pollImagesActive: false,
+      pollImagesTimer: null,
+      pollImagesAbortResolve: null
     }
   },
   beforeUnmount() {
@@ -682,6 +687,17 @@ export default {
       this._timelineScrollHandler = null
     }
     try { if (this._ssePicCtrl && this._ssePicCtrl.abort) this._ssePicCtrl.abort() } catch (e) { void 0 }
+    try { if (this._hlsPreview && this._hlsPreview.destroy) this._hlsPreview.destroy() } catch (e) { void 0 }
+    try { if (this._hlsScene && this._hlsScene.destroy) this._hlsScene.destroy() } catch (e) { void 0 }
+    this.pollImagesActive = false
+    if (this.pollImagesAbortResolve) {
+      try { this.pollImagesAbortResolve() } catch (e) { void 0 }
+      this.pollImagesAbortResolve = null
+    }
+    if (this.pollImagesTimer) {
+      try { clearTimeout(this.pollImagesTimer) } catch (e) { void 0 }
+      this.pollImagesTimer = null
+    }
   },
   mounted() {
     const projectId = this.$route.params.id
@@ -703,6 +719,8 @@ export default {
               const sc = this.scenes[i] || {}
               const thumb = this.cleanUrl(sc.thumbnail || '')
               if (/^blob:/i.test(thumb)) sc.thumbnail = ''
+              else if (/logo\.png$/i.test(thumb)) sc.thumbnail = ''
+              else if (/placeholder/i.test(thumb)) sc.thumbnail = ''
               if (Array.isArray(sc.clips) && sc.clips.length) {
                 const u = this.cleanUrl(sc.clips[0].url || '')
                 if (/^blob:/i.test(u)) sc.clips[0].url = this.cleanUrl(sc.thumbnail || '')
@@ -712,6 +730,7 @@ export default {
           this.activeSceneIndex = 0
           this.updateTimeMarkers()
           this.sortScenesByServerOrder()
+          this.ensurePreviewFromScenes()
         }
       }
       // 解析原始分镜，生成包含clips的场景数据
@@ -724,6 +743,7 @@ export default {
           this.activeSceneIndex = 0
           this.updateTimeMarkers()
           this.sortScenesByServerOrder()
+          this.ensurePreviewFromScenes()
         }
       }
       const title = localStorage.getItem(`project:prompt:${projectId}`)
@@ -731,14 +751,6 @@ export default {
       const shouldGen = localStorage.getItem(`video-edit:generateStoryboard:${projectId}`) === '1'
       const shouldView = localStorage.getItem(`video-edit:viewStoryboard:${projectId}`) === '1'
       this._entryIsGenerate = !!shouldGen
-      if (shouldGen) {
-        this.isConverting = true
-        this.toastText = '分镜图片开始生成，首图预计两分钟后显示，全流程生成预计8~10分钟，请耐心等待'
-        this.toastVisible = true
-        setTimeout(() => { this.toastVisible = false }, 6000)
-        this.startStoryboardSSE()
-        try { localStorage.removeItem(`video-edit:generateStoryboard:${projectId}`) } catch (e) { void 0 }
-      }
       if (shouldView) {
         this.isConverting = true
       }
@@ -763,8 +775,9 @@ export default {
     }
     this.fetchCurrentSceneDetail()
     this.prefetchInitialScenesDetails()
-    if (!this._entryIsGenerate) this.pollStoryboardImagesDetail()
+    if (!this._entryIsGenerate) { this.pollImagesActive = true; this.pollStoryboardImagesDetail() }
     this.precacheSceneThumbnails()
+    this.$nextTick(() => { this.tryAttachHls() })
   },
   computed: {
     userStore() {
@@ -806,23 +819,36 @@ export default {
       const first = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
       const existingVid = this.cleanUrl((scene && scene.video_url) || (first && first.url) || '')
       const processedVideo = !!(scene && scene.hasVideo) || (!!existingVid && this.isVideo(existingVid))
-      const hasImg = this.shouldRenderImage(this.cleanUrl(scene.thumbnail || ''))
-        || this.shouldRenderImage(this.cleanUrl(this.sceneDetail.reference_image_url || ''))
+      const hasImg = this.shouldRenderImage(this.cleanUrl(this.sceneDetail.reference_image_url || ''))
       if (processedVideo || hasImg) {
         if (processedVideo && set) { try { set.delete(k) } catch (e) { void 0 } }
         return false
       }
       if (!set) return false
       return set.has(k)
+    },
+    isActiveImageMissing() {
+      const idx = this.activeSceneIndex
+      const scene = Array.isArray(this.scenes) ? this.scenes[idx] : null
+      const apiImg = this.cleanUrl(this.sceneDetail.reference_image_url || '')
+      const thumb = this.cleanUrl((scene && scene.thumbnail) || '')
+      const hasApi = this.shouldRenderImage(apiImg)
+      const hasThumb = this.shouldRenderImage(thumb)
+      return !hasApi && !hasThumb
     }
   },
   watch: {
     activeSceneIndex() {
       this.previewImgErrored = false
       this.fetchCurrentSceneDetail()
+      this.$nextTick(() => { this.tryAttachHls() })
     },
     'sceneDetail.reference_image_url'(val) {
       this.previewImgErrored = false
+    },
+    'sceneDetail.video_url'(val) {
+      this.$nextTick(() => { this.tryAttachHls() })
+      this.$nextTick(() => { this.updateActiveSceneDurationFromVideo() })
     },
     isConverting(val) {
       if (!val) this.$nextTick(() => { this.initTimelineSync() })
@@ -843,6 +869,52 @@ export default {
     }
   },
   methods: {
+    async ensureHlsLib() {
+      try { if (window && window.Hls) return window.Hls } catch (e) { void 0 }
+      try { if (Hls) return Hls } catch (e) { void 0 }
+      return await new Promise((resolve, reject) => {
+        try {
+          const s = document.createElement('script')
+          s.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest'
+          s.onload = () => { try { resolve(window.Hls) } catch (e) { resolve(null) } }
+          s.onerror = () => resolve(null)
+          document.head.appendChild(s)
+        } catch (e) { resolve(null) }
+      })
+    },
+    isM3u8(u) {
+      const s = this.cleanUrl(u)
+      return /\.m3u8(\?|#|$)/i.test(s)
+    },
+    async attachHls(videoEl, src) {
+      if (!videoEl) return null
+      const url = this.cleanUrl(src || '')
+      if (!url || !this.isM3u8(url)) return null
+      try {
+        if (videoEl.canPlayType && videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+          try { videoEl.src = url } catch (e) { void 0 }
+          return null
+        }
+        const HlsLib = await this.ensureHlsLib()
+        if (HlsLib && HlsLib.isSupported && HlsLib.isSupported()) {
+          const hls = new HlsLib()
+          hls.loadSource(url)
+          hls.attachMedia(videoEl)
+          return hls
+        }
+      } catch (e) { void 0 }
+      return null
+    },
+    async tryAttachHls() {
+      const src = this.cleanUrl(this.sceneDetail && this.sceneDetail.video_url || '')
+      if (!this.isM3u8(src)) return
+      const pv = this.$refs.previewVideo
+      const sv = this.$refs.sceneVideo
+      try { if (this._hlsPreview && this._hlsPreview.destroy) this._hlsPreview.destroy() } catch (e) { void 0 }
+      try { if (this._hlsScene && this._hlsScene.destroy) this._hlsScene.destroy() } catch (e) { void 0 }
+      try { this._hlsPreview = await this.attachHls(pv, src) } catch (e) { void 0 }
+      try { this._hlsScene = await this.attachHls(sv, src) } catch (e) { void 0 }
+    },
     initTimelineSync() {
       const tracks = this.$refs.timelineTracks
       const scaleInner = this.$refs.timeScaleInner
@@ -939,105 +1011,7 @@ export default {
       } catch (e) { void 0 }
       return scenes
     },
-    async startStoryboardSSE() {
-      try {
-        const projectId = this.$route.params.id
-        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-        const token = (this.userStore && this.userStore.token) || ''
-        if (!token) {
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
-          this.isConverting = false
-          return
-        }
-        this._ssePicCtrl = new AbortController()
-        await storyboardPictureGenStream({
-          videoId,
-          aspectRatio: localStorage.getItem(`project:aspectRatio:${projectId}`) || '16:9',
-          token,
-          signal: this._ssePicCtrl.signal,
-          onEvent: (obj) => {
-            if (!obj || obj.type === 'connected') return
-            const finished = (obj && obj.status && String(obj.status).toLowerCase() === 'workflow_finished')
-              || (obj && obj.data && obj.data.status && String(obj.data.status).toLowerCase() === 'workflow_finished')
-              || (obj && obj.message && obj.message.status && String(obj.message.status).toLowerCase() === 'workflow_finished')
-            if (finished) {
-              this.isConverting = false
-              try { this._ssePicCtrl && this._ssePicCtrl.abort() } catch (e) { void 0 }
-              return
-            }
-            if (obj.Storyboard_picture) {
-              let prevRaw = null
-              try { prevRaw = JSON.parse(localStorage.getItem(`project:storyboard_raw:${projectId}`) || 'null') } catch (e) { prevRaw = null }
-              const incoming = obj.Storyboard_picture
-              let mergedRaw = incoming
-              if (prevRaw && typeof prevRaw === 'object' && !Array.isArray(prevRaw) && typeof incoming === 'object' && !Array.isArray(incoming)) {
-                mergedRaw = Object.assign({}, prevRaw, incoming)
-              } else if (Array.isArray(prevRaw) && Array.isArray(incoming)) {
-                const seen = new Set()
-                const arr = []
-                for (const item of prevRaw) {
-                  const key = String(item.scene_id || item.scene_title || '')
-                  if (!seen.has(key)) { arr.push(item); seen.add(key) }
-                }
-                for (const item of incoming) {
-                  const key = String(item.scene_id || item.scene_title || '')
-                  if (!seen.has(key)) { arr.push(item); seen.add(key) }
-                }
-                mergedRaw = arr
-              }
-              try { localStorage.setItem(`project:storyboard_raw:${projectId}`, JSON.stringify(mergedRaw)) } catch (e) { void 0 }
-              const incScenes = this.parseStoryboardRawToScenes(incoming)
-              let added = 0
-              if (Array.isArray(incScenes) && incScenes.length) {
-                for (const sc of incScenes) {
-                  const key = String(sc.scene_number || '').trim()
-                  let exists = false
-                  for (let i = 0; i < this.scenes.length; i++) {
-                    const t = this.scenes[i]
-                    if (key && String(t.scene_number || '').trim() === key) { exists = true; break }
-                    if (!key && t.thumbnail && sc.thumbnail && t.thumbnail === sc.thumbnail) { exists = true; break }
-                  }
-                  if (!exists) { this.scenes.push(sc); added++ }
-                }
-              }
-              if (added > 0) {
-                if (this.activeSceneIndex < 0 || this.activeSceneIndex >= this.scenes.length) this.activeSceneIndex = 0
-                this._shotOrder = this.getShotOrderFromRaw(projectId)
-                this.sortScenesByServerOrder()
-                this.updateTimeMarkers()
-                try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
-                if (this.isConverting) this.isConverting = false
-                this.prefetchInitialScenesDetails()
-              }
-            } else if (obj.result) {
-              const incScenes = this.parseIncrementalResultToScenes(obj.result)
-              let added = 0
-              if (Array.isArray(incScenes) && incScenes.length) {
-                for (const sc of incScenes) {
-                  const key = String(sc.scene_number || '').trim()
-                  let exists = false
-                  for (let i = 0; i < this.scenes.length; i++) {
-                    const t = this.scenes[i]
-                    if (key && String(t.scene_number || '').trim() === key) { exists = true; break }
-                    if (!key && t.thumbnail && sc.thumbnail && t.thumbnail === sc.thumbnail) { exists = true; break }
-                  }
-                  if (!exists) { this.scenes.push(sc); added++ }
-                }
-              }
-              if (added > 0) {
-                if (this.activeSceneIndex < 0 || this.activeSceneIndex >= this.scenes.length) this.activeSceneIndex = 0
-                this.sortScenesByServerOrder()
-                this.updateTimeMarkers()
-                try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
-                if (this.isConverting) this.isConverting = false
-              }
-            }
-          }
-        })
-      } catch (e) {
-        this.isConverting = false
-      }
-    },
+    
     // 代理到通用工具，统一图片 URL 处理和失败判断
     cleanUrl(u) {
       return cleanUrlUtil(u)
@@ -1346,7 +1320,8 @@ export default {
       const hasVideoClip = !!clipUrl && (scene && scene.hasVideo || this.isVideo(clipUrl))
       if (hasVideoClip) {
         baseUrl = clipUrl
-        duration = Number(first && first.durationMs) || 5000
+        const cached = (this.durationMap instanceof Map && clipUrl) ? Number(this.durationMap.get(clipUrl)) || 0 : 0
+        duration = Number(first && first.durationMs) || cached || 5000
       } else {
         const active = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
         const activeImage = this.cleanUrl(this.sceneDetail.reference_image_url || '')
@@ -1455,7 +1430,16 @@ export default {
     },
     refreshSidebarFromLocal() {
       const imgApi = this.cleanUrl(this.sceneDetail.reference_image_url || '')
-      const vidApi = this.cleanUrl(this.sceneDetail.video_url || '')
+      let vidApi = this.cleanUrl(this.sceneDetail.video_url || '')
+      if (!vidApi) {
+        const arr = Array.isArray(this.scenes) ? this.scenes : []
+        for (let i = 0; i < arr.length; i++) {
+          const sc = arr[i] || {}
+          const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
+          const vurl = this.cleanUrl((first && first.url) || sc.video_url || '')
+          if (vurl && this.isVideo(vurl)) { vidApi = vurl; break }
+        }
+      }
       if (imgApi || vidApi) {
         this.sceneDetail = { reference_image_url: imgApi, video_url: vidApi }
         return
@@ -1463,6 +1447,26 @@ export default {
       const active = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
       const thumb = this.cleanUrl((active && active.thumbnail) || '')
       this.sceneDetail = { reference_image_url: thumb, video_url: '' }
+    },
+    async ensurePreviewFromScenes() {
+      try {
+        const apiImg = this.cleanUrl(this.sceneDetail.reference_image_url || '')
+        const apiVid = this.cleanUrl(this.sceneDetail.video_url || '')
+        if (apiImg || apiVid) return
+        const arr = Array.isArray(this.scenes) ? this.scenes : []
+        for (let i = 0; i < arr.length; i++) {
+          const sc = arr[i] || {}
+          const ref = this.cleanUrl(sc.thumbnail || '')
+          const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
+          const vid = this.cleanUrl((first && first.url) || sc.video_url || '')
+          if (ref || vid) {
+            const refLocal = ref ? await this.getLocalUrl(ref) : ''
+            const vidLocal = vid ? await this.getLocalUrl(vid) : ''
+            this.sceneDetail = { reference_image_url: refLocal || ref, video_url: vidLocal || vid }
+            break
+          }
+        }
+      } catch (e) { void 0 }
     },
     onPointerDown(e) {
       this.isDraggingPointer = true
@@ -1527,7 +1531,7 @@ export default {
           const refImg = this.cleanUrl(data.reference_image_url || scene.thumbnail || '')
           const vurl = this.cleanUrl(data.video_url || '')
           const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
-          const vlocal = ''
+          const vlocal = vurl ? await this.getLocalUrl(vurl) : ''
           const incomingKey = String(data.scene_number || '').trim()
           const targetIndex = this.activeSceneIndex
           if (targetIndex >= 0 && targetIndex < this.scenes.length) {
@@ -1567,7 +1571,12 @@ export default {
               if (!target.scene_number) target.scene_number = incomingKey || content.shot_id || undefined
             }
           }
-          this.sceneDetail = { reference_image_url: refLocal, video_url: this.sceneDetail.video_url }
+          const target = this.scenes[targetIndex] || {}
+          const firstClip = (target && Array.isArray(target.clips) && target.clips[0]) || null
+          const clipUrl = this.cleanUrl((firstClip && firstClip.url) || '')
+          const targetVid = this.cleanUrl(target && target.video_url || '')
+          const nextVideo = vlocal || vurl || (this.isVideo(targetVid) ? targetVid : (this.isVideo(clipUrl) ? clipUrl : ''))
+          this.sceneDetail = { reference_image_url: refLocal, video_url: nextVideo }
         } else {
           this.refreshSidebarFromLocal()
         }
@@ -1651,87 +1660,84 @@ export default {
       } catch (e) { void 0 }
     },
     async pollStoryboardImagesDetail() {
+      if (!this.pollImagesActive) return
       const projectId = this.$route.params.id
       const showSkel = localStorage.getItem(`video-edit:viewStoryboard:${projectId}`) === '1'
       try {
         if (showSkel) this.isConverting = true
-        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) return
-        for (let attempt = 0; attempt < 3; attempt++) {
+        for (;;) {
+          if (!this.pollImagesActive) break
           try {
-            const text = await getStoryboardImagesDetail({ videoId, token })
+            const curVideoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+            const text = await getStoryboardImagesDetail({ videoId: curVideoId, token })
             let resp = null
             try { resp = JSON.parse(text) } catch { resp = null }
             const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
             if (list.length) {
-              const order = Array.isArray(this._shotOrder) ? this._shotOrder : []
               const idxMap = new Map()
+              let anyVideoQueued = false
               for (let i = 0; i < list.length; i++) {
                 const item = list[i]
-                const key = String(item.scene_number || (item.scene_script && item.scene_script.content && item.scene_script.content.shot_id) || '').trim()
-                let idx = this.scenes.findIndex(sc => String(sc.scene_number || '').trim() === key)
-                if (idx < 0 && order.length) idx = order.indexOf(key)
-                if (idx < 0) idx = i < this.scenes.length ? i : -1
-                if (idx >= 0 && idx < this.scenes.length) {
-                  const k = this.getSceneKey(this.scenes[idx] || {}, idx)
-                  if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
-                  this.updatingKeySet.add(k)
-                  const sc = this.scenes[idx]
-                  const refImg = this.cleanUrl(item.reference_image_url || sc.thumbnail || '')
-                  const vurl = this.cleanUrl(item.video_url || '')
-                  const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
-                  const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
-                  if (refImg) sc.thumbnail = refImg
-                  if (vurl) {
-                    const dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
-                    sc.clips = [{ url: vurl, durationMs: dur }]
-                  } else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 5000 }]
-                  const oi = Number(item.order_index || item.orderIndex)
-                  if (Number.isFinite(oi) && oi > 0) {
-                    sc.order_index = oi
-                    sc.title = `分镜${oi}`
-                    if (key) idxMap.set(key, oi)
+                const oi = Number(item.order_index || item.orderIndex)
+                const idx = Number.isFinite(oi) && oi > 0 ? oi - 1 : i
+                while (idx >= this.scenes.length) {
+                  this.scenes.push({ id: Date.now() + this.scenes.length, title: `分镜${this.scenes.length + 1}`, description: '', thumbnail: '', clips: [], order_index: this.scenes.length + 1 })
+                }
+                const sc = this.scenes[idx]
+                const refImg = this.cleanUrl(item.reference_image_url || '')
+                const vurl = this.cleanUrl(item.video_url || '')
+                if (refImg) {
+                  sc.thumbnail = refImg
+                  if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 5000 }]
+                }
+                if (vurl && this.isVideo(vurl)) {
+                  const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
+                  const existingVid = this.cleanUrl((sc && sc.video_url) || (first && first.url) || '')
+                  const alreadyProcessed = !!(sc && sc.hasVideo) && (!!existingVid && this.isVideo(existingVid))
+                  if (!(alreadyProcessed && existingVid === vurl)) {
+                    const k = this.getSceneKey(sc, idx)
+                    if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
+                    this.pendingVideoSet.add(k)
+                    const sceneKey = String(item.scene_number || '').trim()
+                    this.queueVideoForScene(idx, vurl, Number.isFinite(oi) ? oi : undefined, sceneKey, k)
+                    anyVideoQueued = true
                   }
-                  const content = item && item.scene_script && item.scene_script.content ? item.scene_script.content : null
-                  if (content) {
-                    const parts = []
-                    if (content.shot_title) parts.push(content.shot_title)
-                    if (content.visual_description) parts.push(content.visual_description)
-                    const desc = parts.length ? parts.join('：') : ''
-                    if (desc) sc.description = desc
-                  }
-                  if (!sc.scene_number) sc.scene_number = key || undefined
-                  try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
+                }
+                if (Number.isFinite(oi) && oi > 0) {
+                  sc.order_index = oi
+                  sc.title = `分镜${oi}`
+                  const key = String(item.scene_number || '').trim()
+                  if (key) { sc.scene_number = key; idxMap.set(key, oi) }
                 }
               }
-              if (idxMap.size > 0) {
-                this._orderIndexMap = idxMap
-                this.sortScenesByServerOrder()
-                this.updateTimeMarkers()
-                try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
-              }
-              const active = this.scenes[this.activeSceneIndex] || {}
-              const activeKey = String(active.scene_number || '').trim()
-              const activeItem = list.find(x => String(x.scene_number || '').trim() === activeKey) || null
-              if (activeItem) {
-                const refImg = this.cleanUrl(activeItem.reference_image_url || active.thumbnail || '')
-                const vurl = this.cleanUrl(activeItem.video_url || '')
-                const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
-                const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
-                this.sceneDetail = { reference_image_url: refLocal, video_url: vLocal }
-              }
-              const needsMore = list.some(x => !this.cleanUrl(x.reference_image_url || ''))
-              if (!needsMore) break
+              if (anyVideoQueued) this.isVideoGenerating = true
+            if (idxMap.size > 0) {
+              this._orderIndexMap = idxMap
+              this.sortScenesByServerOrder()
+              this.updateTimeMarkers()
+              try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
             }
-          } catch (e) { void 0 }
-          if (attempt < 2) await new Promise(r => setTimeout(r, 30000))
+            await this.ensurePreviewFromScenes()
+            const allReady = list.every(x => this.cleanUrl(x.reference_image_url || ''))
+            if (allReady) { this.pollImagesActive = false; break }
+            
+          }
+        } catch (e) { void 0 }
+        await new Promise(r => {
+          if (!this.pollImagesActive) return r()
+          const id = setTimeout(() => { this.pollImagesAbortResolve = null; r() }, 30000)
+          this.pollImagesTimer = id
+          this.pollImagesAbortResolve = r
+        })
         }
       } catch (e) { void 0 } finally {
         this.isConverting = false
         if (showSkel) {
           try { localStorage.removeItem(`video-edit:viewStoryboard:${projectId}`) } catch (e) { void 0 }
         }
+        this.pollImagesActive = false
       }
     },
     async prefetchInitialScenesDetails() {
@@ -1782,13 +1788,17 @@ export default {
                 if (desc) target.description = desc
                 if (!target.scene_number) target.scene_number = incomingKey || content.shot_id || undefined
               }
-              if (targetIndex === this.activeSceneIndex) {
-                this.sceneDetail = { reference_image_url: refLocal, video_url: this.sceneDetail.video_url }
-              }
-            }
+          if (targetIndex === this.activeSceneIndex) {
+            const firstClip = (target && Array.isArray(target.clips) && target.clips[0]) || null
+            const clipUrl = this.cleanUrl((firstClip && firstClip.url) || '')
+            const targetVid = this.cleanUrl(target && target.video_url || '')
+            const nextVideo = vLocal || vurl || (this.isVideo(targetVid) ? targetVid : (this.isVideo(clipUrl) ? clipUrl : ''))
+            this.sceneDetail = { reference_image_url: refLocal, video_url: nextVideo }
           }
-          try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
         }
+      }
+      try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
+    }
         if (!this.sceneDetail.reference_image_url && !this.sceneDetail.video_url) this.refreshSidebarFromLocal()
       } catch (e) { void 0 }
     },
@@ -1907,13 +1917,17 @@ export default {
     },
     getSceneSeconds(scene) {
       const actual = this.getActualSceneSeconds(scene)
-      return Math.max(2, actual)
+      return Math.max(3, actual)
     },
     getActualSceneSeconds(scene) {
       const c = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
-      const url = this.cleanUrl((c && c.url) || (scene && scene.thumbnail) || '')
-      if (url && this.isVideo(url) && c && Number(c.durationMs)) {
-        return Math.max(0.5, Number(c.durationMs) / 1000)
+      const urlClip = this.cleanUrl((c && c.url) || '')
+      const urlScene = this.cleanUrl((scene && scene.video_url) || '')
+      const url = urlClip || urlScene
+      const cached = (this.durationMap instanceof Map && url) ? Number(this.durationMap.get(url)) || 0 : 0
+      const durMs = Number(c && c.durationMs) || cached
+      if (url && this.isVideo(url) && Number(durMs)) {
+        return Math.max(0, Number(durMs) / 1000)
       }
       return 5
     },
@@ -1937,10 +1951,25 @@ export default {
     },
     async measureVideoDurationMs(url) {
       try {
+        const s = this.cleanUrl(url)
+        if (this.isM3u8(s)) {
+          try {
+            const res = await fetch(s)
+            const text = await res.text()
+            let sum = 0
+            const re = /#EXTINF:([0-9.]+)/g
+            let m
+            while ((m = re.exec(text)) !== null) {
+              const v = parseFloat(m[1] || '0')
+              if (!isNaN(v)) sum += v
+            }
+            if (sum > 0) return Math.max(500, Math.round(sum * 1000))
+          } catch (e) { void 0 }
+        }
         const el = document.createElement('video')
         el.preload = 'metadata'
         try { el.muted = true } catch (e) { void 0 }
-        el.src = this.cleanUrl(url)
+        el.src = s
         return await new Promise((resolve) => {
           const done = () => {
             const d = Number(el.duration) || 0
@@ -1950,6 +1979,26 @@ export default {
           el.onerror = () => resolve(5000)
         })
       } catch (e) { return 5000 }
+    },
+    async updateActiveSceneDurationFromVideo() {
+      try {
+        const idx = this.activeSceneIndex
+        const scene = this.scenes[idx] || {}
+        const first = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
+        const url = this.cleanUrl((first && first.url) || (scene && scene.video_url) || '')
+        if (!url || !this.isVideo(url)) return
+        const dur = await this.measureVideoDurationMs(url)
+        if (Number(dur)) {
+          if (!Array.isArray(scene.clips) || !scene.clips.length) {
+            scene.clips = [{ url, durationMs: dur }]
+          } else {
+            scene.clips[0].durationMs = dur
+          }
+          if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+          this.durationMap.set(url, dur)
+          this.updateTimeMarkers()
+        }
+      } catch (e) { void 0 }
     },
     queueVideoForScene(index, url, orderIndex, sceneKey, pendingKey) {
       const task = { index, url: this.cleanUrl(url), orderIndex, sceneKey, pendingKey }
@@ -2105,6 +2154,9 @@ export default {
       const token = (this.userStore && this.userStore.token) || ''
       const modelName = 'wan2.2-i2v-flash'
       try {
+        this.pollImagesActive = false
+        if (this.pollImagesAbortResolve) { try { this.pollImagesAbortResolve() } catch (e) { /* no-op */ } this.pollImagesAbortResolve = null }
+        if (this.pollImagesTimer) { try { clearTimeout(this.pollImagesTimer) } catch (e) { /* no-op */ } this.pollImagesTimer = null }
         this.isConverting = true
         this.isVideoGenerating = true
         const set = new Set()
@@ -2228,6 +2280,24 @@ export default {
         if (idx !== this.activeSceneIndex) {
           this.activeSceneIndex = idx
           this.syncPreviewPlayback()
+        }
+        const vidEl = this.$refs.previewVideo
+        if (vidEl && this.isVideo(this.currentPreviewUrl)) {
+          try { vidEl.loop = false } catch (e) { void 0 }
+          const scene = this.scenes[idx] || {}
+          const actualMs = Math.round(this.getActualSceneSeconds(scene) * 1000)
+          const sceneElapsedMs = clamped - acc
+          if (Number(actualMs) > 0 && sceneElapsedMs >= actualMs) {
+            try { vidEl.pause() } catch (e) { void 0 }
+            const t = Math.max(0, actualMs / 1000)
+            if (vidEl.readyState >= 2) {
+              try { vidEl.currentTime = t } catch (e) { void 0 }
+            } else {
+              try { vidEl.addEventListener('loadeddata', () => { try { vidEl.currentTime = t } catch (e) { void 0 } }, { once: true }) } catch (e) { void 0 }
+            }
+          } else {
+            if (vidEl.paused) this.playVideoSafely(vidEl)
+          }
         }
         const pxPerSecond = this.getPxPerSecond()
         const section = this.$refs.timelineSection
@@ -2489,7 +2559,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   z-index: 2000;
   display: flex;
   flex-direction: column;
@@ -2498,8 +2568,8 @@ export default {
 /* 顶部导航栏 */
 .top-navbar {
   height: 60px;
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-secondary);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2517,24 +2587,24 @@ export default {
   width: 85px;
   height: 32px;
   border: none;
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
   border-radius: 6px;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .back-btn:hover {
-  background: #e5e7eb;
+  background: var(--bg-quaternary);
 }
 
 .project-title-input {
   font-size: 18px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
   border: none;
   background: transparent;
   outline: none;
@@ -2543,14 +2613,14 @@ export default {
 }
 
 .project-title-input:focus {
-  background: #f9fafb;
-  border: 1px solid #3b82f6;
+  background: var(--bg-secondary);
+  border: 1px solid var(--primary-color);
 }
 
 .project-title-text {
   font-size: 18px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
   padding: 4px 8px;
 }
 
@@ -2561,17 +2631,17 @@ export default {
 
 .navbar-btn {
   padding: 8px 16px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
-  background: white;
-  color: #374151;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .navbar-btn:hover {
-  background: #f9fafb;
+  background: var(--bg-secondary);
 }
 
 /* 禁用状态样式 */
@@ -2581,26 +2651,26 @@ export default {
 }
 
 .premium-btn {
-  background: #f3f4f6;
-  color: black;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
   border-radius: 20px;
 }
 
 .convert-btn {
-  background: #dbeafe;
-  border-color: #3b82f6;
-  color: #1e40af;
+  background: var(--bg-tertiary);
+  border-color: var(--primary-color);
+  color: var(--primary-active);
   border-radius: 20px;
 }
 
 .export-btn {
-  background: #3b82f6;
-  border-color: #3b82f6;
+  background: var(--primary-color);
+  border-color: var(--primary-color);
   color: white;
 }
 
 .export-btn:hover {
-  background: #2563eb;
+  background: var(--primary-hover);
 }
 
 /* 主要内容区域 */
@@ -2613,8 +2683,8 @@ export default {
 /* 最左侧切换选项 */
 .sidebar-tabs {
   width: 80px;
-  background: #f8f9fa;
-  border-right: 1px solid #e5e7eb;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-secondary);
   display: flex;
   flex-direction: column;
   padding: 20px 0;
@@ -2632,12 +2702,12 @@ export default {
 }
 
 .tab-item:hover {
-  background: #e5e7eb;
+  background: var(--bg-quaternary);
 }
 
 .tab-item.active {
-  background: #dbeafe;
-  color: #2563eb;
+  background: var(--bg-tertiary);
+  color: var(--primary-hover);
 }
 
 .tab-icon {
@@ -2656,8 +2726,8 @@ export default {
 /* 左侧面板 */
 .left-panel {
   width: 320px;
-  background: #f8f9fa;
-  border-right: 1px solid #e5e7eb;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-secondary);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -2672,7 +2742,7 @@ export default {
 .panel-header {
   /* background: #00bcd4; */
   padding: 16px 20px;
-  color: #000000;
+  color: var(--text-primary);
 }
 
 .scene-title-header {
@@ -2696,7 +2766,7 @@ export default {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: white;
+  background: var(--bg-primary);
   position: relative;
   overflow: hidden;
   /* 防止内容溢出 */
@@ -2726,9 +2796,9 @@ export default {
   align-items: center;
   gap: 8px;
   padding: 12px;
-  background: #e8f4fd;
+  background: var(--bg-tertiary);
   border-radius: 8px 8px 0 0;
-  border: 1px solid #b3d9f2;
+  border: 1px solid var(--border-secondary);
 }
 
 .prompt-icon {
@@ -2739,7 +2809,7 @@ export default {
   flex: 1;
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .prompt-actions {
@@ -2757,7 +2827,7 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-tertiary);
   transition: all 0.2s;
 }
 
@@ -2772,8 +2842,8 @@ export default {
 
 .prompt-content {
   padding: 12px;
-  background: white;
-  border: 1px solid #b3d9f2;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
   border-top: none;
   border-radius: 0 0 8px 8px;
 }
@@ -2781,7 +2851,7 @@ export default {
 .prompt-content p {
   margin: 0;
   font-size: 13px;
-  color: #374151;
+  color: var(--text-secondary);
   line-height: 1.5;
 }
 
@@ -2795,10 +2865,10 @@ export default {
   width: 100%;
   min-height: 80px;
   padding: 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
   font-size: 13px;
-  color: #374151;
+  color: var(--text-secondary);
   line-height: 1.5;
   resize: vertical;
   outline: none;
@@ -2806,7 +2876,7 @@ export default {
 }
 
 .prompt-edit-input:focus {
-  border-color: #3b82f6;
+  border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
@@ -2826,21 +2896,21 @@ export default {
 }
 
 .prompt-edit-btn.save-btn {
-  background: #3b82f6;
+  background: var(--primary-color);
   color: white;
 }
 
 .prompt-edit-btn.save-btn:hover {
-  background: #2563eb;
+  background: var(--primary-hover);
 }
 
 .prompt-edit-btn.cancel-btn {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 .prompt-edit-btn.cancel-btn:hover {
-  background: #e5e7eb;
+  background: var(--bg-quaternary);
 }
 
 .image-container {
@@ -2853,7 +2923,7 @@ export default {
   max-height: 300px;
   object-fit: contain;
   border-radius: 8px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-secondary);
 }
 
 /* 底部操作按钮 */
@@ -2869,8 +2939,8 @@ export default {
   justify-content: center;
   gap: 6px;
   border: none;
-  background-color: white;
-  color: #374151;
+  background-color: var(--bg-primary);
+  color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s;
@@ -2886,17 +2956,17 @@ export default {
   bottom: 0;
   left: 0;
   right: 0;
-  background: white;
+  background: var(--bg-primary);
   padding: 20px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-secondary);
 }
 
 .input-container {
   position: relative;
   margin-bottom: 8px;
-  border: 2px solid #3b82f6;
+  border: 2px solid var(--primary-color);
   border-radius: 16px;
-  background: white;
+  background: var(--bg-primary);
   padding: 12px;
 }
 
@@ -2906,13 +2976,13 @@ export default {
   gap: 8px;
   margin-bottom: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .input-label {
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .scene-input {
@@ -2943,28 +3013,28 @@ export default {
   width: 32px;
   height: 32px;
   border: none;
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-tertiary);
   transition: all 0.2s;
 }
 
 .input-action-btn:hover {
-  background: #e5e7eb;
+  background: var(--bg-quaternary);
 }
 
 .send-btn {
-  background: #3b82f6;
+  background: var(--primary-color);
   color: white;
   border-radius: 25px;
 }
 
 .send-btn:hover {
-  background: #2563eb;
+  background: var(--primary-hover);
 }
 
 .input-footer {
@@ -2972,7 +3042,7 @@ export default {
   align-items: center;
   justify-content: space-between;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .convert-video-btn {
@@ -2981,16 +3051,16 @@ export default {
   gap: 6px;
   padding: 6px 12px;
   border: none;
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
   border-radius: 6px;
   font-size: 12px;
-  color: #374151;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .convert-video-btn:hover {
-  background: #e5e7eb;
+  background: var(--bg-quaternary);
 }
 
 .convert-video-btn[disabled] {
@@ -3005,11 +3075,11 @@ export default {
 }
 
 .input-hint {
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .input-count {
-  color: #374151;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -3019,7 +3089,7 @@ export default {
   border: none;
   background: transparent;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3045,10 +3115,10 @@ export default {
 
 .control-btn {
   padding: 8px 16px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
-  background: white;
-  color: #374151;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
@@ -3058,13 +3128,13 @@ export default {
 }
 
 .control-btn:hover {
-  background: #f9fafb;
+  background: var(--bg-secondary);
 }
 
 .control-btn.active {
-  background: #3b82f6;
-  color: white;
-  border-color: #3b82f6;
+  background: var(--primary-color);
+  color: #ffffff;
+  border-color: var(--primary-color);
 }
 
 .video-preview {
@@ -3078,7 +3148,7 @@ export default {
 .video-container {
   width: 100%;
   height: 100%;
-  background: #f0f0f0;
+  background: var(--bg-tertiary);
   border-radius: 8px;
   position: relative;
   display: flex;
@@ -3104,8 +3174,8 @@ export default {
 
 .thumb-card {
   position: relative;
-  background: #f8f9fa;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
   height: calc(50% - 6px);
   overflow: hidden;
@@ -3128,14 +3198,14 @@ export default {
   align-items: center;
   gap: 6px;
   background: rgba(0, 0, 0, 0.08);
-  color: #374151;
+  color: var(--text-secondary);
   font-size: 12px;
   border-radius: 6px;
   padding: 4px 8px;
 }
 
 .thumb-label svg {
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .video-overlay {
@@ -3181,10 +3251,10 @@ export default {
 
 /* 播放控制区域 */
 .playback-section {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 8px;
   padding: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-secondary);
 }
 
 .playback-controls {
@@ -3193,7 +3263,7 @@ export default {
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .time-display {
@@ -3201,7 +3271,7 @@ export default {
   align-items: center;
   gap: 4px;
   font-size: 14px;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .current-time,
@@ -3210,26 +3280,26 @@ export default {
 }
 
 .separator {
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .expand-btn {
   width: 32px;
   height: 32px;
-  border: 1px solid #d1d5db;
-  background: white;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-primary);
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-tertiary);
   transition: all 0.2s;
 }
 
 .expand-btn:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--bg-tertiary);
+  border-color: var(--border-secondary);
 }
 
 /* 播放按钮（蓝色背景圆形） */
@@ -3237,7 +3307,7 @@ export default {
   width: 32px;
   height: 32px;
   border: none;
-  background: #3b82f6;
+  background: var(--primary-color);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -3249,7 +3319,7 @@ export default {
 }
 
 .play-btn-circle:hover {
-  background: #2563eb;
+  background: var(--primary-hover);
 }
 
 .play-btn-circle:active {
@@ -3274,18 +3344,18 @@ export default {
 }
 
 .success-modal {
-  background: #ffffff;
+  background: var(--bg-primary);
   border-radius: 12px;
   padding: 20px 24px;
   min-width: 260px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
   text-align: center;
 }
 
 .success-title {
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 
@@ -3293,7 +3363,7 @@ export default {
   padding: 8px 16px;
   border: none;
   border-radius: 6px;
-  background: #3b82f6;
+  background: var(--primary-color);
   color: #ffffff;
   cursor: pointer;
 }
@@ -3331,7 +3401,7 @@ export default {
 .timeline-label {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .switch {
@@ -3354,7 +3424,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #ccc;
+  background-color: var(--border-primary);
   transition: .4s;
   border-radius: 20px;
 }
@@ -3366,13 +3436,13 @@ export default {
   width: 16px;
   left: 2px;
   bottom: 2px;
-  background-color: white;
+  background-color: var(--bg-primary);
   transition: .4s;
   border-radius: 50%;
 }
 
 input:checked+.slider {
-  background-color: #3b82f6;
+  background-color: var(--primary-color);
 }
 
 input:checked+.slider:before {
@@ -3400,7 +3470,7 @@ input:checked+.slider:before {
 
 .time-marker {
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--text-quaternary);
 }
 
 .timeline-tracks {
@@ -3409,7 +3479,7 @@ input:checked+.slider:before {
   overflow-x: scroll;
   overflow-y: hidden;
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 #f1f5f9;
+  scrollbar-color: var(--border-primary) var(--bg-tertiary);
   padding: 8px 0;
   content-visibility: auto;
 }
@@ -3424,21 +3494,21 @@ input:checked+.slider:before {
 }
 
 .timeline-tracks::-webkit-scrollbar {
-  height: 8px;
+  height: 6px;
 }
 
 .timeline-tracks::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--bg-tertiary);
   border-radius: 4px;
 }
 
 .timeline-tracks::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--border-primary);
   border-radius: 4px;
 }
 
 .timeline-tracks::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--text-quaternary);
 }
 
 .timeline-track {
@@ -3448,9 +3518,9 @@ input:checked+.slider:before {
   flex: 0 0 calc(var(--px-per-second) * 5);
   width: calc(var(--px-per-second) * 5);
   min-width: calc(var(--px-per-second) * 5);
-  background: #f9fafb;
+  background: var(--bg-primary);
   border-radius: 6px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-secondary);
   transition: all 0.2s;
   overflow: hidden;
   cursor: move;
@@ -3461,14 +3531,14 @@ input:checked+.slider:before {
 }
 
 .timeline-track:hover {
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .timeline-track.active {
-  background: #eff6ff;
-  border-color: #3b82f6;
+  background: var(--bg-quaternary);
+  border-color: var(--primary-color);
 }
 
 .track-header {
@@ -3476,10 +3546,10 @@ input:checked+.slider:before {
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  background: #f3f4f6;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-secondary);
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   font-weight: 500;
   justify-content: space-between;
 }
@@ -3511,15 +3581,15 @@ input:checked+.slider:before {
 }
 
 .action-btn:hover {
-  background: #e5e7eb;
+  background: var(--bg-quaternary);
 }
 
 .copy-btn svg {
-  color: #3b82f6;
+  color: var(--primary-color);
 }
 
 .delete-btn svg {
-  color: #ef4444;
+  color: var(--error-color);
 }
 
 .track-clips {
@@ -3529,7 +3599,7 @@ input:checked+.slider:before {
   gap: 0;
   padding: 8px 0;
   min-height: 60px;
-  background: white;
+  background: var(--bg-primary);
 }
 
 .bgm-track .track-clips {
@@ -3554,7 +3624,7 @@ input:checked+.slider:before {
 .scene-clip {
   width: auto;
   height: 28px;
-  background: #e5e7eb;
+  background: var(--border-secondary);
   border-radius: 0;
   overflow: hidden;
   cursor: pointer;
@@ -3568,8 +3638,8 @@ input:checked+.slider:before {
 }
 
 .scene-clip.active {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 1px #3b82f6;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 1px var(--primary-color);
 }
 
 .clip-thumbnail {
@@ -3577,7 +3647,7 @@ input:checked+.slider:before {
   height: 100%;
   object-fit: contain;
   /* 完整显示缩略图 */
-  background: #fff;
+  background: var(--bg-primary);
 }
 
 .track-audio {
@@ -3585,19 +3655,19 @@ input:checked+.slider:before {
   flex-direction: row;
   gap: 6px;
   padding: 6px;
-  background: #f8f9fa;
-  border-top: 1px solid #e5e7eb;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-secondary);
   min-height: 32px;
 }
 
 .audio-btn {
   padding: 4px 6px;
   font-size: 9px;
-  border: 1px solid #d1d5db;
-  background: white;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-primary);
   border-radius: 3px;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-tertiary);
   transition: all 0.2s;
   display: flex;
   align-items: center;
@@ -3620,17 +3690,17 @@ input:checked+.slider:before {
 }
 
 .audio-btn:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--bg-tertiary);
+  border-color: var(--border-secondary);
 }
 
 .add-audio {
-  color: #3b82f6;
-  border-color: #3b82f6;
+  color: var(--primary-color);
+  border-color: var(--primary-color);
 }
 
 .add-audio:hover {
-  background: #eff6ff;
+  background: var(--bg-tertiary);
 }
 
 .playback-indicator {
@@ -3663,7 +3733,7 @@ input:checked+.slider:before {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: white;
+  background: var(--bg-primary);
   height: 100%;
   position: relative;
   overflow: hidden;
@@ -3685,8 +3755,8 @@ input:checked+.slider:before {
 
 .input-section {
   padding: 16px 20px;
-  border-top: 1px solid #e5e7eb;
-  background: #ffffff;
+  border-top: 1px solid var(--border-secondary);
+  background: var(--bg-primary);
 }
 
 .voice-script-section {
@@ -3703,11 +3773,11 @@ input:checked+.slider:before {
 .voice-script-title {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .voice-script-container {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
 }
 
@@ -3718,13 +3788,13 @@ input:checked+.slider:before {
   border: none;
   background: transparent;
   font-size: 14px;
-  color: #374151;
+  color: var(--text-secondary);
   resize: none;
   outline: none;
 }
 
 .voice-script-input::placeholder {
-  color: #9ca3af;
+  color: var(--text-tertiary);
 }
 
 .voice-script-controls {
@@ -3732,8 +3802,8 @@ input:checked+.slider:before {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.5);
-  border-top: 1px solid rgba(0, 188, 212, 0.3);
+  background: var(--bg-tertiary);
+  border-top: 1px solid var(--border-secondary);
 }
 
 .voice-control-btn {
@@ -3743,7 +3813,7 @@ input:checked+.slider:before {
   padding: 4px 8px;
   border: none;
   background: transparent;
-  color: black;
+  color: var(--text-primary);
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
@@ -3751,15 +3821,14 @@ input:checked+.slider:before {
 }
 
 .voice-control-btn:hover {
-  /* color: white; */
-  background-color: #dbeafe;
+  background-color: var(--bg-quaternary);
   border-radius: 25px;
 }
 
 .voice-duration {
   margin-left: auto;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 /* 声音设置区域 */
@@ -3781,7 +3850,7 @@ input:checked+.slider:before {
 .voice-setting-title {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .voice-setting-checkbox {
@@ -3789,7 +3858,7 @@ input:checked+.slider:before {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   cursor: pointer;
 }
 
@@ -3805,7 +3874,7 @@ input:checked+.slider:before {
 }
 
 .voice-setting-content {
-  background: #f9f9f7;
+  background: var(--bg-secondary);
   border-radius: 12px;
   padding: 16px;
 }
@@ -3823,10 +3892,10 @@ input:checked+.slider:before {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 20px;
-  color: #374151;
+  color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -3834,9 +3903,9 @@ input:checked+.slider:before {
 }
 
 .voice-type-btn.active {
-  background: #ffffff;
-  border-color: #e5e7eb;
-  color: #374151;
+  background: var(--bg-primary);
+  border-color: var(--border-secondary);
+  color: var(--text-secondary);
 }
 
 .voice-refresh-btn {
@@ -3845,17 +3914,17 @@ input:checked+.slider:before {
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 50%;
-  color: #6b7280;
+  color: var(--text-tertiary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .voice-refresh-btn:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--bg-secondary);
+  border-color: var(--border-primary);
 }
 
 /* 声音属性 */
@@ -3868,11 +3937,11 @@ input:checked+.slider:before {
 
 .voice-attr {
   padding: 4px 10px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 16px;
   font-size: 12px;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 /* 情绪选择器 */
@@ -3884,7 +3953,7 @@ input:checked+.slider:before {
 
 .emotion-label {
   font-size: 14px;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .emotion-dropdown {
@@ -3892,8 +3961,8 @@ input:checked+.slider:before {
   align-items: center;
   justify-content: space-between;
   padding: 4px 10px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 16px;
   cursor: pointer;
   min-width: 80px;
@@ -3901,23 +3970,23 @@ input:checked+.slider:before {
 
 .selected-emotion {
   font-size: 12px;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .emotion-select {
   padding: 4px 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-primary);
   border-radius: 4px;
-  background: white;
-  color: #374151;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
   outline: none;
 }
 
 .emotion-select:focus {
-  border-color: #00bcd4;
-  box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.1);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
 }
 
 /* 音量滑块 */
@@ -3930,7 +3999,7 @@ input:checked+.slider:before {
 .volume-slider {
   flex: 1;
   height: 6px;
-  background: #e5e7eb;
+  background: var(--border-secondary);
   border-radius: 3px;
   outline: none;
   appearance: none;
@@ -3941,7 +4010,7 @@ input:checked+.slider:before {
   appearance: none;
   width: 18px;
   height: 18px;
-  background: #00bcd4;
+  background: var(--primary-color);
   border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -3950,7 +4019,7 @@ input:checked+.slider:before {
 .volume-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
-  background: #00bcd4;
+  background: var(--primary-color);
   border-radius: 50%;
   cursor: pointer;
   border: none;
@@ -3960,7 +4029,7 @@ input:checked+.slider:before {
 .volume-value {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-secondary);
   min-width: 30px;
   text-align: right;
 }
@@ -3975,7 +4044,7 @@ input:checked+.slider:before {
 .speed-slider {
   flex: 1;
   height: 6px;
-  background: #e5e7eb;
+  background: var(--border-secondary);
   border-radius: 3px;
   outline: none;
   appearance: none;
@@ -3986,7 +4055,7 @@ input:checked+.slider:before {
   appearance: none;
   width: 18px;
   height: 18px;
-  background: #00bcd4;
+  background: var(--primary-color);
   border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -3995,7 +4064,7 @@ input:checked+.slider:before {
 .speed-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
-  background: #00bcd4;
+  background: var(--primary-color);
   border-radius: 50%;
   cursor: pointer;
   border: none;
@@ -4005,7 +4074,7 @@ input:checked+.slider:before {
 .speed-value {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-secondary);
   min-width: 40px;
   text-align: right;
 }
@@ -4017,14 +4086,14 @@ input:checked+.slider:before {
   left: 0;
   right: 0;
   padding: 20px;
-  border-top: 1px solid #e5e7eb;
-  background: white;
+  border-top: 1px solid var(--border-secondary);
+  background: var(--bg-primary);
 }
 
 .voice-apply-btn {
   width: 100%;
   padding: 12px;
-  background: #3b82f6;
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 8px;
@@ -4035,7 +4104,7 @@ input:checked+.slider:before {
 }
 
 .voice-apply-btn:hover {
-  background: #00acc1;
+  background: var(--primary-hover);
 }
 
 /* 对口型页面覆盖层样式 */
@@ -4045,7 +4114,7 @@ input:checked+.slider:before {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f5f5f5;
+  background: var(--bg-tertiary);
   z-index: 3000;
   display: flex;
   flex-direction: column;
@@ -4057,7 +4126,7 @@ input:checked+.slider:before {
 
 .skeleton-line {
   height: 12px;
-  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 37%, var(--bg-tertiary) 63%);
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
   border-radius: 6px;
@@ -4067,7 +4136,7 @@ input:checked+.slider:before {
 .skeleton-paragraph {
   height: 80px;
   border-radius: 8px;
-  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 37%, var(--bg-tertiary) 63%);
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
 }
@@ -4075,7 +4144,7 @@ input:checked+.slider:before {
 .skeleton-image {
   width: 100%;
   height: 160px;
-  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 37%, var(--bg-tertiary) 63%);
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
   border-radius: 8px;
@@ -4085,7 +4154,7 @@ input:checked+.slider:before {
   height: 60px;
   border-radius: 8px;
   margin-top: 8px;
-  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 37%, var(--bg-tertiary) 63%);
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
 }

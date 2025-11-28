@@ -668,7 +668,7 @@ export default {
 }
 
 .modal-container {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 12px;
   width: 100%;
   max-width: 400px;
@@ -692,14 +692,14 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 24px 24px 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-secondary);
   margin-bottom: 24px;
 }
 
 .modal-title {
   font-size: 24px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -709,13 +709,13 @@ export default {
   cursor: pointer;
   padding: 8px;
   border-radius: 6px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   transition: all 0.2s;
 }
 
 .close-btn:hover {
-  background: #f3f4f6;
-  color: #374151;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 .modal-body {
@@ -724,7 +724,7 @@ export default {
 
 .login-tabs {
   display: flex;
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
   border-radius: 8px;
   padding: 4px;
   margin-bottom: 24px;
@@ -738,14 +738,14 @@ export default {
   border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-tertiary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .tab-btn.active {
-  background: white;
-  color: #3b82f6;
+  background: var(--bg-primary);
+  color: var(--primary-color);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
@@ -761,14 +761,14 @@ export default {
   display: block;
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-secondary);
   margin-bottom: 6px;
 }
 
 .form-input {
   width: 100%;
   padding: 12px 16px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-primary);
   border-radius: 8px;
   font-size: 14px;
   transition: all 0.2s;
@@ -777,12 +777,12 @@ export default {
 
 .form-input:focus {
   outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
 }
 
 .form-input.error {
-  border-color: #ef4444;
+  border-color: var(--error-color);
 }
 
 .password-input {
@@ -797,7 +797,7 @@ export default {
   background: none;
   border: none;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-tertiary);
   padding: 4px;
 }
 
@@ -814,7 +814,7 @@ export default {
 .captcha-image {
   position: relative;
   cursor: pointer;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-primary);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -833,7 +833,7 @@ export default {
 }
 
 .center-prompt {
-  background: #ffffff;
+  background: var(--bg-primary);
   border-radius: 12px;
   padding: 20px 24px;
   min-width: 280px;
@@ -843,7 +843,7 @@ export default {
 
 .prompt-text {
   font-size: 14px;
-  color: #111827;
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 
@@ -851,7 +851,7 @@ export default {
   padding: 8px 16px;
   border: none;
   border-radius: 6px;
-  background: #3b82f6;
+  background: var(--primary-color);
   color: #ffffff;
   cursor: pointer;
 }
@@ -890,7 +890,7 @@ export default {
 
 .send-code-btn {
   padding: 12px 16px;
-  background: #3b82f6;
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 8px;
@@ -903,7 +903,7 @@ export default {
 }
 
 .send-code-btn:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--primary-hover);
 }
 
 .send-code-btn:disabled {
@@ -912,14 +912,14 @@ export default {
 }
 
 .error-text {
-  color: #ef4444;
+  color: var(--error-color);
   font-size: 12px;
   margin-top: 4px;
   display: block;
 }
 
 .hint-text {
-  color: red;
+  color: var(--error-color);
   font-size: 12px;
   margin-top: 4px;
 }
@@ -927,7 +927,7 @@ export default {
 .submit-btn {
   width: 100%;
   padding: 12px;
-  background: #3b82f6;
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 8px;
@@ -942,7 +942,7 @@ export default {
 }
 
 .submit-btn:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--primary-hover);
 }
 
 .submit-btn:disabled {
@@ -978,13 +978,13 @@ export default {
   left: 0;
   right: 0;
   height: 1px;
-  background: #e5e7eb;
+  background: var(--border-secondary);
 }
 
 .divider span {
-  background: white;
+  background: var(--bg-primary);
   padding: 0 16px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   font-size: 14px;
 }
 
@@ -1001,15 +1001,15 @@ export default {
   justify-content: center;
   width: 48px;
   height: 48px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-primary);
   border-radius: 50%;
-  background: white;
+  background: var(--bg-primary);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .social-btn:hover {
-  background: #f9fafb;
+  background: var(--bg-secondary);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
@@ -1035,7 +1035,7 @@ export default {
 .switch-mode {
   text-align: center;
   font-size: 14px;
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .forgot-row{
@@ -1045,14 +1045,14 @@ export default {
   background: none;
   margin-left: auto;
   border: none;
-  color: #3b82f6;
+  color: var(--primary-color);
   cursor: pointer;
   font-size: 14px;
   text-decoration: underline;
 }
 
 .link-btn:hover {
-  color: #2563eb;
+  color: var(--primary-hover);
 }
 
 /* 响应式设计 */

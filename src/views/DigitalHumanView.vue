@@ -121,7 +121,7 @@ export default {
 <style scoped>
 .digital-human {
   padding: 10px;
-  background-color: #f8f9fa;
+  background-color: var(--bg-secondary);
   min-height: 100vh;
 }
 
@@ -138,7 +138,7 @@ export default {
 /* 左侧上传区域 */
 .upload-area {
   flex: 1;
-  background-color: #fff;
+  background-color: var(--bg-primary);
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   display: flex;
@@ -162,18 +162,18 @@ export default {
   padding: 20px;
   cursor: pointer;
   transition: all 0.3s ease;
-  background-color: #f9f9f9;
+  background-color: var(--bg-tertiary);
   overflow: hidden;
 }
 
 .upload-area:hover {
   border-color: #4dabf7;
-  background-color: #f0f8ff;
+  background-color: var(--bg-quaternary);
 }
 
 .upload-area.drag-over {
   border-color: #4dabf7;
-  background-color: #e6f4ff;
+  background-color: var(--bg-quaternary);
 }
 
 .upload-content {
@@ -198,12 +198,12 @@ export default {
 
 .upload-text p {
   margin: 5px 0;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .upload-specs {
   font-size: 12px;
-  color: #999;
+  color: var(--text-quaternary);
   margin-top: 5px;
 }
 

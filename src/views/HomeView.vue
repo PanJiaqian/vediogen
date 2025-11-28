@@ -26,10 +26,14 @@
       <div class="search-container">
         <div class="search-box">
           <div class="search-input-container">
-            <div v-if="selectedSubjects.length" class="input-chip-row">
-              <span v-for="n in selectedSubjects" :key="n" class="input-chip">
+            <div v-if="selectedSubjects.length || selectedStyles.length" class="input-chip-row">
+              <span v-for="n in selectedSubjects" :key="'subj-' + n" class="input-chip">
                 @{{ n }}
                 <button type="button" class="chip-close" @click="removeSubjectChip(n)">×</button>
+              </span>
+              <span v-for="s in selectedStyles" :key="'style-' + s" class="input-chip">
+                #{{ s }}
+                <button type="button" class="chip-close" @click="removeStyleChip(s)">×</button>
               </span>
             </div>
             <textarea v-model="searchQuery" rows="3" maxlength="250" class="search-input" :placeholder="selectedSubjects.length ? '' : '输入你的想法，小梦会帮你自动为你创作'"
@@ -238,6 +242,7 @@ export default {
         }
       ],
       selectedSubjects: [],
+      selectedStyles: [],
       selectedStyleName: '',
       searchSuggestions: [
         { id: 1, text: '小羊介绍新疆伊犁的自然风光' },
@@ -278,6 +283,12 @@ export default {
         try { arr = JSON.parse(chips) } catch (e) { arr = null }
         if (Array.isArray(arr)) this.selectedSubjects = arr.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim())
       }
+      const styleChips = localStorage.getItem('home:selectedStyles')
+      if (styleChips) {
+        let arr
+        try { arr = JSON.parse(styleChips) } catch (e) { arr = null }
+        if (Array.isArray(arr)) this.selectedStyles = arr.filter(x => typeof x === 'string' && x.trim()).map(x => x.trim())
+      }
       const ids = localStorage.getItem('home:selectedSubjectIds')
       if (ids) {
         let arr2
@@ -311,7 +322,11 @@ export default {
         return
       }
 
-      const stageDirections = this.searchQuery.trim()
+      let stageDirections = this.searchQuery.trim()
+      if (Array.isArray(this.selectedStyles) && this.selectedStyles.length) {
+        const styleText = this.selectedStyles.join(' ')
+        stageDirections = stageDirections ? `${stageDirections} 画风:${styleText} ` : `画风:${styleText} `
+      }
       const category = this.activeFeature === 'script' ? '0' : '1'
       const materialIds = Array.isArray(this.selectedSubjectIds) ? this.selectedSubjectIds.filter(x => String(x).trim()).map(x => String(x).trim()) : []
       const materialId = materialIds.length ? materialIds.join(',') : (this.selectedSubjectId ? String(this.selectedSubjectId) : '')
@@ -326,11 +341,13 @@ export default {
       this.$router.push({ name: 'ProjectDetail', params: { id: projectId }, query: { q: stageDirections, category, materialId } })
       this.searchQuery = ''
       this.selectedSubjects = []
+      this.selectedStyles = []
       this.selectedSubjectIds = []
       this.selectedSubjectId = null
       this.selectedSubjectName = ''
       try {
         localStorage.setItem('home:selectedSubjects', JSON.stringify(this.selectedSubjects))
+        localStorage.setItem('home:selectedStyles', JSON.stringify(this.selectedStyles))
         localStorage.setItem('home:selectedSubjectIds', JSON.stringify(this.selectedSubjectIds))
       } catch (e) { /* no-op */ }
     },
@@ -409,10 +426,17 @@ export default {
 
     selectStyle(style) {
       console.log('选择画风:', style)
-      // 只能选择一种画风：写入输入框并替换已有画风字段
       const name = String(style?.name || '').trim()
+      if (!name) return
+      if (!this.selectedStyles.includes(name)) {
+        if (this.selectedStyles.length >= 4) {
+          this.showMessage('最多选择4个画风', 'error')
+        } else {
+          this.selectedStyles.push(name)
+          try { localStorage.setItem('home:selectedStyles', JSON.stringify(this.selectedStyles)) } catch (e) { /* no-op */ }
+        }
+      }
       this.selectedStyleName = name
-      this.searchQuery = this.replaceFieldInQuery('画风', name)
       this.showStyleDropdown = false
     },
     replaceFieldInQuery(field, value) {
@@ -444,9 +468,14 @@ export default {
         if (idStr) {
           const i2 = this.selectedSubjectIds.indexOf(idStr)
           if (i2 >= 0) this.selectedSubjectIds.splice(i2, 1)
-          localStorage.setItem('home:selectedSubjectIds', JSON.stringify(this.selectedSubjectIds))
+          try { localStorage.setItem('home:selectedSubjectIds', JSON.stringify(this.selectedSubjectIds)) } catch (e) { /* no-op */ }
         }
       } catch (e) { /* no-op */ }
+    },
+    removeStyleChip(name) {
+      const idx = this.selectedStyles.indexOf(name)
+      if (idx >= 0) this.selectedStyles.splice(idx, 1)
+      try { localStorage.setItem('home:selectedStyles', JSON.stringify(this.selectedStyles)) } catch (e) { /* no-op */ }
     },
 
     handleClickOutside(event) {
@@ -577,7 +606,7 @@ export default {
 .home {
   width: 100%;
   max-width: 1200px;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -597,7 +626,7 @@ export default {
 
 .main-title {
   font-size: 1.75rem;
-  color: #1f2937;
+  color: var(--text-primary);
   margin-bottom: 2rem;
   letter-spacing: -0.025em;
 }
@@ -606,7 +635,7 @@ export default {
   display: flex;
   gap: 0;
   margin-bottom: 2rem;
-  background: #e5e7eb;
+  background: var(--bg-tertiary);
   border-radius: 25px;
   padding: 4px;
   height: 40px;
@@ -620,7 +649,7 @@ export default {
   background: transparent;
   border: none;
   border-radius: 21px;
-  color: #000000;
+  color: var(--text-primary);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -629,12 +658,12 @@ export default {
 }
 
 .feature-tag:hover {
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .feature-tag.active {
-  background: #FFFFFF;
-  color: #3b82f6;
+  background: var(--bg-primary);
+  color: var(--primary-color);
 }
 
 .feature-icon {
@@ -652,18 +681,18 @@ export default {
   display: flex;
   flex-direction: column;
   min-height: 160px;
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 30px;
   padding: 1rem 1.25rem;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  box-shadow: var(--shadow-md);
   transition: all 0.2s ease;
   justify-content: space-between;
 }
 
 .search-box:focus-within {
-  border-color: #3b82f6;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-md);
 }
 
 .search-input-container {
@@ -678,7 +707,7 @@ export default {
   border: none;
   outline: none;
   font-size: 1rem;
-  color: #374151;
+  color: var(--text-secondary);
   background: transparent;
   padding: 0.5rem 0;
   text-align: left;
@@ -696,7 +725,7 @@ export default {
 }
 
 .search-input::placeholder {
-  color: #6b7280;
+  color: var(--text-tertiary);
   font-size: 0.95rem;
   text-align: left;
 }
@@ -722,7 +751,7 @@ export default {
   display: flex;
   align-items: center;
   margin-right: 8px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   font-size: 0.675rem;
 }
 
@@ -736,18 +765,18 @@ export default {
   align-items: center;
   gap: 0.35rem;
   padding: 0.5rem 0.75rem;
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 20px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   font-size: 0.87rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .action-btn:hover {
-  background: #f9fafb;
-  color: #374151;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
 }
 
 .action-icon-wrapper {
@@ -757,21 +786,21 @@ export default {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background-color: #f3f4f6;
+  background-color: var(--bg-tertiary);
   margin-right: 4px;
 }
 
 .at-symbol {
   font-size: 16px;
   font-weight: bold;
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .paint-icon {
   position: relative;
   width: 14px;
   height: 14px;
-  background-color: #6b7280;
+  background-color: var(--text-tertiary);
   border-radius: 2px;
 }
 
@@ -779,7 +808,7 @@ export default {
 .paint-icon:after {
   content: '';
   position: absolute;
-  background-color: #f3f4f6;
+  background-color: var(--bg-tertiary);
   width: 10px;
   height: 1px;
   transform: rotate(45deg);
@@ -797,23 +826,23 @@ export default {
   justify-content: center;
   width: 36px;
   height: 36px;
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
   border: none;
   border-radius: 50%;
-  color: #6b7280;
+  color: var(--text-tertiary);
   cursor: pointer;
   transition: all 0.2s ease;
   margin-left: auto;
 }
 
 .search-submit-btn.active {
-  background: #3b82f6;
+  background: var(--primary-color);
   color: #ffffff;
 }
 
 .search-submit-btn:hover {
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--bg-quaternary);
+  color: var(--text-secondary);
 }
 
 .search-submit-btn svg {
@@ -835,23 +864,23 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: white;
-  color: #374151;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
   padding: 0.75rem 1rem;
   border-radius: 20px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 0.875rem;
   font-weight: 400;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .suggestion-tag:hover {
-  border-color: #3b82f6;
-  color: #3b82f6;
+  border-color: var(--primary-color);
+  color: var(--primary-color);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .suggestion-icon {
@@ -871,7 +900,7 @@ export default {
 .recommendations-title {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-primary);
   margin-bottom: 1.5rem;
   text-align: left;
 }
@@ -884,10 +913,10 @@ export default {
 }
 
 .recommendation-card {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-sm);
   transition: all 0.2s ease;
   cursor: pointer;
   border: none;
@@ -896,7 +925,7 @@ export default {
 }
 
 .recommendation-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
@@ -935,10 +964,10 @@ export default {
   top: 100%;
   left: 0;
   z-index: 1000;
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 12px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-lg);
   min-width: 480px;
   max-height: 500px;
   overflow-y: auto;
@@ -951,7 +980,7 @@ export default {
 
 .dropdown-header {
   padding: 16px 20px 12px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--bg-tertiary);
 }
 
 .category-tabs {
@@ -963,21 +992,21 @@ export default {
   padding: 6px 12px;
   border: none;
   border-radius: 16px;
-  background: white;
-  color: #6b7280;
+  background: var(--bg-primary);
+  color: var(--text-tertiary);
   font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .category-tab.active {
-  color: #3b82f6;
-  border-color: #3b82f6;
+  color: var(--primary-color);
+  border-color: var(--primary-color);
 }
 
 .category-tab:hover:not(.active) {
-  background: #f9fafb;
-  color: #374151;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
 }
 
 .dropdown-content {
@@ -990,24 +1019,24 @@ export default {
   gap: 8px;
   padding: 12px 16px;
   margin-bottom: 8px;
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-tertiary);
   border-radius: 8px;
-  color: #3b82f6;
+  color: var(--primary-color);
   font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .create-new-item:hover {
-  background: #e0f2fe;
-  border-color: #3b82f6;
+  background: var(--bg-tertiary);
+  border-color: var(--primary-color);
 }
 
 .create-icon {
   width: 16px;
   height: 16px;
-  color: #3b82f6;
+  color: var(--primary-color);
 }
 
 .items-grid {
@@ -1044,7 +1073,7 @@ export default {
 
 .subject-item:hover,
 .style-item:hover {
-  background: #f8fafc;
+  background: var(--bg-secondary);
 }
 
 .subject-avatar {
@@ -1071,7 +1100,7 @@ export default {
 .subject-name,
 .style-name {
   font-size: 0.75rem;
-  color: #374151;
+  color: var(--text-secondary);
   font-weight: 500;
   margin-bottom: 4px;
 }
@@ -1085,8 +1114,8 @@ export default {
 
 .subject-tag {
   font-size: 0.625rem;
-  color: #6b7280;
-  background: #f3f4f6;
+  color: var(--text-tertiary);
+  background: var(--bg-tertiary);
   padding: 2px 6px;
   border-radius: 10px;
 }
@@ -1094,10 +1123,10 @@ export default {
 .load-more {
   text-align: center;
   padding: 12px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   font-size: 0.875rem;
   cursor: pointer;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--bg-tertiary);
   margin-top: 8px;
 }
 

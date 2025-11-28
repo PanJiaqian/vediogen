@@ -13,13 +13,16 @@
       <div class="header__right">
         <div class="header-items">
           <div class="header-item membership-btn">开通会员</div>
-          <div class="header-item">
-            <svg class="header-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <div class="header-item theme-toggle" @click="toggleTheme" :aria-label="isDark ? '切换为浅色' : '切换为深色'">
+            <svg v-if="!isDark" class="header-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 17a5 5 0 100-10 5 5 0 000 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                 stroke-linejoin="round" />
               <path
                 d="M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <svg v-else class="header-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </div>
           <div class="header-item">
@@ -114,7 +117,8 @@ export default {
       loginModalVisible: false,
       showUserMenu: false,
       centerPromptVisible: false,
-      centerPromptText: ''
+      centerPromptText: '',
+      isDark: false
     }
   },
   computed: {
@@ -134,6 +138,7 @@ export default {
     // 监听全局事件以弹出登录弹窗
     window.addEventListener('open-login-modal', this.showLoginModal)
     window.addEventListener('auth-401', this.handleAuth401)
+    this.isDark = document.documentElement.getAttribute('data-theme') === 'dark'
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside)
@@ -220,6 +225,18 @@ export default {
       this.openCenterPrompt('已退出登录')
     }
     ,
+    toggleTheme() {
+      const root = document.documentElement
+      const next = root.getAttribute('data-theme') === 'dark' ? null : 'dark'
+      if (next) {
+        root.setAttribute('data-theme', next)
+        this.isDark = true
+      } else {
+        root.removeAttribute('data-theme')
+        this.isDark = false
+      }
+    }
+    ,
     // 处理 401 未授权提示
     handleAuth401() {
       this.openCenterPrompt('请重新登录')
@@ -247,8 +264,8 @@ export default {
   left: 0;
   right: 0;
   height: 60px;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-secondary);
   z-index: 2000;
 }
 
@@ -281,7 +298,7 @@ export default {
 .logo-text {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-primary);
   letter-spacing: -0.025em;
 }
 
@@ -301,7 +318,7 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--text-tertiary);
   font-size: 0.9rem;
   cursor: pointer;
 }
@@ -309,12 +326,12 @@ export default {
 .header-icon {
   width: 20px;
   height: 20px;
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .membership-btn {
-  background-color: #f3f4f6;
-  color: #111827;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
   padding: 0.5rem 1rem;
   border-radius: 20px;
   font-weight: 500;
@@ -332,7 +349,7 @@ export default {
 }
 
 .user-info:hover {
-  background-color: #f9fafb;
+  background-color: var(--bg-tertiary);
 }
 
 .user-avatar {
@@ -345,7 +362,7 @@ export default {
 .user-name {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 /* 登录按钮样式 */
@@ -353,7 +370,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: #3b82f6;
+  background: var(--primary-color);
   color: white;
   border: none;
   padding: 0.5rem 1rem;
@@ -365,7 +382,7 @@ export default {
 }
 
 .login-btn:hover {
-  background: #2563eb;
+  background: var(--primary-hover);
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
@@ -384,17 +401,17 @@ export default {
 }
 
 .center-prompt {
-  background: #ffffff;
+  background: var(--bg-primary);
   border-radius: 12px;
   padding: 20px 24px;
   min-width: 280px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
   text-align: center;
 }
 
 .prompt-text {
   font-size: 14px;
-  color: #111827;
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 
@@ -402,7 +419,7 @@ export default {
   padding: 8px 16px;
   border: none;
   border-radius: 6px;
-  background: #3b82f6;
+  background: var(--primary-color);
   color: #ffffff;
   cursor: pointer;
 }
@@ -418,10 +435,10 @@ export default {
   top: 100%;
   right: 0;
   margin-top: 0.5rem;
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
   min-width: 180px;
   z-index: 3000;
   overflow: hidden;
@@ -433,21 +450,21 @@ export default {
   gap: 0.75rem;
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .menu-item:hover {
-  background-color: #f9fafb;
+  background-color: var(--bg-tertiary);
 }
 
 .menu-item.logout {
-  color: #dc2626;
+  color: var(--error-color);
 }
 
 .menu-item.logout:hover {
-  background-color: #fef2f2;
+  background-color: var(--bg-quaternary);
 }
 
 .menu-icon {
@@ -458,7 +475,7 @@ export default {
 
 .menu-divider {
   height: 1px;
-  background-color: #e5e7eb;
+  background-color: var(--border-secondary);
   margin: 0.25rem 0;
 }
 

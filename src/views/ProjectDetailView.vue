@@ -138,8 +138,8 @@
             <div>场景：{{ scene.scene_title }}</div>
             <div v-if="scene.shots && scene.shots.length">
               <div v-for="(shot, idx) in scene.shots" :key="idx"
-                style="margin: 6px 0; padding: 6px 8px; border: 1px solid #eee; border-radius: 6px;">
-                <div style="font-weight:600;color:#1f2937;margin-bottom:4px;">分镜{{ (shot.shot_code || shot.shot_id) ?
+                style="margin: 6px 0; padding: 6px 8px; border: 1px solid var(--border-secondary); border-radius: 6px;">
+                <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px;">分镜{{ (shot.shot_code || shot.shot_id) ?
                   (shot.shot_code || shot.shot_id).toString().replace(/^shot_/, '').replace(/^scene_/, '') : (sIdx + 1)
                   +
                   '_' + (idx + 1) }}</div>
@@ -610,8 +610,7 @@ export default {
         return
       }
       try { localStorage.setItem(`project:aspectRatio:${projectId}`, String((this.project && this.project.aspectRatio) || '16:9')) } catch (e) { void 0 }
-      try { localStorage.setItem(`video-edit:generateStoryboard:${projectId}`, '1') } catch (e) { /* no-op */ }
-      this.$router.push(`/video-edit/${projectId}`)
+      this.$router.push(`/generation-steps/${projectId}`)
     },
     saveProject() {
       console.log('保存项目')
@@ -1187,7 +1186,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: white;
+  background: var(--bg-primary);
   z-index: 1500;
   display: flex;
   height: calc(100vh - 60px);
@@ -1201,14 +1200,14 @@ export default {
   overflow-y: auto;
   overflow-x: hidden;
   /* 允许上下滚动 */
-  border-right: 1px solid #e5e7eb;
+  border-right: 1px solid var(--border-secondary);
   display: flex;
   flex-direction: column;
 }
 
 .right-content {
   width: 320px;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
   position: relative;
@@ -1232,7 +1231,7 @@ export default {
 .project-title {
   font-size: calc(24px * var(--font-scale));
   font-weight: 700;
-  color: #111827;
+  color: var(--text-primary);
   margin-bottom: 4px;
   line-height: 1.2;
 }
@@ -1250,9 +1249,9 @@ export default {
 }
 
 .version-button {
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  color: #374151;
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 12px;
@@ -1263,8 +1262,8 @@ export default {
   top: 36px;
   right: 0;
   width: 280px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   border-radius: 12px;
   padding: 12px;
@@ -1281,11 +1280,11 @@ export default {
 }
 
 .version-item:hover {
-  background: #f9fafb;
+  background: var(--bg-tertiary);
 }
 
 .version-item.selected {
-  border-color: #3b82f6;
+  border-color: var(--primary-color);
 }
 
 .version-item-left {
@@ -1306,12 +1305,12 @@ export default {
 
 .version-title {
   font-size: 13px;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .version-time {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .floating-toast {
@@ -1329,8 +1328,8 @@ export default {
 }
 
 .version-tag {
-  border: 1px solid #e5e7eb;
-  color: #374151;
+  border: 1px solid var(--border-secondary);
+  color: var(--text-secondary);
   border-radius: 8px;
   padding: 2px 8px;
   font-size: 12px;
@@ -1338,16 +1337,16 @@ export default {
 
 .project-time {
   font-size: calc(13px * var(--font-scale));
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .section-title {
   font-size: calc(16px * var(--font-scale));
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary);
   margin-bottom: 12px;
   padding-bottom: 4px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 /* 左右滚动条隐藏（保持可滚动） */
@@ -1375,7 +1374,7 @@ export default {
 .left-content .section-title {
   font-size: calc(18px * var(--font-scale));
   font-weight: 700;
-  color: #222;
+  color: var(--text-primary);
   margin: 18px 0 10px;
   padding-left: 8px;
   border-left: 3px solid #3b82f6;
@@ -1387,18 +1386,18 @@ export default {
 }
 
 .left-content .section-title+div>div {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 8px;
   font-size: calc(13px * var(--font-scale));
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 /* Markdown 文本样式 */
 .left-content .section-content {
-  color: #4b5563;
+  color: var(--text-secondary);
   font-size: calc(14px * var(--font-scale));
   line-height: 1.7;
 }
@@ -1407,7 +1406,7 @@ export default {
 .scene-image {
   max-width: 100%;
   border-radius: 8px;
-  border: 1px solid #eee;
+  border: 1px solid var(--border-secondary);
   display: block;
   margin-top: 6px;
 }
@@ -1428,7 +1427,7 @@ export default {
   height: 64px;
   border-radius: 6px;
   object-fit: cover;
-  border: 1px solid #eee;
+  border: 1px solid var(--border-secondary);
   margin-right: 8px;
 }
 
@@ -1436,8 +1435,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
   font-size: calc(12px * var(--font-scale));
   cursor: pointer;
 }
@@ -1448,17 +1447,17 @@ export default {
 
 .character-name {
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary);
 }
 
 /* 场景图片失败占位 */
 .scene-image-placeholder {
   width: 100%;
   height: 160px;
-  border: 1px dashed #ddd;
+  border: 1px dashed var(--border-secondary);
   border-radius: 8px;
-  background: #f9fafb;
-  color: #6b7280;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1481,21 +1480,21 @@ export default {
 }
 
 .summary-bullet {
-  color: #374151;
+  color: var(--text-primary);
   margin-right: 8px;
   font-weight: 600;
 }
 
 .summary-label {
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary);
   margin-right: 8px;
   min-width: 80px;
   flex-shrink: 0;
 }
 
 .summary-content {
-  color: #6b7280;
+  color: var(--text-tertiary);
   flex: 1;
 }
 
@@ -1520,14 +1519,14 @@ export default {
 
 .highlight-label {
   font-weight: 600;
-  color: #374151;
+  color: var(--text-primary);
   margin-right: 8px;
   min-width: 60px;
   flex-shrink: 0;
 }
 
 .highlight-content {
-  color: #6b7280;
+  color: var(--text-tertiary);
   flex: 1;
 }
 
@@ -1540,7 +1539,7 @@ export default {
 .scene-item {
   margin-bottom: 16px;
   padding: 12px;
-  background: #f9fafb;
+  background: var(--bg-tertiary);
   border-radius: 6px;
   border-left: 3px solid #3b82f6;
 }
@@ -1552,8 +1551,8 @@ export default {
 .scene-label {
   font-weight: 600;
   font-size: calc(13px * var(--font-scale));
-  color: #374151;
-  background-color: #e5e7eb;
+  color: var(--text-primary);
+  background-color: var(--bg-quaternary);
   padding: 4px 8px;
   border-radius: 4px;
   display: inline-block;
@@ -1614,7 +1613,7 @@ export default {
 }
 
 .step-item:hover {
-  background: rgba(243, 244, 246, 0.6);
+  background: var(--bg-tertiary);
 }
 
 .step-icon {
@@ -1622,7 +1621,7 @@ export default {
 }
 
 .step-icon.active {
-  color: #3b82f6;
+  color: var(--primary-color);
 }
 
 .step-item::before {
@@ -1633,11 +1632,11 @@ export default {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #9ca3af;
+  background: var(--text-quaternary);
 }
 
 .step-item.completed::before {
-  background: #3b82f6;
+  background: var(--primary-color);
 }
 
 .step-item::after {
@@ -1647,7 +1646,7 @@ export default {
   top: 24px;
   width: 2px;
   height: calc(100% - 24px);
-  background: #e5e7eb;
+  background: var(--border-secondary);
 }
 
 .step-item:last-child::after {
@@ -1665,21 +1664,21 @@ export default {
 
 .step-title {
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
   margin-bottom: 2px;
 }
 
 .step-description {
-  color: #6b7280;
+  color: var(--text-tertiary);
   line-height: 1.4;
   font-size: 12px;
 }
 
 .action-buttons {
-  background: white;
+  background: var(--bg-primary);
   padding: 16px;
   border-radius: 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-secondary);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1700,8 +1699,8 @@ export default {
   max-width: 85%;
   align-self: flex-end;
   /* 发送者气泡靠右 */
-  background: #e1f0ff;
-  border: 1px solid #cfe3ff;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
   padding: 8px 12px;
   border-radius: 16px 16px 4px 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
@@ -1709,13 +1708,13 @@ export default {
 
 .qa-message-left {
   align-self: flex-start;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-secondary);
   border-radius: 16px 4px 16px 16px;
 }
 
 .qa-message-text {
-  color: #0f172a;
+  color: var(--text-primary);
   font-size: calc(13px * var(--font-scale));
   line-height: 1.5;
 }
@@ -1723,12 +1722,12 @@ export default {
 .qa-message-status {
   margin-top: 4px;
   font-size: calc(12px * var(--font-scale));
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .qa-center-status {
   text-align: center;
-  color: #6b7280;
+  color: var(--text-tertiary);
   font-size: 12px;
 }
 
@@ -1820,13 +1819,13 @@ export default {
   left: 0;
   right: 0;
   padding: 20px;
-  background: #f8f9fa;
-  border-top: 1px solid #e5e7eb;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-secondary);
 }
 
 .input-container {
-  background: white;
-  border: 2px solid #e5e7eb;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-secondary);
   border-radius: 25px;
   padding: 12px 16px;
   display: flex;
@@ -1846,15 +1845,16 @@ export default {
   border: none;
   outline: none;
   font-size: calc(14px * var(--font-scale));
-  color: #333;
+  color: var(--text-secondary);
   background: transparent;
   white-space: pre-wrap;
   word-break: break-word;
   overflow-wrap: break-word;
+  resize: none;
 }
 
 .user-input::placeholder {
-  color: #9ca3af;
+  color: var(--text-quaternary);
 }
 
 .submit-btn {
@@ -1899,9 +1899,9 @@ export default {
 .detail-card {
   flex: 0 0 260px;
   width: 260px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-secondary);
   border-radius: 12px;
-  background: #fff;
+  background: var(--bg-primary);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1914,13 +1914,13 @@ export default {
 .detail-title {
   font-size: calc(15px * var(--font-scale));
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
   margin-bottom: 6px;
 }
 
 .detail-sub {
   font-size: calc(13px * var(--font-scale));
-  color: #4b5563;
+  color: var(--text-secondary);
   line-height: 1.5;
 }
 
@@ -1937,8 +1937,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
   font-size: calc(14px * var(--font-scale));
   cursor: pointer;
 }
@@ -1954,7 +1954,7 @@ export default {
 
 .skeleton-line {
   height: 12px;
-  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 37%, var(--bg-tertiary) 63%);
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
   border-radius: 6px;
@@ -1968,7 +1968,7 @@ export default {
 .skeleton-paragraph {
   height: 80px;
   border-radius: 8px;
-  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 37%, var(--bg-tertiary) 63%);
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
 }
@@ -1980,7 +1980,7 @@ export default {
 .skeleton-image {
   width: 100%;
   height: 160px;
-  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 37%, var(--bg-tertiary) 63%);
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
 }
@@ -1989,7 +1989,7 @@ export default {
   height: 60px;
   border-radius: 8px;
   margin-top: 8px;
-  background: linear-gradient(90deg, #eceff1 25%, #f5f7fa 37%, #eceff1 63%);
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 37%, var(--bg-tertiary) 63%);
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
 }
@@ -2038,9 +2038,9 @@ export default {
 .detail-card {
   flex: 0 0 260px;
   width: 260px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-secondary);
   border-radius: 12px;
-  background: #fff;
+  background: var(--bg-primary);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -2053,13 +2053,13 @@ export default {
 .detail-title {
   font-size: calc(15px * var(--font-scale));
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
   margin-bottom: 6px;
 }
 
 .detail-sub {
   font-size: calc(13px * var(--font-scale));
-  color: #4b5563;
+  color: var(--text-secondary);
   line-height: 1.5;
 }
 
@@ -2120,8 +2120,8 @@ export default {
 }
 
 .aspect-option.active {
-  background: rgba(59, 130, 246, 0.10);
-  border-color: #3b82f6;
-  color: #1f2937;
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #ffffff;
 }
 </style>

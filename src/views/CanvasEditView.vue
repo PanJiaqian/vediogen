@@ -120,7 +120,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   z-index: 3000;
   display: flex;
   flex-direction: column;
@@ -135,8 +135,8 @@ export default {
 
 .canvas-toolbar {
   height: 60px;
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-secondary);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -159,7 +159,7 @@ export default {
 .tool-group {
   display: flex;
   gap: 2px;
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
   border-radius: 8px;
   padding: 4px;
 }
@@ -177,16 +177,16 @@ export default {
 
 .control-btn {
   padding: 8px 12px;
-  background: white;
-  border: 1px solid #d1d5db;
-  color: #374151;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
   font-size: 14px;
   min-width: auto;
 }
 
 .control-btn:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--bg-tertiary);
+  border-color: var(--border-secondary);
 }
 
 .canvas-btn {
@@ -194,7 +194,7 @@ export default {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
-  color: #374151;
+  color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
@@ -205,13 +205,13 @@ export default {
 }
 
 .canvas-btn:hover {
-  background: #e5e7eb;
+  background: var(--bg-quaternary);
 }
 
 .canvas-btn.active {
-  background: white;
-  color: #3b82f6;
-  border-color: #3b82f6;
+  background: var(--bg-primary);
+  color: var(--primary-color);
+  border-color: var(--primary-color);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
@@ -227,13 +227,13 @@ export default {
 .canvas-title {
   font-size: 18px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .apply-btn {
-  background: white;
-  border: 1px solid #d1d5db;
-  color: #374151;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
   padding: 8px 12px;
   display: flex;
   align-items: center;
@@ -241,13 +241,13 @@ export default {
 }
 
 .apply-btn:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--bg-tertiary);
+  border-color: var(--border-secondary);
 }
 
 .shortcut {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 12px;
@@ -262,8 +262,8 @@ export default {
 
 .canvas-sidebar {
   width: 250px;
-  background: white;
-  border-right: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-secondary);
   padding: 20px;
   overflow-y: auto;
 }
@@ -272,7 +272,7 @@ export default {
   margin: 0 0 16px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .tool-grid {
@@ -283,9 +283,9 @@ export default {
 
 .tool-item {
   padding: 16px 12px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
-  background: white;
+  background: var(--bg-primary);
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -295,27 +295,27 @@ export default {
 }
 
 .tool-item:hover {
-  background: #f9fafb;
-  border-color: #3b82f6;
+  background: var(--bg-tertiary);
+  border-color: var(--primary-color);
 }
 
 .tool-item span {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .canvas-workspace {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #f9fafb;
+  background: var(--bg-secondary);
   padding: 20px;
   position: relative;
 }
 
 .canvas-toolbar-overlay {
   height: 60px;
-  background: white;
+  background: var(--bg-primary);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   display: flex;
@@ -327,7 +327,7 @@ export default {
 }
 
 .canvas-area {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 8px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   padding: 20px;
@@ -345,8 +345,8 @@ export default {
 
 .canvas-properties {
   width: 250px;
-  background: white;
-  border-left: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border-secondary);
   padding: 20px;
   overflow-y: auto;
 }
@@ -355,7 +355,7 @@ export default {
   margin: 0 0 16px 0;
   font-size: 16px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .property-item {
@@ -367,14 +367,14 @@ export default {
   margin-bottom: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .property-slider {
   width: 100%;
   height: 4px;
   border-radius: 2px;
-  background: #e5e7eb;
+  background: var(--bg-quaternary);
   outline: none;
   cursor: pointer;
 }
@@ -388,14 +388,16 @@ export default {
 .size-input {
   width: 60px;
   padding: 6px 8px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-primary);
   border-radius: 4px;
   font-size: 14px;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
   text-align: center;
 }
 
 .size-inputs span {
-  color: #6b7280;
+  color: var(--text-tertiary);
   font-weight: 500;
 }
 </style>

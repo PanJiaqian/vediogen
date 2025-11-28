@@ -221,13 +221,13 @@ export default {
 }
 
 .modal-container {
-  background: #fff;
+  background: var(--bg-primary);
   border-radius: 16px;
   width: 92%;
   max-width: 960px;
   max-height: 90vh;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
 }
 
 .modal-header {
@@ -240,7 +240,7 @@ export default {
 .modal-title {
   font-size: 20px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .close-btn {
@@ -248,13 +248,13 @@ export default {
   border: none;
   cursor: pointer;
   font-size: 20px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   padding: 6px;
   border-radius: 8px;
 }
 
 .close-btn:hover {
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
 }
 
 .modal-body {
@@ -262,7 +262,7 @@ export default {
 }
 
 .preview-area {
-  background: #f9fafb;
+  background: var(--bg-secondary);
   border-radius: 12px;
   padding: 16px;
 }
@@ -270,7 +270,7 @@ export default {
 .preview-box {
   width: 100%;
   height: 360px;
-  background: #1f2937;
+  background: var(--bg-primary);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -306,7 +306,7 @@ export default {
 .timeline {
   position: relative;
   height: 88px;
-  background: #0f172a;
+  background: var(--bg-tertiary);
   border-radius: 12px;
   padding: 16px 40px 16px 56px;
   overflow: hidden;
@@ -336,7 +336,7 @@ export default {
   top: 0;
   bottom: 0;
   background: rgba(16, 185, 129, 0.18);
-  border: 2px solid #10b981;
+  border: 2px solid var(--success-color);
   border-radius: 6px;
 }
 
@@ -345,7 +345,7 @@ export default {
   top: 0;
   width: 8px;
   height: 100%;
-  background: #10b981;
+  background: var(--success-color);
   border-radius: 4px;
   cursor: ew-resize;
 }
@@ -366,7 +366,7 @@ export default {
   width: 28px;
   height: 28px;
   border-radius: 14px;
-  background: #10b981;
+  background: var(--success-color);
   color: #fff;
   border: none;
   cursor: pointer;
@@ -382,13 +382,13 @@ export default {
 .reset-btn {
   background: none;
   border: none;
-  color: #ef4444;
+  color: var(--error-color);
   cursor: pointer;
   font-size: 14px;
 }
 
 .apply-btn {
-  background: #10b981;
+  background: var(--success-color);
   border: none;
   color: #fff;
   padding: 10px 18px;

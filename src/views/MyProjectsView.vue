@@ -334,7 +334,7 @@ export default {
   max-width: 1200px;
   margin: 0;
   padding: 20px;
-  background-color: #f8f9fa;
+  background-color: var(--bg-secondary);
   min-height: 100vh;
 }
 
@@ -348,7 +348,7 @@ export default {
   padding: 12px 24px;
   border: none;
   background: none;
-  color: #666666;
+  color: var(--text-tertiary);
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
@@ -357,12 +357,12 @@ export default {
 }
 
 .tab-button:hover {
-  color: #495057;
+  color: var(--text-secondary);
 }
 
 .tab-button--active {
-  color: #007bff;
-  border-bottom-color: #007bff;
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
 }
 
 /* 项目网格 */
@@ -377,10 +377,10 @@ export default {
   width: 200px;
   height: 290px;
   flex-shrink: 0;
-  background-color: white;
+  background-color: var(--bg-primary);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
   transition: all 0.3s ease;
   cursor: pointer;
   position: relative;
@@ -395,7 +395,7 @@ export default {
   position: relative;
   height: 200px;
   overflow: hidden;
-  background-color: #f8f9fa;
+  background-color: var(--bg-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -421,7 +421,7 @@ export default {
 .project-name {
   font-size: 15px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
   margin-bottom: 6px;
   line-height: 1.4;
   display: -webkit-box;
@@ -432,14 +432,14 @@ export default {
 
 .project-meta {
   font-size: 14px;
-  color: #6c757d;
+  color: var(--text-tertiary);
 }
 
 .empty-message {
   width: 100%;
   text-align: center;
   padding: 60px 20px;
-  color: #6c757d;
+  color: var(--text-tertiary);
   font-size: 16px;
 }
 
@@ -527,7 +527,7 @@ export default {
 }
 
 .delete-fab:hover {
-  background: #e5e7eb;
+  background: var(--bg-tertiary);
 }
 
 .delete-modal-overlay {
@@ -544,17 +544,17 @@ export default {
 }
 
 .delete-modal {
-  background: #ffffff;
+  background: var(--bg-primary);
   border-radius: 12px;
   padding: 16px 20px;
   min-width: 280px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  box-shadow: var(--shadow-lg);
   text-align: center;
 }
 
 .delete-modal-title {
   font-size: 14px;
-  color: #111827;
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 
@@ -566,21 +566,21 @@ export default {
 
 .delete-cancel {
   padding: 8px 16px;
-  border: 1px solid #d1d5db;
-  background: #ffffff;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-primary);
   border-radius: 6px;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .delete-confirm {
   padding: 8px 16px;
   border: none;
-  background: #ef4444;
+  background: var(--error-color);
   border-radius: 6px;
   color: #ffffff;
 }
 </style>
 .project-date {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-tertiary);
 }

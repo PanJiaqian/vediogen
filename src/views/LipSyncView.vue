@@ -68,7 +68,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f5f5f5;
+  background: var(--bg-secondary);
   z-index: 2000;
   display: flex;
   flex-direction: column;
@@ -77,8 +77,8 @@ export default {
 /* 顶部导航栏 */
 .top-navbar {
   height: 60px;
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-secondary);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -98,22 +98,22 @@ export default {
   gap: 8px;
   padding: 8px 12px;
   border: none;
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
   border-radius: 6px;
-  color: #374151;
+  color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .back-btn:hover {
-  background: #e5e7eb;
+  background: var(--bg-quaternary);
 }
 
 .page-title {
   font-size: 18px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
 }
 
 .navbar-right {
@@ -123,18 +123,18 @@ export default {
 
 .navbar-btn {
   padding: 8px 16px;
-  border: 1px solid #d1d5db;
-  background: white;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-primary);
   border-radius:20px;
-  color: #374151;
+  color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .navbar-btn:hover {
-  background: #f9fafb;
-  border-color: #9ca3af;
+  background: var(--bg-tertiary);
+  border-color: var(--border-secondary);
 }
 
 
@@ -153,8 +153,8 @@ export default {
 /* 左侧分镜图片区域 */
 .left-panel {
   flex: 1;
-  background: white;
-  border-right: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -170,7 +170,7 @@ export default {
   position: relative;
   width: 100%;
   max-height: calc(100vh - 200px);
-  background: #f8fafc;
+  background: var(--bg-secondary);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -193,13 +193,13 @@ export default {
 .scene-title {
   font-size: 24px;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary);
   margin: 0 0 12px 0;
 }
 
 .scene-description {
   font-size: 16px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   margin: 0;
   line-height: 1.5;
 }
@@ -207,7 +207,7 @@ export default {
 /* 右侧数字人工具栏区域 */
 .right-panel {
   width: 400px;
-  background: white;
+  background: var(--bg-primary);
   flex-shrink: 0;
 }
 
@@ -247,7 +247,7 @@ export default {
     flex: none;
     height: 50vh;
     border-right: none;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--border-secondary);
     padding: 20px;
   }
   

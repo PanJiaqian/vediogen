@@ -73,8 +73,8 @@ export default {
   top: 0;
   width: 240px;
   height: 100vh;
-  background-color: #ffffff;
-  border-right: 1px solid #e5e7eb;
+  background-color: var(--bg-primary);
+  border-right: 1px solid var(--border-secondary);
   display: flex;
   flex-direction: column;
   z-index: 1000;
@@ -83,7 +83,7 @@ export default {
 /* Logo区域 */
 .sidebar__logo {
   padding: 24px 20px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--border-secondary);
   flex-shrink: 0;
 }
 
@@ -103,7 +103,7 @@ export default {
 .logo__text {
   font-size: 18px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
 }
@@ -131,20 +131,20 @@ export default {
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   text-decoration: none;
   transition: all 0.2s ease;
   position: relative;
 }
 
 .nav-link:hover {
-  background-color: #f9fafb;
-  color: #374151;
+  background-color: var(--bg-tertiary);
+  color: var(--text-secondary);
 }
 
 .nav-link--active {
-  background-color: #eff6ff;
-  color: #3b82f6;
+  background-color: var(--bg-tertiary);
+  color: var(--primary-color);
   border-radius: 25px;
 }
 

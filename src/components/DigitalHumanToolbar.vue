@@ -107,7 +107,7 @@ export default {
 <style scoped>
 .digital-human-toolbar {
   width: 300px;
-  background-color: #f9f9f9;
+  background-color: var(--bg-secondary);
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   display: flex;
@@ -130,21 +130,21 @@ export default {
 /* 下部分：画面描述区域（固定高度） */
 .scene-description-area {
   padding: 15px;
-  background-color: #fff;
-  border-top: 1px solid #eee;
+  background-color: var(--bg-primary);
+  border-top: 1px solid var(--border-secondary);
 }
 
 /* 添加新角色按钮容器 */
 .add-role-container {
   padding: 5px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-secondary);
   text-align: center;
 }
 
 .add-role-btn {
   margin-top: 15px;
   padding: 8px 16px;
-  background-color: #4dabf7;
+  background-color: var(--primary-color);
   color: white;
   border: none;
   border-radius: 20px;
@@ -156,7 +156,7 @@ export default {
 }
 
 .add-role-btn:hover {
-  background-color: #3b99e0;
+  background-color: var(--primary-hover);
 }
 
 .plus-icon {
@@ -169,7 +169,7 @@ export default {
   display: flex;
   gap: 0;
   margin-bottom: 15px;
-  background-color: #f2f2f2;
+  background-color: var(--bg-tertiary);
   border-radius: 20px;
   padding: 3px;
 }
@@ -181,15 +181,15 @@ export default {
   border: none;
   border-radius: 20px;
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary);
   cursor: pointer;
   text-align: center;
   transition: all 0.3s ease;
 }
 
 .tab-button.active {
-  background-color: #fff;
-  color: #333;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
@@ -209,7 +209,7 @@ export default {
   border-radius: 8px;
   font-size: 14px;
   resize: none;
-  background-color: #f2f2f2;
+  background-color: var(--bg-tertiary);
 }
 
 /* 朗读控制 */
@@ -231,13 +231,13 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .play-button:hover,
 .pause-button:hover {
-  color: #333;
-  background-color: #f0f0f0;
+  color: var(--text-primary);
+  background-color: var(--bg-quaternary);
 }
 
 .play-icon,
@@ -247,7 +247,7 @@ export default {
 
 .time-display {
   font-size: 12px;
-  color: #999;
+  color: var(--text-quaternary);
   margin-left: auto;
 }
 
@@ -259,21 +259,21 @@ export default {
 .section-title {
   font-size: 14px;
   font-weight: 500;
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 10px;
 }
 
 .voice-tone-selector {
   display: flex;
   align-items: center;
-  background-color: #f2f2f2;
+  background-color: var(--bg-tertiary);
   border-radius: 8px;
   padding: 10px 15px;
 }
 
 .voice-tone-selector .play-button {
   margin-right: 10px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .voice-options {
@@ -285,15 +285,15 @@ export default {
 
 .voice-option {
   font-size: 12px;
-  color: #666;
-  background-color: #e9e9e9;
+  color: var(--text-secondary);
+  background-color: var(--bg-quaternary);
   padding: 2px 8px;
   border-radius: 10px;
 }
 
 .voice-selector-arrow {
   margin-left: 10px;
-  color: #999;
+  color: var(--text-quaternary);
 }
 
 /* 情绪选择 */
@@ -304,7 +304,7 @@ export default {
 .emotion-dropdown {
   display: flex;
   align-items: center;
-  background-color: #f2f2f2;
+  background-color: var(--bg-tertiary);
   padding: 10px 15px;
   border-radius: 8px;
   cursor: pointer;
@@ -318,12 +318,12 @@ export default {
 .emotion-text {
   flex: 1;
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .dropdown-arrow {
   font-size: 12px;
-  color: #999;
+  color: var(--text-quaternary);
 }
 
 /* 声音音量和语速 */
@@ -349,7 +349,7 @@ export default {
   flex: 1;
   height: 4px;
   -webkit-appearance: none;
-  background: linear-gradient(to right, #4dabf7, #4dabf7);
+  background: linear-gradient(to right, var(--primary-color), var(--primary-color));
   border-radius: 2px;
   outline: none;
 }
@@ -359,15 +359,15 @@ export default {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: white;
-  border: 2px solid #4dabf7;
+  background: var(--bg-primary);
+  border: 2px solid var(--primary-color);
   cursor: pointer;
 }
 
 .slider-value {
   margin-left: 10px;
   font-size: 14px;
-  color: #333;
+  color: var(--text-primary);
   min-width: 40px;
   text-align: right;
 }
@@ -381,8 +381,8 @@ export default {
 .add-voiceover-btn {
   width: 100%;
   padding: 10px;
-  background-color: #f2f2f2;
-  color: #333;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
   border: none;
   border-radius: 20px;
   font-size: 14px;
@@ -392,12 +392,12 @@ export default {
 }
 
 .add-voiceover-btn:hover {
-  background-color: #e6e6e6;
+  background-color: var(--bg-quaternary);
 }
 
 /* 画面描述区域 */
 .scene-description-area {
-  background-color: #fff;
+  background-color: var(--bg-primary);
 }
 
 .description-input {
@@ -408,7 +408,7 @@ export default {
   border-radius: 8px;
   font-size: 14px;
   resize: none;
-  background-color: #f2f2f2;
+  background-color: var(--bg-tertiary);
   margin-bottom: 15px;
 }
 
@@ -422,11 +422,11 @@ export default {
 
 .resolution-btn {
   padding: 6px 12px;
-  background-color: #f2f2f2;
+  background-color: var(--bg-tertiary);
   border: none;
   border-radius: 4px;
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
   cursor: pointer;
 }
 
@@ -443,7 +443,7 @@ export default {
 .generate-video-btn {
   margin-left: auto;
   padding: 8px 15px;
-  background-color: #0088FF;
+  background-color: var(--primary-color);
   color: white;
   border: none;
   border-radius: 4px;

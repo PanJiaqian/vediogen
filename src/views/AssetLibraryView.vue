@@ -380,7 +380,7 @@ export default {
   max-width: 1200px;
   margin: 0;
   padding: 20px;
-  background-color: #f8f9fa;
+  background-color: var(--bg-secondary);
   min-height: 100vh;
 }
 
@@ -398,7 +398,7 @@ export default {
   padding: 12px 24px;
   border: none;
   background: none;
-  color: #6c757d;
+  color: var(--text-tertiary);
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
@@ -407,12 +407,12 @@ export default {
 }
 
 .tab-button:hover {
-  color: #495057;
+  color: var(--text-secondary);
 }
 
 .tab-button--active {
-  color: #007bff;
-  border-bottom-color: #007bff;
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
 }
 
 /* 筛选区域 */
@@ -431,7 +431,7 @@ export default {
   padding: 8px 12px;
   border: none;
   background: transparent;
-  color: #666666;
+  color: var(--text-secondary);
   font-size: 14px;
   min-width: 80px;
   cursor: pointer;
@@ -456,15 +456,15 @@ export default {
 .search-box input {
   width: 100%;
   padding: 12px 40px 12px 20px;
-  border: 1px solid #F0F0F0;
+  border: 1px solid var(--border-secondary);
   border-radius: 100px;
   font-size: 14px;
-  background: #FFFFFF;
-  color: #333;
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 .search-box input::placeholder {
-  color: #999;
+  color: var(--text-quaternary);
 }
 
 .search-icon {
@@ -485,7 +485,7 @@ export default {
   align-items: center;
   gap: 8px;
   padding: 12px 20px;
-  background: #4dabf7;
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 100px;
@@ -497,7 +497,7 @@ export default {
 }
 
 .create-subject-btn:hover {
-  background: #0088FF;
+  background: var(--primary-hover);
   transform: translateY(-1px);
 }
 
@@ -523,7 +523,7 @@ export default {
   width: 200px;
   height: 280px;
   flex-shrink: 0;
-  background-color: white;
+  background-color: var(--bg-primary);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -540,7 +540,7 @@ export default {
   position: relative;
   height: 200px;
   overflow: hidden;
-  background-color: #f8f9fa;
+  background-color: var(--bg-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -560,7 +560,7 @@ export default {
 .asset-title {
   font-size: 16px;
   font-weight: 500;
-  color: #212529;
+  color: var(--text-primary);
   margin-bottom: 8px;
   line-height: 1.4;
 }
@@ -569,7 +569,7 @@ export default {
   width: 100%;
   text-align: center;
   padding: 60px 20px;
-  color: #6c757d;
+  color: var(--text-tertiary);
   font-size: 16px;
 }
 
@@ -580,7 +580,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -608,18 +608,18 @@ export default {
 }
 
 .back-btn:hover {
-  background: #f8f9fa;
+  background: var(--bg-tertiary);
 }
 
 .back-icon {
   font-size: 35px;
-  color: #6c757d;
+  color: var(--text-tertiary);
 }
 
 .detail-title {
   font-size: 20px;
   font-weight: 600;
-  color: #212529;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -637,12 +637,12 @@ export default {
 }
 
 .favorite-btn:hover {
-  background: #f8f9fa;
+  background: var(--bg-tertiary);
 }
 
 .star-icon {
   font-size: 20px;
-  color: #6c757d;
+  color: var(--text-tertiary);
 }
 
 /* 首页提交按钮样式复用 */
@@ -652,21 +652,21 @@ export default {
   justify-content: center;
   width: 36px;
   height: 36px;
-  background: #f3f4f6;
+  background: var(--bg-tertiary);
   border: none;
   border-radius: 50%;
-  color: #6b7280;
+  color: var(--text-tertiary);
   cursor: pointer;
   transition: all 0.2s ease;
   margin-left: auto;
 }
 .search-submit-btn.active {
-  background: #3b82f6;
+  background: var(--primary-color);
   color: #ffffff;
 }
 .search-submit-btn:hover {
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--bg-quaternary);
+  color: var(--text-secondary);
 }
 .search-submit-btn svg {
   width: 16px;
@@ -705,7 +705,7 @@ export default {
   width: 100%;
   height: 100%;
   max-height: 450px;
-  background: white;
+  background: var(--bg-primary);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -736,10 +736,10 @@ export default {
 .info-title {
   font-size: 20px;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 15px;
   padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .info-row {
@@ -751,19 +751,19 @@ export default {
 
 .info-label {
   font-size: 14px;
-  color: #6c757d;
+  color: var(--text-tertiary);
   min-width: 60px;
 }
 
 .info-value {
   font-size: 14px;
-  color: #212529;
+  color: var(--text-primary);
   font-weight: 500;
 }
 
 .description-text {
   font-size: 14px;
-  color: #495057;
+  color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 30px;
   padding: 16px;
@@ -776,7 +776,7 @@ export default {
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: #4dabf7;
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 100px;
@@ -789,7 +789,7 @@ export default {
 }
 
 .use-subject-btn:hover {
-  background: #0088FF;
+  background: var(--primary-hover);
   transform: translateY(-1px);
 }
 
@@ -803,16 +803,16 @@ export default {
 .input-box-container {
   position: relative;
   width: 100%;
-  background: #f8f9fa;
-  border-top: 1px solid #e9ecef;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-secondary);
   padding: 10px;
   margin-top: 10px;
 }
 
 /* 输入框 */
 .input-box {
-  background: white;
-  border: 2px solid #4dabf7;
+  background: var(--bg-primary);
+  border: 2px solid var(--primary-color);
   border-radius: 25px;
   padding: 16px;
   width: 100%;
@@ -833,7 +833,7 @@ export default {
 .name-tag {
   display: inline-flex;
   align-items: center;
-  background: #4dabf7;
+  background: var(--primary-color);
   color: white;
   padding: 4px 8px;
   border-radius: 12px;
@@ -846,7 +846,7 @@ export default {
 }
 
 .name-tag:hover {
-  background: #0088FF;
+  background: var(--primary-hover);
 }
 
 .tag-close {
@@ -875,7 +875,7 @@ export default {
 }
 
 .text-input::placeholder {
-  color: #999;
+  color: var(--text-quaternary);
 }
 
 /* 输入框内字符计数与提交按钮 */
@@ -884,7 +884,7 @@ export default {
   bottom: 16px;
   right: 60px;
   font-size: 12px;
-  color: #999;
+  color: var(--text-quaternary);
 }
 
 .input-submit {

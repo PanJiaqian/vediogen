@@ -62,9 +62,9 @@ export default {
 .modal-container {
   width: 420px;
   max-width: 92%;
-  background: #fff;
+  background: var(--bg-primary);
   border-radius: 12px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
 
@@ -73,13 +73,13 @@ export default {
   align-items: center;
   justify-content: space-between;
   padding: 14px 16px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-secondary);
 }
 
 .modal-title {
   font-size: 18px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -89,7 +89,7 @@ export default {
   border: none;
   background: transparent;
   cursor: pointer;
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .modal-body {
@@ -104,19 +104,19 @@ export default {
 
 .message {
   font-size: 16px;
-  color: #374151;
+  color: var(--text-secondary);
 }
 
 .modal-footer {
   padding: 14px 16px;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-secondary);
   display: flex;
   justify-content: center;
 }
 
 .primary-btn {
   padding: 8px 16px;
-  background: #3b82f6;
+  background: var(--primary-color);
   color: #fff;
   border: none;
   border-radius: 8px;

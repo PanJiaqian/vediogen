@@ -109,12 +109,20 @@ export default {
       generationTimeout: null,
       timeoutPromptVisible: false,
       timeoutRedirectTimer: null
+      , redirectTimer: null
     }
   },
   mounted() {
     this.startGeneration()
     this.startSSE()
     this.startGenerationTimeout()
+    const projectId = this.$route.params.id
+    const dest = `/video-edit/${projectId}`
+    if (this.redirectTimer) clearTimeout(this.redirectTimer)
+    this.redirectTimer = setTimeout(() => {
+      try { window.history.replaceState({ replaced: true }, '', dest) } catch (e) { console.warn('替换浏览历史失败:', e) }
+      this.$router.replace(dest)
+    }, 210000)
   },
   beforeUnmount() {
     if (this.progressTimer) {
@@ -129,6 +137,9 @@ export default {
     }
     if (this.timeoutRedirectTimer) {
       clearTimeout(this.timeoutRedirectTimer)
+    }
+    if (this.redirectTimer) {
+      clearTimeout(this.redirectTimer)
     }
   },
   methods: {
@@ -233,9 +244,7 @@ export default {
       } catch (e) { console.warn('保存编辑页场景失败:', e) }
       if (this.progressTimer) clearInterval(this.progressTimer)
       if (this.stepTimer) clearTimeout(this.stepTimer)
-      const dest = `/video-edit/${projectId}`
-      try { window.history.replaceState({ replaced: true }, '', dest) } catch (e) { console.warn('替换浏览历史失败:', e) }
-      this.$router.replace(dest)
+      try { localStorage.setItem(`video-edit:viewStoryboard:${projectId}`, '1') } catch (e) { /* no-op */ }
     },
     normalizeStoryboardPicture(sb) {
       const container = Array.isArray(sb) ? sb[0] : sb
@@ -300,7 +309,7 @@ export default {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  background: var(--bg-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -329,10 +338,10 @@ export default {
 }
 
 .main-content {
-  background: white;
+  background: var(--bg-primary);
   border-radius: 16px;
   padding: 40px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-lg);
   max-width: 600px;
   width: 90%;
   position: relative;
@@ -345,7 +354,7 @@ export default {
 }
 
 .loading-icon {
-  color: #3b82f6;
+  color: var(--primary-color);
   margin-bottom: 16px;
   animation: pulse 2s ease-in-out infinite;
 }
@@ -358,7 +367,7 @@ export default {
 .main-title {
   font-size: 24px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-primary);
   margin: 0;
 }
 
@@ -379,19 +388,19 @@ export default {
 }
 
 .step-item.pending {
-  background: #f9fafb;
-  color: #6b7280;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
 }
 
 .step-item.active {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #1e40af;
+  background: var(--bg-quaternary);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
 }
 
 .step-item.completed {
-  background: #f0fdf4;
-  color: #166534;
+  background: var(--bg-tertiary);
+  color: var(--success-color);
 }
 
 .step-icon {
@@ -407,17 +416,17 @@ export default {
 }
 
 .step-item.pending .step-icon {
-  background: #e5e7eb;
-  color: #6b7280;
+  background: var(--bg-quaternary);
+  color: var(--text-tertiary);
 }
 
 .step-item.active .step-icon {
-  background: #3b82f6;
+  background: var(--primary-color);
   color: white;
 }
 
 .step-item.completed .step-icon {
-  background: #10b981;
+  background: var(--success-color);
   color: white;
 }
 
@@ -450,16 +459,16 @@ export default {
 }
 
 .status-pending {
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .status-progress {
-  color: #3b82f6;
+  color: var(--primary-color);
   font-weight: 500;
 }
 
 .status-completed {
-  color: #10b981;
+  color: var(--success-color);
   font-weight: 500;
 }
 
@@ -477,17 +486,17 @@ export default {
 }
 
 .center-prompt {
-  background: #ffffff;
+  background: var(--bg-primary);
   border-radius: 12px;
   padding: 20px 24px;
   min-width: 280px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-lg);
   text-align: center;
 }
 
 .prompt-text {
   font-size: 14px;
-  color: #111827;
+  color: var(--text-primary);
   margin-bottom: 12px;
 }
 

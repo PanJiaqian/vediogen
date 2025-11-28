@@ -196,7 +196,7 @@ export default {
 <style scoped>
 .inspiration-detail {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   padding: 20px;
 }
 
@@ -205,10 +205,10 @@ export default {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: 8px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   cursor: pointer;
   font-size: 14px;
   margin-bottom: 20px;
@@ -216,8 +216,8 @@ export default {
 }
 
 .back-btn:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
+  background: var(--bg-secondary);
+  border-color: var(--border-primary);
 }
 
 .back-btn svg {
@@ -238,7 +238,7 @@ export default {
 }
 
 .video-container {
-  background: #000;
+  background: var(--bg-primary);
   border-radius: 12px;
   overflow: hidden;
   aspect-ratio: 16/9;
@@ -252,17 +252,17 @@ export default {
 
 .info-section {
   flex: 0 0 400px;
-  background: white;
+  background: var(--bg-primary);
   border-radius: 12px;
   padding: 24px;
   height: fit-content;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .title {
   font-size: 20px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--text-primary);
   margin-bottom: 16px;
   line-height: 1.4;
 }
@@ -289,13 +289,13 @@ export default {
 
 .author-name {
   font-weight: 500;
-  color: #1f2937;
+  color: var(--text-primary);
   font-size: 14px;
 }
 
 .publish-time {
   font-size: 12px;
-  color: #6b7280;
+  color: var(--text-tertiary);
 }
 
 .description {
@@ -303,7 +303,7 @@ export default {
 }
 
 .description p {
-  color: #4b5563;
+  color: var(--text-secondary);
   line-height: 1.6;
   font-size: 14px;
 }
@@ -316,8 +316,8 @@ export default {
 }
 
 .tag {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
   padding: 4px 12px;
   border-radius: 16px;
   font-size: 12px;
@@ -333,7 +333,7 @@ export default {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #6b7280;
+  color: var(--text-tertiary);
   font-size: 14px;
 }
 
@@ -344,7 +344,7 @@ export default {
 
 .generate-btn {
   width: 100%;
-  background: #3b82f6;
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 8px;
@@ -360,9 +360,9 @@ export default {
 }
 
 .generate-btn:hover {
-  background: #2563eb;
+  background: var(--primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: var(--shadow-md);
 }
 
 .generate-btn svg {
