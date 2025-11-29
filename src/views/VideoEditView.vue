@@ -127,7 +127,7 @@
 
               <!-- 图片展示 -->
               <div class="image-container">
-                <div v-if="isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)" class="skeleton-image"></div>
+                <div v-if="isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)" class="skeleton-image"></div>
                 <video v-else-if="isVideo(sceneDetail.video_url)" ref="sceneVideo" :src="cleanUrl(sceneDetail.video_url)"
                   :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" class="scene-image"
                   playsinline muted loop controls></video>
@@ -494,7 +494,7 @@
                     </div>
                   </div>
                   <div class="track-clips" @click="selectScene(index)">
-                    <template v-if="isSceneUpdating(scene, index)">
+                    <template v-if="isSceneUpdating(scene, index) || isCropPendingScene(scene, index)">
                       <div v-for="m in 10" :key="'up-skel-' + index + '-' + m" class="scene-clip">
                         <div class="skeleton-image" style="height:28px;"></div>
                       </div>
@@ -633,6 +633,7 @@ export default {
       entryMode: 'canvas',
       showCropModal: false,
       updatingKeySet: new Set(),
+      cropPendingKeySet: new Set(),
       // 配音相关数据
       voiceScript: '',
       voiceGender: '女性',
@@ -825,6 +826,14 @@ export default {
         return false
       }
       if (!set) return false
+      return set.has(k)
+    },
+    isActiveSceneCropping() {
+      const idx = this.activeSceneIndex
+      const scene = Array.isArray(this.scenes) ? this.scenes[idx] : null
+      const set = this.cropPendingKeySet instanceof Set ? this.cropPendingKeySet : null
+      if (!scene || !set) return false
+      const k = this.getSceneKey(scene, idx)
       return set.has(k)
     },
     isActiveImageMissing() {
@@ -1076,6 +1085,12 @@ export default {
       const k = this.getSceneKey(scene, index)
       return set.has(k)
     },
+    isCropPendingScene(scene, index) {
+      const set = this.cropPendingKeySet instanceof Set ? this.cropPendingKeySet : null
+      if (!set) return false
+      const k = this.getSceneKey(scene, index)
+      return set.has(k)
+    },
     async getLocalUrl(u) {
       const projectId = this.$route.params.id
       const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -1102,13 +1117,31 @@ export default {
     },
     playVideoSafely(el) {
       try {
-        const p = el.play()
-        if (p && p.catch) {
-          p.catch(err => {
-            if (!(err && err.name === 'AbortError')) {
-              console.warn('预览播放失败:', err)
+        if (!el) return
+        try { el.muted = true } catch (e) { void 0 }
+        try { el.playsInline = true } catch (e) { void 0 }
+        const src = this.cleanUrl(this.sceneDetail && this.sceneDetail.video_url || '')
+        const isHls = this.isM3u8(src)
+        const safePlay = () => {
+          try {
+            const p = el.play()
+            if (p && p.catch) {
+              p.catch(err => { if (!(err && err.name === 'AbortError')) console.warn('预览播放失败:', err) })
             }
-          })
+          } catch (e) {
+            console.warn('预览播放失败:', e)
+          }
+        }
+        if (isHls) {
+          try { this.attachHls(el, src).then(() => { if (el.readyState >= 2) { requestAnimationFrame(safePlay) } else { const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }; el.addEventListener('canplay', onCanPlay, { once: true }) } }) } catch (e) { void 0 }
+          return
+        }
+        if (el.readyState >= 2 && (el.currentSrc || el.src)) {
+          safePlay()
+        } else {
+          const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }
+          try { el.addEventListener('canplay', onCanPlay, { once: true }) } catch (e) { void 0 }
+          try { el.load() } catch (e) { void 0 }
         }
       } catch (e) {
         console.warn('预览播放失败:', e)
@@ -1989,13 +2022,15 @@ export default {
         if (!url || !this.isVideo(url)) return
         const dur = await this.measureVideoDurationMs(url)
         if (Number(dur)) {
+          const prevMs = Number(first && first.durationMs) || 0
+          const finalMs = (dur === 5000 && prevMs > 0) ? prevMs : dur
           if (!Array.isArray(scene.clips) || !scene.clips.length) {
-            scene.clips = [{ url, durationMs: dur }]
+            scene.clips = [{ url, durationMs: finalMs }]
           } else {
-            scene.clips[0].durationMs = dur
+            scene.clips[0].durationMs = finalMs
           }
           if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
-          this.durationMap.set(url, dur)
+          this.durationMap.set(url, finalMs)
           this.updateTimeMarkers()
         }
       } catch (e) { void 0 }
@@ -2399,6 +2434,8 @@ export default {
         upKey = this.getSceneKey(scene, this.activeSceneIndex)
         if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
         this.updatingKeySet.add(upKey)
+        if (!(this.cropPendingKeySet instanceof Set)) this.cropPendingKeySet = new Set()
+        this.cropPendingKeySet.add(upKey)
         const sceneNumber = String(scene.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
         const fps = 30
         const start_frame = Math.max(0, Math.round((Number(sel.startMs || 0) / 1000) * fps))
@@ -2434,6 +2471,7 @@ export default {
         setTimeout(() => { this.toastVisible = false }, 2500)
       } finally {
         try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(upKey) } catch (e) { void 0 }
+        try { this.cropPendingKeySet && this.cropPendingKeySet.delete && this.cropPendingKeySet.delete(upKey) } catch (e) { void 0 }
       }
     },
     // 拖拽相关方法
