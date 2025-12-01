@@ -58,7 +58,7 @@
           </div>
         </div>
 
-        <template v-if="isConverting">
+        <template v-if="isConverting && isActiveImageMissing && !isVideo(sceneDetail.video_url)">
           <div class="skeleton-block">
             <div class="skeleton-line"></div>
             <div class="skeleton-line"></div>
@@ -338,8 +338,8 @@
 
         <!-- 视频画面 -->
           <div class="video-preview">
-          <div class="video-container" ref="videoContainer">
-            <div v-if="((!isVideo(sceneDetail.video_url)) && (isVideoGenerating || isConverting)) || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)" class="skeleton-image"></div>
+            <div class="video-container" ref="videoContainer">
+            <div v-if="isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)" class="skeleton-image"></div>
             <template v-else>
               <video v-if="isVideo(sceneDetail.video_url)" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)"
                 :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" playsinline muted loop
@@ -353,7 +353,7 @@
             </template>
           </div>
           <div class="preview-aside">
-            <template v-if="((!isVideo(sceneDetail.video_url)) && (isVideoGenerating || isConverting)) || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)">
+            <template v-if="isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)">
               <div class="thumb-card">
                 <div class="skeleton-image"></div>
               </div>
@@ -421,7 +421,7 @@
 
           <!-- 时间轴区域 -->
           <div class="timeline-section" ref="timelineSection">
-            <template v-if="isConverting">
+            <template v-if="false && isConverting">
               <div class="timeline-header">
                 <span class="timeline-label">
                   <div class="skeleton-line" style="width:80px;height:12px;"></div>
@@ -521,7 +521,7 @@
                           fetchpriority="low" @error="onClipImgError(index, cidx)" />
                         <div v-else class="skeleton-image" style="height:28px;"></div>
                       </div>
-                      <div v-if="getSceneClips(scene).length === 0" class="scene-clip"><div class="skeleton-image" style="height:28px;"></div></div>
+                      <div v-if="getSceneClips(scene).length === 0" class="scene-clip" style="width:100%"><div class="skeleton-image" style="height:28px;"></div></div>
                     </template>
                   </div>
                   <div class="track-audio">
@@ -848,6 +848,14 @@ export default {
   watch: {
     activeSceneIndex() {
       this.previewImgErrored = false
+      try {
+        const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+        const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
+        const ref = this.cleanUrl((sc && sc.thumbnail) || '')
+        const vid = this.cleanUrl((first && first.url) || (sc && sc.video_url) || '')
+        this.sceneDetail = { reference_image_url: ref, video_url: vid }
+        this.syncPreviewPlayback()
+      } catch (e) { void 0 }
       this.$nextTick(() => { this.tryAttachHls() })
     },
     'sceneDetail.reference_image_url'(val) {
@@ -917,10 +925,11 @@ export default {
       if (!this.isM3u8(src)) return
       const pv = this.$refs.previewVideo
       const sv = this.$refs.sceneVideo
+      if (this._hlsPreview && this._hlsPreviewUrl === src && this._hlsScene && this._hlsSceneUrl === src) return
       try { if (this._hlsPreview && this._hlsPreview.destroy) this._hlsPreview.destroy() } catch (e) { void 0 }
       try { if (this._hlsScene && this._hlsScene.destroy) this._hlsScene.destroy() } catch (e) { void 0 }
-      try { this._hlsPreview = await this.attachHls(pv, src) } catch (e) { void 0 }
-      try { this._hlsScene = await this.attachHls(sv, src) } catch (e) { void 0 }
+      try { this._hlsPreview = await this.attachHls(pv, src); this._hlsPreviewUrl = src } catch (e) { void 0 }
+      try { this._hlsScene = await this.attachHls(sv, src); this._hlsSceneUrl = src } catch (e) { void 0 }
     },
     initTimelineSync() {
       const tracks = this.$refs.timelineTracks
@@ -1113,6 +1122,10 @@ export default {
           }
         }
         if (isHls) {
+          if (this._hlsPreview && this._hlsPreviewUrl === src) {
+            if (el.readyState >= 2) { requestAnimationFrame(safePlay) } else { const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }; try { el.addEventListener('canplay', onCanPlay, { once: true }) } catch (e) { void 0 } }
+            return
+          }
           try { this.attachHls(el, src).then(() => { if (el.readyState >= 2) { requestAnimationFrame(safePlay) } else { const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }; el.addEventListener('canplay', onCanPlay, { once: true }) } }) } catch (e) { void 0 }
           return
         }
@@ -1131,14 +1144,17 @@ export default {
       this.$nextTick(() => {
         const el = this.$refs.previewVideo
         if (!el) return
+        const src = this.cleanUrl(this.sceneDetail && this.sceneDetail.video_url || '')
+        if (this._lastPreviewUrl === src) {
+          if (this.isVideo(this.currentPreviewUrl)) this.playVideoSafely(el)
+          return
+        }
+        this._lastPreviewUrl = src
         if (this.isVideo(this.currentPreviewUrl)) {
           try { el.pause(); el.currentTime = 0 } catch (e) { console.warn('预览暂停失败:', e) }
           const tryPlay = () => this.playVideoSafely(el)
-          if (el.readyState >= 2) {
-            requestAnimationFrame(tryPlay)
-          } else {
-            el.addEventListener('loadeddata', () => requestAnimationFrame(tryPlay), { once: true })
-          }
+          if (el.readyState >= 2) { requestAnimationFrame(tryPlay) }
+          else { try { el.addEventListener('loadeddata', () => requestAnimationFrame(tryPlay), { once: true }) } catch (e) { void 0 } }
         } else {
           try { el.pause(); el.currentTime = 0 } catch (e) { console.warn('预览暂停失败:', e) }
         }
@@ -4168,6 +4184,18 @@ input:checked+.slider:before {
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
   border-radius: 8px;
+}
+
+.timeline-track .skeleton-image {
+  height: 28px;
+  background: linear-gradient(90deg, var(--border-primary) 20%, var(--text-quaternary) 40%, var(--border-primary) 60%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+  border-radius: 6px;
+}
+.scene-clip .skeleton-image {
+  width: 100%;
+  height: 100%;
 }
 
 .skeleton-card {
