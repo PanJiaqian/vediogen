@@ -58,7 +58,7 @@
           </div>
         </div>
 
-        <template v-if="isConverting && isActiveImageMissing && !isVideo(sceneDetail.video_url)">
+        <template v-if="isVideoConverting || (isConverting && isActiveImageMissing && !isVideo(sceneDetail.video_url))">
           <div class="skeleton-block">
             <div class="skeleton-line"></div>
             <div class="skeleton-line"></div>
@@ -317,7 +317,10 @@
       <!-- 右侧区域 -->
       <div class="right-panel">
         <!-- 画布编辑和对口型 -->
-        <div class="edit-controls">
+        <div v-if="isVideoConverting" class="skeleton-block" style="margin-bottom: 8px;">
+          <div class="skeleton-line" style="width: 200px; height: 32px;"></div>
+        </div>
+        <div v-else class="edit-controls">
           <button v-if="isVideo(currentPreviewUrl)" class="control-btn active" @click="toggleCanvasEditMode">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
@@ -339,7 +342,7 @@
         <!-- 视频画面 -->
           <div class="video-preview">
             <div class="video-container" ref="videoContainer">
-            <div v-if="isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)" class="skeleton-image"></div>
+            <div v-if="isVideoConverting || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)" class="skeleton-image"></div>
             <template v-else>
               <video v-if="isVideo(sceneDetail.video_url)" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)"
                 :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" playsinline muted loop
@@ -353,7 +356,7 @@
             </template>
           </div>
           <div class="preview-aside">
-            <template v-if="isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)">
+            <template v-if="isVideoConverting || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)">
               <div class="thumb-card">
                 <div class="skeleton-image"></div>
               </div>
@@ -421,7 +424,7 @@
 
           <!-- 时间轴区域 -->
           <div class="timeline-section" ref="timelineSection">
-            <template v-if="false && isConverting">
+            <template v-if="isVideoConverting">
               <div class="timeline-header">
                 <span class="timeline-label">
                   <div class="skeleton-line" style="width:80px;height:12px;"></div>
@@ -658,6 +661,7 @@ export default {
       showLipSyncView: false,
       successModalVisible: false,
       isConverting: false,
+      isVideoConverting: false,
       sceneDetail: { reference_image_url: '', video_url: '' },
       toastVisible: false,
       toastText: '',
@@ -806,7 +810,7 @@ export default {
       })
     },
     pendingSkeletonCount() {
-      const need = 4
+      const need = 1
       const len = Array.isArray(this.scenes) ? this.scenes.length : 0
       return Math.max(0, need - len)
     },
@@ -2188,6 +2192,7 @@ export default {
         this.pollImagesActive = false
         if (this.pollImagesAbortResolve) { try { this.pollImagesAbortResolve() } catch (e) { /* no-op */ } this.pollImagesAbortResolve = null }
         if (this.pollImagesTimer) { try { clearTimeout(this.pollImagesTimer) } catch (e) { /* no-op */ } this.pollImagesTimer = null }
+        this.isVideoConverting = true
         this.isConverting = true
         this.isVideoGenerating = true
         const set = new Set()
@@ -2224,6 +2229,7 @@ export default {
                   this._storyboardQueryInterval = null
                 }
                 this.isConverting = false
+                this.isVideoConverting = false
               }
             }
           } catch (e) {
@@ -2233,6 +2239,7 @@ export default {
       } catch (err) {
         console.error('一键转视频失败:', err)
         this.isConverting = false
+        this.isVideoConverting = false
       }
     },
     closeSuccessModal() {

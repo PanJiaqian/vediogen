@@ -396,6 +396,7 @@ export default {
         const list = obj2 && obj2.code === 0 && Array.isArray(obj2.data) ? obj2.data : []
         this.versions = list.map(it => ({
           videoId: it.video_id,
+          conversationId: it.conversation_id,
           title: it.title,
           outline: it.script_outline || '',
           createdAt: it.created_at,
@@ -470,7 +471,76 @@ export default {
         const projectId = this.$route.params.id
         if (this.videoId) localStorage.setItem(`project:videoId:${projectId}`, String(this.videoId))
       } catch (e) { /* no-op */ }
+      
+      const token = (this.userStore && this.userStore.token) || ''
+      
       this.fetchWorksStatus()
+      
+      if (token && this.videoId) {
+        getScriptDetailByVideo({ videoId: this.videoId, token }).then(text => {
+           let objj = null
+           try { objj = JSON.parse(text) } catch (e) { objj = null }
+           const dataObj = objj && objj.data ? objj.data : objj
+           if (dataObj) {
+             if (dataObj.title) {
+               this.project.title = dataObj.title
+               const projectId = this.$route.params.id
+               try { localStorage.setItem(`project:prompt:${projectId}`, String(dataObj.title)) } catch (e) { /* no-op */ }
+             }
+             // 渲染接口内容到页面
+             this.applyParsedData([dataObj])
+             // 更新本地缓存
+             const projectId = this.$route.params.id
+             try { localStorage.setItem(`project:script_detail_json:${projectId}`, text) } catch (e) { /* no-op */ }
+           }
+        }).catch(e => console.warn('切换版本后获取脚本详情失败:', e))
+      }
+      
+      // 使用切换后的conversationId获取消息
+      // 注意：API接口 getVideoVersionsByConversation 返回的数据中并没有conversationId字段，
+      // 但通常同一项目下的不同版本是在同一个conversation下产生的。
+      // 如果不同版本对应不同conversationId，这里需要后端支持返回conversationId。
+      // 假设仍在当前conversation下，或者如果v对象里有conversationId则使用。
+      // 根据用户需求“使用切换后的converstationld”，推测versions列表中可能包含conversationId，或者需要从某个地方获取。
+      // 检查loadVersionList中versions的构建:
+      // this.versions = list.map(it => ({ videoId: it.video_id, ... }))
+      // 并没有conversationId。但是用户明确要求“使用切换后的converstationld”。
+      // 如果后端getVideoVersionsByConversation返回的数据里包含conversation_id，我们需要在loadVersionList里把它存下来。
+      // 先查看 loadVersionList 方法确认 versions 的来源。
+      
+      // 暂时先按用户指示修改结构，稍后检查是否需要在loadVersionList里补充字段。
+      // 假设 v.conversationId 存在 (需要先去修改 loadVersionList)
+      
+      if (token && v.conversationId) {
+          // 更新本地存储的 conversationId
+          const projectId = this.$route.params.id
+          try { localStorage.setItem(`project:conversationId:${projectId}`, String(v.conversationId)) } catch (e) { /* no-op */ }
+          
+          getConversationMessages({ conversationId: v.conversationId, token }).then(text2 => {
+            let obj2 = null
+            try { obj2 = JSON.parse(text2) } catch (e) { obj2 = null }
+            const list = obj2 && obj2.code === 0 && Array.isArray(obj2.data) ? obj2.data : []
+            const merged = []
+            for (let idx = 0; idx < list.length; idx++) {
+              const it = list[idx]
+              const baseId = Date.now() + idx * 2
+              merged.push({
+                id: baseId,
+                text: it.content || '',
+                side: String(it.role || '').toLowerCase() === 'user' ? 'right' : 'left'
+              })
+              // 模拟每条消息后的自动回复（保持与loadConversationMessages一致逻辑，虽然看起来有点奇怪）
+              merged.push({
+                id: baseId + 1,
+                text: '小梦收到了您的新idea！原来这样改故事会更精彩，让我现在来优化这个故事吧！',
+                side: 'left'
+              })
+            }
+            this.messages = merged
+            this.$nextTick(() => { this.scrollToMessagesBottom() })
+          }).catch(e => console.warn('切换版本后获取会话消息失败:', e))
+      }
+
       this.versionsMenuOpen = false
     },
     async startScriptGenStream() {
