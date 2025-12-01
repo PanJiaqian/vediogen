@@ -4,7 +4,16 @@
     <div class="top-navbar">
       <div class="navbar-left">
         <img src="/logo.png" alt="VideoGen" class="logo-icon" @click="$router.push('/')" />
-        <span class="project-title-text">{{ projectTitle }}</span>
+        <div class="project-title-container">
+          <span v-if="!isEditingTitle" class="project-title-text" @click="startEditTitle" title="点击修改标题">
+            {{ projectTitle }}
+            <svg class="edit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" width="14" height="14" style="margin-left:4px;opacity:0.6;">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <input v-else ref="titleInput" v-model="editingTitle" class="project-title-input" @blur="saveTitle" @keyup.enter="saveTitle" />
+        </div>
         <button class="back-btn" @click="goBack">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -58,7 +67,7 @@
           </div>
         </div>
 
-        <template v-if="isVideoConverting || (isConverting && isActiveImageMissing && !isVideo(sceneDetail.video_url))">
+        <template v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || (isConverting && isActiveImageMissing && !isVideo(sceneDetail.video_url))">
           <div class="skeleton-block">
             <div class="skeleton-line"></div>
             <div class="skeleton-line"></div>
@@ -112,7 +121,25 @@
                 <!-- 图片描述内容 -->
                 <div class="prompt-content" v-show="isPromptExpanded">
                   <!-- 显示模式 -->
-                  <p v-if="!isEditingPrompt">{{ scenes[activeSceneIndex]?.description || '暂无描述' }}</p>
+                  <div v-if="!isEditingPrompt">
+                    <template v-if="scenes[activeSceneIndex]?.scene_script">
+                       <div style="display:flex;flex-direction:column;gap:4px;">
+                         <div v-if="scenes[activeSceneIndex].scene_script.shot_title" style="font-weight:600;color:var(--text-primary);">
+                           {{ scenes[activeSceneIndex].scene_script.shot_title }}
+                         </div>
+                         <div v-if="scenes[activeSceneIndex].scene_script.camera_direction">
+                           <span style="opacity:0.7;">运镜：</span>{{ scenes[activeSceneIndex].scene_script.camera_direction }}
+                         </div>
+                         <div v-if="scenes[activeSceneIndex].scene_script.visual_description">
+                           <span style="opacity:0.7;">画面：</span>{{ scenes[activeSceneIndex].scene_script.visual_description }}
+                         </div>
+                         <div v-if="scenes[activeSceneIndex].scene_script.dialogue_or_narration">
+                           <span style="opacity:0.7;">旁白：</span>{{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
+                         </div>
+                       </div>
+                    </template>
+                    <p v-else>{{ scenes[activeSceneIndex]?.description || '暂无描述' }}</p>
+                  </div>
                   <!-- 编辑模式 -->
                   <div v-else class="prompt-edit-container">
                     <textarea v-model="editingPromptText" class="prompt-edit-input" placeholder="请输入图片提示词..."
@@ -317,7 +344,7 @@
       <!-- 右侧区域 -->
       <div class="right-panel">
         <!-- 画布编辑和对口型 -->
-        <div v-if="isVideoConverting" class="skeleton-block" style="margin-bottom: 8px;">
+        <div v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-block" style="margin-bottom: 8px;">
           <div class="skeleton-line" style="width: 200px; height: 32px;"></div>
         </div>
         <div v-else class="edit-controls">
@@ -342,7 +369,7 @@
         <!-- 视频画面 -->
           <div class="video-preview">
             <div class="video-container" ref="videoContainer">
-            <div v-if="isVideoConverting || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)" class="skeleton-image"></div>
+            <div v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)" class="skeleton-image"></div>
             <template v-else>
               <video v-if="isVideo(sceneDetail.video_url)" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)"
                 :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" playsinline muted loop
@@ -350,13 +377,13 @@
               <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url) && !isPreviewPending" :src="cleanUrl(sceneDetail.reference_image_url)"
                 :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image"
                 decoding="async" fetchpriority="high" @error="onPreviewImgError" />
-              <div v-if="!isVideo(sceneDetail.video_url) && previewImgErrored" class="video-overlay">
-                <div class="error-banner">小梦刚刚打了个盹，快来试试重新生成吧~</div>
+              <div v-if="!isVideo(sceneDetail.video_url) && (previewImgErrored || isGenerateFailed(sceneDetail.reference_image_url))" class="video-overlay">
+                <div class="error-banner">小梦刚刚打瞌睡了，请重新生成试试吧</div>
               </div>
             </template>
           </div>
           <div class="preview-aside">
-            <template v-if="isVideoConverting || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)">
+            <template v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)">
               <div class="thumb-card">
                 <div class="skeleton-image"></div>
               </div>
@@ -609,7 +636,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -663,6 +690,8 @@ export default {
       isConverting: false,
       isVideoConverting: false,
       sceneDetail: { reference_image_url: '', video_url: '' },
+      isEditingTitle: false,
+      editingTitle: '',
       toastVisible: false,
       toastText: '',
       previewImgErrored: false,
@@ -726,9 +755,11 @@ export default {
               if (/^blob:/i.test(thumb)) sc.thumbnail = ''
               else if (/logo\.png$/i.test(thumb)) sc.thumbnail = ''
               else if (/placeholder/i.test(thumb)) sc.thumbnail = ''
+              else sc.thumbnail = thumb
               if (Array.isArray(sc.clips) && sc.clips.length) {
                 const u = this.cleanUrl(sc.clips[0].url || '')
                 if (/^blob:/i.test(u)) sc.clips[0].url = this.cleanUrl(sc.thumbnail || '')
+                else sc.clips[0].url = u
               }
             }
           } catch (e) { void 0 }
@@ -743,7 +774,7 @@ export default {
       if (rawStr) {
         const raw = JSON.parse(rawStr)
         const scenesFromRaw = this.parseStoryboardRawToScenes(raw)
-        if (Array.isArray(scenesFromRaw) && scenesFromRaw.length) {
+        if ((!Array.isArray(this.scenes) || this.scenes.length === 0) && Array.isArray(scenesFromRaw) && scenesFromRaw.length) {
           this.scenes = scenesFromRaw
           this.activeSceneIndex = 0
           this.updateTimeMarkers()
@@ -866,6 +897,7 @@ export default {
       this.previewImgErrored = false
     },
     'sceneDetail.video_url'(val) {
+      this.pausePreview()
       this.$nextTick(() => { this.tryAttachHls() })
       this.$nextTick(() => { this.updateActiveSceneDurationFromVideo() })
     },
@@ -888,6 +920,43 @@ export default {
     }
   },
   methods: {
+    startEditTitle() {
+      this.editingTitle = this.projectTitle
+      this.isEditingTitle = true
+      this.$nextTick(() => {
+        if (this.$refs.titleInput) this.$refs.titleInput.focus()
+      })
+    },
+    async saveTitle() {
+      if (!this.isEditingTitle) return
+      const newTitle = this.editingTitle.trim()
+      if (newTitle && newTitle !== this.projectTitle) {
+        try {
+          const token = (this.userStore && this.userStore.token) || ''
+          const videoId = this.$route.params.id
+          const res = await updateVideoTitle({ videoId, newTitle, token })
+          let obj = null
+          try { obj = JSON.parse(res) } catch(e) { obj = null }
+          if (obj && (obj.code === 0 || obj.success)) {
+            this.projectTitle = newTitle
+            try { localStorage.setItem(`project:prompt:${videoId}`, newTitle) } catch(e){ void 0 }
+            this.toastText = '标题修改成功'
+            this.toastVisible = true
+            setTimeout(() => { this.toastVisible = false }, 2000)
+          } else {
+             this.toastText = '修改失败: ' + (obj ? (obj.message || obj.msg) : '未知错误')
+             this.toastVisible = true
+             setTimeout(() => { this.toastVisible = false }, 2000)
+          }
+        } catch (e) {
+          console.warn(e)
+          this.toastText = '修改失败'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        }
+      }
+      this.isEditingTitle = false
+    },
     async ensureHlsLib() {
       try { if (window && window.Hls) return window.Hls } catch (e) { void 0 }
       try { if (Hls) return Hls } catch (e) { void 0 }
@@ -1016,11 +1085,15 @@ export default {
     
     // 代理到通用工具，统一图片 URL 处理和失败判断
     cleanUrl(u) {
-      return cleanUrlUtil(u)
+      let s = cleanUrlUtil(u)
+      s = String(s || '').trim()
+      s = s.replace(/[\s`'"]+/g, '')
+      return s
     },
     isVideo(u) {
       const s = this.cleanUrl(u)
       if (!s) return false
+      if (this.isGenerateFailed(s)) return false
       if (this.entryMode === 'crop') return true
       if (/\.(png|jpe?g|gif|webp|bmp)(\?|#|$)/i.test(s)) return false
       if (/^data:image\//i.test(s)) return false
@@ -1111,12 +1184,14 @@ export default {
     playVideoSafely(el) {
       try {
         if (!el) return
+        if (!this.isPlaying) return
         try { el.muted = true } catch (e) { void 0 }
         try { el.playsInline = true } catch (e) { void 0 }
         const src = this.cleanUrl(this.sceneDetail && this.sceneDetail.video_url || '')
         const isHls = this.isM3u8(src)
         const safePlay = () => {
           try {
+            if (!this.isPlaying) return
             const p = el.play()
             if (p && p.catch) {
               p.catch(err => { if (!(err && err.name === 'AbortError')) console.warn('预览播放失败:', err) })
@@ -1150,15 +1225,12 @@ export default {
         if (!el) return
         const src = this.cleanUrl(this.sceneDetail && this.sceneDetail.video_url || '')
         if (this._lastPreviewUrl === src) {
-          if (this.isVideo(this.currentPreviewUrl)) this.playVideoSafely(el)
           return
         }
         this._lastPreviewUrl = src
         if (this.isVideo(this.currentPreviewUrl)) {
           try { el.pause(); el.currentTime = 0 } catch (e) { console.warn('预览暂停失败:', e) }
-          const tryPlay = () => this.playVideoSafely(el)
-          if (el.readyState >= 2) { requestAnimationFrame(tryPlay) }
-          else { try { el.addEventListener('loadeddata', () => requestAnimationFrame(tryPlay), { once: true }) } catch (e) { void 0 } }
+          // 不自动播放，等待用户点击播放按钮触发
         } else {
           try { el.pause(); el.currentTime = 0 } catch (e) { console.warn('预览暂停失败:', e) }
         }
@@ -1307,12 +1379,24 @@ export default {
         if (sceneKey && shotOrder.length) idx = shotOrder.indexOf(sceneKey)
         if (idx < 0) idx = this.scenes.findIndex(sc => !Array.isArray(sc.clips) || !sc.clips.length || !/\.mp4($|\?)/i.test(String(sc.clips[0].url || '')))
         if (idx >= 0 && idx < this.scenes.length) {
+          const scene = this.scenes[idx]
+          if (item.scene_script) {
+            if (this.$set) this.$set(scene, 'scene_script', item.scene_script)
+            else scene.scene_script = item.scene_script
+            const script = item.scene_script
+            const parts = []
+            if (script.shot_title) parts.push(script.shot_title)
+            if (script.visual_description) parts.push(script.visual_description)
+            if (script.dialogue_or_narration) parts.push(`旁白：${script.dialogue_or_narration}`)
+            scene.description = parts.join('\n')
+          }
           const k = this.getSceneKey(this.scenes[idx] || {}, idx)
           if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
           this.updatingKeySet.add(k)
           const url = this.cleanUrl(item.video_url)
           const oi = Number(item.order_index || item.orderIndex)
-          const scene = this.scenes[idx]
+          const duration = Number(item.duration) ? Number(item.duration) * 1000 : undefined
+          
           const first = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
           const existingVid = this.cleanUrl((scene && scene.video_url) || (first && first.url) || '')
           const alreadyProcessed = !!(scene && scene.hasVideo) && (!!existingVid && this.isVideo(existingVid))
@@ -1322,13 +1406,18 @@ export default {
               if (!(this._orderIndexMap instanceof Map)) this._orderIndexMap = new Map()
               if (sceneKey) this._orderIndexMap.set(sceneKey, oi)
             }
+            if (duration && Array.isArray(scene.clips) && scene.clips[0]) {
+              scene.clips[0].durationMs = duration
+              if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+              this.durationMap.set(url, duration)
+            }
             if (this.pendingVideoSet instanceof Set) this.pendingVideoSet.delete(k)
             try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
             anySucceeded = true
           } else {
             if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
             this.pendingVideoSet.add(k)
-            this.queueVideoForScene(idx, url, Number.isFinite(oi) ? oi : undefined, sceneKey, k)
+            this.queueVideoForScene(idx, url, Number.isFinite(oi) ? oi : undefined, sceneKey, k, duration)
             anySucceeded = true
           }
         }
@@ -1336,6 +1425,7 @@ export default {
       this.refreshSidebarFromLocal()
       if (anySucceeded) {
         this.isConverting = false
+        this.isVideoConverting = false
         this.sortScenesByServerOrder()
         this.updateTimeMarkers()
       }
@@ -1567,6 +1657,8 @@ export default {
           const vlocal = vurl ? await this.getLocalUrl(vurl) : ''
           const incomingKey = String(data.scene_number || '').trim()
           const targetIndex = this.activeSceneIndex
+          const duration = Number(data.duration) ? Number(data.duration) * 1000 : undefined
+
           if (targetIndex >= 0 && targetIndex < this.scenes.length) {
             const target = this.scenes[targetIndex]
             if (refImg) target.thumbnail = refImg
@@ -1577,7 +1669,15 @@ export default {
               if (!(alreadyProcessed && existingVid === vurl)) {
                 if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
                 this.pendingVideoSet.add(k)
-                this.queueVideoForScene(targetIndex, vurl, undefined, incomingKey, k)
+                this.queueVideoForScene(targetIndex, vurl, undefined, incomingKey, k, duration)
+              } else {
+                 // 已存在视频，检查是否需要更新时长
+                 if (duration && first) {
+                    first.durationMs = duration
+                    if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+                    this.durationMap.set(vurl, duration)
+                    if (vlocal) this.durationMap.set(vlocal, duration)
+                 }
               }
             } else if (!this.isVideoGenerating && (!Array.isArray(target.clips) || !target.clips.length)) {
               target.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
@@ -1654,8 +1754,17 @@ export default {
             const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
             if (refImg) sc.thumbnail = refImg
             if (vurl) {
-              const dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
+              const apiDur = Number(item.duration) ? Number(item.duration) * 1000 : undefined
+              let dur = 5000
+              if (apiDur) {
+                dur = apiDur
+              } else {
+                dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
+              }
               sc.clips = [{ url: vurl, durationMs: dur }]
+              if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+              this.durationMap.set(vurl, dur)
+              if (vLocal) this.durationMap.set(vLocal, dur)
             } else if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 5000 }]
             const oi = Number(item.order_index || item.orderIndex)
             if (Number.isFinite(oi) && oi > 0) {
@@ -1796,6 +1905,7 @@ export default {
             const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
             const incomingKey = String(data.scene_number || '').trim()
             const targetIndex = i
+            const duration = Number(data.duration) ? Number(data.duration) * 1000 : undefined
             if (targetIndex >= 0 && targetIndex < this.scenes.length) {
               const target = this.scenes[targetIndex]
             if (refImg) target.thumbnail = refImg
@@ -1806,7 +1916,14 @@ export default {
               if (!(alreadyProcessed && existingVid === vurl)) {
                 if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
                 this.pendingVideoSet.add(k)
-                this.queueVideoForScene(targetIndex, vurl, undefined, incomingKey, k)
+                this.queueVideoForScene(targetIndex, vurl, undefined, incomingKey, k, duration)
+              } else {
+                if (duration && first) {
+                   first.durationMs = duration
+                   if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+                   this.durationMap.set(vurl, duration)
+                   if (vLocal) this.durationMap.set(vLocal, duration)
+                }
               }
             } else if (!this.isVideoGenerating && (!Array.isArray(target.clips) || !target.clips.length)) {
               target.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
@@ -1872,13 +1989,20 @@ export default {
           const vurl = this.cleanUrl(data.video_url || '')
           const incomingKey = String(data.scene_number || '').trim()
           const targetIndex = i
+          const duration = Number(data.duration) ? Number(data.duration) * 1000 : undefined
           if (targetIndex >= 0 && targetIndex < this.scenes.length) {
             const target = this.scenes[targetIndex]
             if (refImg) target.thumbnail = refImg
             if (vurl) {
-              const dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
+              let dur = duration
+              if (!dur) {
+                dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
+              }
               const vLocal = await this.getLocalUrl(vurl)
               target.clips = [{ url: vLocal || vurl, durationMs: dur }]
+              if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+              this.durationMap.set(vurl, dur)
+              if (vLocal) this.durationMap.set(vLocal, dur)
             } else if (!this.isVideoGenerating && (!Array.isArray(target.clips) || !target.clips.length)) {
               const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
               target.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
@@ -2032,11 +2156,15 @@ export default {
           if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
           this.durationMap.set(url, finalMs)
           this.updateTimeMarkers()
+          try {
+            const projectId = this.$route.params.id
+            localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes))
+          } catch (e) { /* no-op */ }
         }
       } catch (e) { void 0 }
     },
-    queueVideoForScene(index, url, orderIndex, sceneKey, pendingKey) {
-      const task = { index, url: this.cleanUrl(url), orderIndex, sceneKey, pendingKey }
+    queueVideoForScene(index, url, orderIndex, sceneKey, pendingKey, duration) {
+      const task = { index, url: this.cleanUrl(url), orderIndex, sceneKey, pendingKey, duration }
       if (!Array.isArray(this.videoQueue)) this.videoQueue = []
       this.videoQueue.push(task)
       this.processVideoQueue()
@@ -2050,12 +2178,19 @@ export default {
         const idx = task.index
         const url = task.url
         const vLocal = await this.getLocalUrl(url)
-        const dur = this.isVideo(url) ? await this.measureVideoDurationMs(url) : 5000
+        let dur = task.duration
+        if (!dur) {
+          dur = this.isVideo(url) ? await this.measureVideoDurationMs(url) : 5000
+        }
         if (idx >= 0 && idx < this.scenes.length) {
           const scene = this.scenes[idx]
           scene.clips = [{ url: vLocal || url, durationMs: dur }]
           scene.hasVideo = true
           scene.video_url = vLocal || url
+          if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+          this.durationMap.set(url, dur)
+          if (vLocal) this.durationMap.set(vLocal, dur)
+          
           if (Number.isFinite(task.orderIndex) && task.orderIndex > 0) {
             scene.order_index = task.orderIndex
             if (!(this._orderIndexMap instanceof Map)) this._orderIndexMap = new Map()
@@ -2209,6 +2344,54 @@ export default {
         let result
         try { result = JSON.parse(text) } catch { result = { raw: text } }
         console.log('一键转视频接口返回:', result)
+        if (result && result.code === 0 && Array.isArray(result.data)) {
+          const items = result.data
+          let anyImmediateVideo = false
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i]
+            const sn = String(item.scene_number || '').trim()
+            let idx = this.scenes.findIndex(sc => String(sc.scene_number || '').trim() === sn)
+            if (idx === -1 && i < this.scenes.length) idx = i
+            if (idx >= 0 && idx < this.scenes.length) {
+               const sc = this.scenes[idx]
+               const oldKey = this.getSceneKey(sc, idx)
+               if (!sc.scene_number && sn) sc.scene_number = sn
+               const oi = Number(item.order_index)
+               if (Number.isFinite(oi)) sc.order_index = oi
+               
+               const newKey = this.getSceneKey(sc, idx)
+               if (oldKey !== newKey && this.pendingVideoSet instanceof Set && this.pendingVideoSet.has(oldKey)) {
+                 this.pendingVideoSet.delete(oldKey)
+                 this.pendingVideoSet.add(newKey)
+               }
+
+               if (item.scene_script) {
+                if (this.$set) this.$set(sc, 'scene_script', item.scene_script)
+                else sc.scene_script = item.scene_script
+                const script = item.scene_script
+                const parts = []
+                if (script.shot_title) parts.push(script.shot_title)
+                if (script.visual_description) parts.push(script.visual_description)
+                if (script.dialogue_or_narration) parts.push(`旁白：${script.dialogue_or_narration}`)
+                sc.description = parts.join('\n')
+              }
+
+              const vurl = this.cleanUrl(item.video_url || '')
+              if (vurl && this.isVideo(vurl)) {
+                const k = this.getSceneKey(sc, idx)
+                if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
+                this.pendingVideoSet.add(k)
+                this.queueVideoForScene(idx, vurl, Number.isFinite(oi) ? oi : undefined, sn, k)
+                anyImmediateVideo = true
+              }
+            }
+          }
+          if (anyImmediateVideo) {
+            this.isVideoConverting = false
+            this.isVideoGenerating = true
+          }
+          this.sortScenesByServerOrder()
+        }
         this.toastText = '第一个视频会在1分钟左右显示，5~7分钟'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 4000)
@@ -2244,9 +2427,6 @@ export default {
     },
     closeSuccessModal() {
       this.successModalVisible = false
-    },
-    saveTitle() {
-      console.log('保存标题:', this.projectTitle)
     },
     selectScene(index) {
       this.activeSceneIndex = index
@@ -2450,7 +2630,7 @@ export default {
         try { obj = typeof resp === 'string' ? JSON.parse(resp) : resp } catch (e) { obj = null }
         const data = obj && obj.data ? obj.data : null
         if (obj && obj.code === 0 && data && data.video_url) {
-          const remote = this.cleanUrl(data.video_url || '')
+          const remote = this.cleanUrl(data.video_url || data.fallback_mp4 || '')
           const url = await this.getLocalUrl(remote)
           const durMs = Number(data.duration) ? Math.round(Number(data.duration) * 1000) : Math.max(1, Number(sel.endMs || 0) - Number(sel.startMs || 0)) || 5000
           if (Array.isArray(scene.clips) && scene.clips.length) {
@@ -2458,9 +2638,15 @@ export default {
           } else {
             scene.clips = [{ url: remote || this.cleanUrl(scene.thumbnail || ''), durationMs: durMs }]
           }
+          scene.hasVideo = true
+          scene.video_url = remote
+          if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+          this.durationMap.set(remote, durMs)
+          if (url) this.durationMap.set(url, durMs)
           const thumbLocal = scene.thumbnail ? await this.getLocalUrl(this.cleanUrl(scene.thumbnail || '')) : ''
           this.sceneDetail = { reference_image_url: thumbLocal, video_url: url }
           this.updateTimeMarkers()
+          try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
           this.toastText = '裁剪成功'
           this.toastVisible = true
           setTimeout(() => { this.toastVisible = false }, 2000)
@@ -2626,6 +2812,28 @@ export default {
   gap: 12px;
 }
 
+.project-title-container {
+  display: flex;
+  align-items: center;
+}
+
+.project-title-text {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.project-title-text:hover {
+  background: var(--bg-secondary);
+}
+.project-title-text:hover .edit-icon {
+  opacity: 1 !important;
+}
+
 .back-btn {
   width: 85px;
   height: 32px;
@@ -2660,12 +2868,6 @@ export default {
   border: 1px solid var(--primary-color);
 }
 
-.project-title-text {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  padding: 4px 8px;
-}
 
 .navbar-right {
   display: flex;

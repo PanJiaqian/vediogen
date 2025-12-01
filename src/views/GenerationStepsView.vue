@@ -1,13 +1,6 @@
 <template>
   <div class="generation-steps">
-    <div class="top-left-controls">
-      <img src="/logo.png" alt="logo" class="top-left-logo" @click="goHome" />
-      <button class="back-btn" @click="goBack" aria-label="返回">
-        <svg viewBox="0 0 24 24" fill="none">
-          <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-    </div>
+    <Header />
     <!-- 背景装饰 -->
     <div class="background-decoration">
       <div class="floating-icon" v-for="i in 6" :key="i" :style="getFloatingIconStyle(i)">
@@ -21,6 +14,13 @@
 
     <!-- 主要内容 -->
     <div class="main-content">
+      <div class="project-header">
+        <!-- <div class="project-title-row">
+          <h1 class="project-title">{{ project.title || '未命名项目' }}</h1>
+        </div> -->
+        <p class="project-time" v-if="project.createdAt">创建于 {{ project.createdAt }}</p>
+      </div>
+      
       <!-- 标题和描述 -->
       <div class="header-section">
         <div class="loading-icon">
@@ -88,14 +88,20 @@
 </template>
 
 <script>
-import { storyboardPictureGenStream } from '@/api'
+import { storyboardPictureGenStream, getScriptDetailByVideo } from '@/api'
 import { useUserStore } from '@/stores/user'
 import ErrorModal from '@/components/ErrorModal.vue'
+import Header from '@/components/Header.vue'
+
 export default {
   name: 'GenerationStepsView',
-  components: { ErrorModal },
+  components: { ErrorModal, Header },
   data() {
     return {
+      project: {
+        title: '',
+        createdAt: ''
+      },
       currentStep: 0,
       progress: 0,
       steps: [
@@ -121,6 +127,7 @@ export default {
     }
   },
   mounted() {
+    this.fetchProjectInfo()
     this.startGeneration()
     this.startSSE()
     this.startGenerationTimeout()
@@ -151,15 +158,37 @@ export default {
     }
   },
   methods: {
+    async fetchProjectInfo() {
+      try {
+        const store = useUserStore()
+        const token = store && store.token || ''
+        if (!token) return
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        
+        const cachedTitle = localStorage.getItem(`project:prompt:${projectId}`)
+        if (cachedTitle) this.project.title = cachedTitle
+
+        const text = await getScriptDetailByVideo({ videoId, token })
+        let obj = null
+        try { obj = JSON.parse(text) } catch (e) { obj = null }
+        const data = obj && obj.data ? obj.data : obj
+        if (data) {
+          if (data.title) {
+            this.project.title = data.title
+          } else if (data.Script_Summary) {
+            const m = String(data.Script_Summary).match(/《([^》]+)》/)
+            if (m && m[1]) this.project.title = m[1].trim()
+          }
+          // 尝试获取时间字段
+          const timeStr = data.created_at || data.createTime || data.create_time
+          if (timeStr) this.project.createdAt = timeStr
+        }
+      } catch (e) { console.warn('获取项目详情失败:', e) }
+    },
     cleanUrl(u) {
       const str = (u || '').toString()
       return str.replace(/`/g, '').trim()
-    },
-    goHome() {
-      this.$router.push('/')
-    },
-    goBack() {
-      this.$router.back()
     },
     startGeneration() {
       // 初始化第一步
@@ -317,37 +346,27 @@ export default {
 </script>
 
 <style scoped>
-.top-left-controls {
-  position: absolute;
-  top: 16px;
-  left: 16px;
+.project-header {
+  margin-bottom: 24px;
+  text-align: center;
+}
+.project-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.project-title-row {
   display: flex;
+  justify-content: center;
   align-items: center;
   gap: 12px;
-  z-index: 3;
+}
+.project-time {
+  font-size: 13px;
+  color: var(--text-tertiary);
 }
 
-.top-left-logo {
-  width: 28px;
-  height: 28px;
-  cursor: pointer;
-}
-
-.back-btn {
-  border: none;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border-radius: 6px;
-  padding: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.back-btn:hover { background: var(--bg-quaternary); }
-
-.back-btn svg { width: 20px; height: 20px; }
 .generation-steps {
   position: fixed;
   top: 0;

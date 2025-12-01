@@ -396,6 +396,27 @@ export async function getScriptDetailByVideo({ videoId, token }) {
   return res.text()
 }
 
+// 修改视频标题（POST）
+export async function updateVideoTitle({ videoId, newTitle, token }) {
+  const myHeaders = buildAuthHeaders(token)
+  const formdata = new FormData()
+  formdata.append("videoId", videoId)
+  formdata.append("newtitle", newTitle)
+
+  const requestOptions = {
+    method: 'POST',
+    headers: myHeaders,
+    body: formdata,
+    redirect: 'follow'
+  }
+
+  const res = await fetch(`${BASE_URL}/detail/works/video/updateTitle`, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
 export async function generateStoryboardVideo({ videoId, modelName, token }) {
   const url = `${BASE_URL}/api/video/storyboard/generate?videoId=${encodeURIComponent(videoId)}&modelName=${encodeURIComponent(modelName)}`
   const requestOptions = {
