@@ -239,6 +239,18 @@ export default {
           name: '古代风格',
           description: '中国古典人物形象，身着汉服或古装，背景多为庭院、山水或宫殿，融合历史服饰与东方美学，兼具写实与诗意。',
           image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/古代风格.png'
+        },
+        {
+          id: 9,
+          name: '写实生活人像',
+          description: "高度逼真的人物肖像，置于咖啡馆、街头、厨房等日常场景中，强调自然光线、真实皮肤质感与生活化动作，追求摄影级细节与沉浸感。",
+          image: "https://www.xydriftcraft.com:1770/uploadfile/artstyle/写实风格.png"
+        },
+        {
+          id: 10,
+          name: '复古胶片人像',
+          description: "画面带有颗粒感、泛黄褪色色调、柔和对比与轻微漏光，结合阳台修收音机、老街杂货店等怀旧生活场景，营造真实而富有年代感的纪实氛围。",
+          image: "https://www.xydriftcraft.com:1770/uploadfile/artstyle/胶片风格.png"
         }
       ],
       selectedSubjects: [],
