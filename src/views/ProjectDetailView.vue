@@ -554,6 +554,22 @@ export default {
           return
         }
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        try {
+          if (this.worksStatusPicture) {
+            const cachedText = localStorage.getItem(`video-edit:scenes:${projectId}`) || ''
+            if (cachedText) {
+              let cachedScenes = []
+              try { cachedScenes = JSON.parse(cachedText) || [] } catch (e) { cachedScenes = [] }
+              if (Array.isArray(cachedScenes) && cachedScenes.length) {
+                try { localStorage.setItem(`video-edit:entryMode:${projectId}`, 'canvas') } catch (e) { /* no-op */ }
+                try { localStorage.setItem(`project:prompt:${projectId}`, String(this.project.title || this.prompt || '')) } catch (e) { /* no-op */ }
+                try { localStorage.setItem(`video-edit:viewStoryboard:${projectId}`, '1') } catch (e) { /* no-op */ }
+                this.$router.push(`/video-edit/${projectId}`)
+                return
+              }
+            }
+          }
+        } catch (e) { /* no-op */ }
         let entryMode = 'canvas'
         let scenes = []
         if (this.worksStatusVideo) {
@@ -1142,7 +1158,8 @@ export default {
       this.category = localStorage.getItem(`project:category:${projectId}`) || ''
       this.materialId = localStorage.getItem(`project:materialId:${projectId}`) || ''
       if (this.prompt) {
-        this.project.title = this.prompt
+        this.messages.push({ id: Date.now(), text: this.prompt, side: 'right', status: '思考中' })
+        this.$nextTick(() => { this.scrollToMessagesBottom() })
       }
       if (sseText) {
         const objs = this.parseSSEText(sseText)

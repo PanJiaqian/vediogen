@@ -75,7 +75,7 @@
             <span v-if="errors.password" class="error-text">{{ errors.password }}</span>
             <div class="hint-text">密码须包含字母、数字和特殊字符，不少于6位</div>
             <div v-if="isLogin" class="forgot-row">
-              <button type="button" class="link-btn" @click="isForgot = true">忘记密码</button>
+              <button type="button" class="link-btn" @click="switchToForgot">忘记密码</button>
             </div>
           </div>
 
@@ -202,11 +202,11 @@
           <template v-if="!isForgot">
             <span v-if="isLogin">
               还没有账号？
-              <button class="link-btn" @click="isLogin = false">立即注册</button>
+              <button class="link-btn" @click="switchToRegister">立即注册</button>
             </span>
             <span v-else>
               已有账号？
-              <button class="link-btn" @click="isLogin = true">立即登录</button>
+              <button class="link-btn" @click="switchToLogin">立即登录</button>
             </span>
           </template>
           <template v-else>
@@ -286,6 +286,10 @@ export default {
     },
     isLogin(val) {
       if (!val) this.loadRegisterDraft()
+      if (val && !this.isForgot) this.generateCaptcha()
+    },
+    isForgot(val) {
+      if (!val && this.isLogin) this.generateCaptcha()
     },
     formData: {
       handler() {
@@ -442,6 +446,7 @@ export default {
           } else {
             const msg = String((data && (data.message || data.msg)) || '').trim()
             this.showPrompt(msg || '重置密码失败，请重试')
+            this.refreshCaptcha()
           }
           return
         }
@@ -485,6 +490,7 @@ export default {
             } else {
               this.showPrompt(msg || '登录失败，请重试')
             }
+            this.refreshCaptcha()
           }
         }
         else if (!this.isLogin && this.loginType === 'email') {
@@ -517,12 +523,14 @@ export default {
             } else {
               this.showPrompt(msg || '注册失败，请重试')
             }
+            this.refreshCaptcha()
           }
         }
 
       } catch (error) {
         console.error('操作失败:', error)
         this.showPrompt('网络错误，请检查网络连接后重试')
+        this.refreshCaptcha()
       } finally {
         this.loading = false
       }
@@ -647,6 +655,26 @@ export default {
           this.emailCodeTimer = null
         }
       }, 1000)
+    }
+    ,
+    switchToForgot() {
+      this.isForgot = true
+      this.isLogin = true
+      this.resetForm()
+    }
+    ,
+    switchToRegister() {
+      this.isForgot = false
+      this.isLogin = false
+      this.resetForm()
+      this.generateCaptcha()
+    }
+    ,
+    switchToLogin() {
+      this.isForgot = false
+      this.isLogin = true
+      this.resetForm()
+      this.generateCaptcha()
     }
   }
 }

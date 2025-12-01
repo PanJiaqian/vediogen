@@ -765,7 +765,7 @@ export default {
     } catch (e) {
       this._shotOrder = []
     }
-    this.loadServerOrderIndex()
+    // 禁止进入页面自动调用分镜详情接口：不再加载服务器顺序索引
 
     this.$nextTick(() => { this.initTimelineSync() })
     if (initialLoading) {
@@ -774,8 +774,7 @@ export default {
         try { localStorage.removeItem(`video-edit:loading:${projectId}`) } catch (e) { void 0 }
       }, 800)
     }
-    this.fetchCurrentSceneDetail()
-    this.prefetchInitialScenesDetails()
+    // 禁止进入页面自动调用分镜详情接口：不再进行当前分镜/预取调用
     if (!this._entryIsGenerate) { this.pollImagesActive = true; this.pollStoryboardImagesDetail() }
     this.precacheSceneThumbnails()
     this.$nextTick(() => { this.tryAttachHls() })
@@ -849,7 +848,6 @@ export default {
   watch: {
     activeSceneIndex() {
       this.previewImgErrored = false
-      this.fetchCurrentSceneDetail()
       this.$nextTick(() => { this.tryAttachHls() })
     },
     'sceneDetail.reference_image_url'(val) {
@@ -943,25 +941,7 @@ export default {
       this._timelineScrollHandler = sync
       tracks.addEventListener('scroll', sync)
       sync()
-      this._prefetchedSceneIndices = new Set()
-      try {
-        if (this._io) { try { this._io.disconnect() } catch (e) { void 0 } }
-        const io = new IntersectionObserver((entries) => {
-          entries.forEach(entry => {
-            if (entry && entry.isIntersecting) {
-              const el = entry.target
-              const idx = Number(el.getAttribute('data-index'))
-              if (Number.isFinite(idx) && idx >= 4 && !(this._prefetchedSceneIndices && this._prefetchedSceneIndices.has(idx))) {
-                this._prefetchedSceneIndices && this._prefetchedSceneIndices.add(idx)
-                this.prefetchSceneDetailByIndex(idx)
-                io.unobserve(el)
-              }
-            }
-          })
-        }, { root: this.$refs.timelineTracks, threshold: 0.25 })
-        this._io = io
-        tracks.querySelectorAll('.timeline-track').forEach(el => io.observe(el))
-      } catch (err) { void 0 }
+      // 禁止自动预取分镜详情：移除 IntersectionObserver 中的预取逻辑
     },
     parseIncrementalResultToScenes(result) {
       const scenes = []
@@ -2266,6 +2246,8 @@ export default {
           this.playbackLeftPx = tracks.offsetLeft + absolutePx - tracks.scrollLeft
         }
       }
+      // 仅在用户点击分镜时请求分镜详情
+      this.fetchCurrentSceneDetail()
       if (this.isPlaying) {
         this.$nextTick(() => {
           this.syncPreviewPlayback()

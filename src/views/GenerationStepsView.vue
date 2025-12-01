@@ -1,5 +1,13 @@
 <template>
   <div class="generation-steps">
+    <div class="top-left-controls">
+      <img src="/logo.png" alt="logo" class="top-left-logo" @click="goHome" />
+      <button class="back-btn" @click="goBack" aria-label="返回">
+        <svg viewBox="0 0 24 24" fill="none">
+          <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
     <!-- 背景装饰 -->
     <div class="background-decoration">
       <div class="floating-icon" v-for="i in 6" :key="i" :style="getFloatingIconStyle(i)">
@@ -146,6 +154,12 @@ export default {
     cleanUrl(u) {
       const str = (u || '').toString()
       return str.replace(/`/g, '').trim()
+    },
+    goHome() {
+      this.$router.push('/')
+    },
+    goBack() {
+      this.$router.back()
     },
     startGeneration() {
       // 初始化第一步
@@ -303,6 +317,37 @@ export default {
 </script>
 
 <style scoped>
+.top-left-controls {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 3;
+}
+
+.top-left-logo {
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+}
+
+.back-btn {
+  border: none;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-radius: 6px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.back-btn:hover { background: var(--bg-quaternary); }
+
+.back-btn svg { width: 20px; height: 20px; }
 .generation-steps {
   position: fixed;
   top: 0;
@@ -400,7 +445,7 @@ export default {
 
 .step-item.completed {
   background: var(--bg-tertiary);
-  color: var(--success-color);
+  color: var(--primary-color);
 }
 
 .step-icon {
@@ -426,7 +471,7 @@ export default {
 }
 
 .step-item.completed .step-icon {
-  background: var(--success-color);
+  background: var(--primary-color);
   color: white;
 }
 
@@ -468,7 +513,7 @@ export default {
 }
 
 .status-completed {
-  color: var(--success-color);
+  color: var(--primary-color);
   font-weight: 500;
 }
 
