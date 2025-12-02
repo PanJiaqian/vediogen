@@ -91,7 +91,7 @@
                       <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
                     </svg>
                   </div>
-                  <span class="prompt-title">图片提示词</span>
+                  <span class="prompt-title">{{ (scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.shot_title) }}</span>
                   <div class="prompt-actions">
                     <button class="action-btn edit-btn" @click="editPrompt" title="编辑提示词">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -124,21 +124,12 @@
                   <div v-if="!isEditingPrompt">
                     <template v-if="scenes[activeSceneIndex]?.scene_script">
                        <div style="display:flex;flex-direction:column;gap:4px;">
-                         <div v-if="scenes[activeSceneIndex].scene_script.shot_title" style="font-weight:600;color:var(--text-primary);">
-                           {{ scenes[activeSceneIndex].scene_script.shot_title }}
-                         </div>
-                         <div v-if="scenes[activeSceneIndex].scene_script.camera_direction">
-                           <span style="opacity:0.7;">运镜：</span>{{ scenes[activeSceneIndex].scene_script.camera_direction }}
-                         </div>
                          <div v-if="scenes[activeSceneIndex].scene_script.visual_description">
-                           <span style="opacity:0.7;">画面：</span>{{ scenes[activeSceneIndex].scene_script.visual_description }}
-                         </div>
-                         <div v-if="scenes[activeSceneIndex].scene_script.dialogue_or_narration">
-                           <span style="opacity:0.7;">旁白：</span>{{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
+                           <span style="opacity:0.7;"></span>{{ scenes[activeSceneIndex].scene_script.visual_description }}
                          </div>
                        </div>
                     </template>
-                    <p v-else>{{ scenes[activeSceneIndex]?.description || '暂无描述' }}</p>
+                    <!-- <p v-else>{{ scenes[activeSceneIndex]?.description || '暂无描述' }}</p> -->
                   </div>
                   <!-- 编辑模式 -->
                   <div v-else class="prompt-edit-container">
@@ -701,6 +692,7 @@ export default {
       , videoQueue: [],
       videoProcessing: false,
       durationMap: new Map(),
+      imagesDetailMap: new Map(),
       pollImagesActive: false,
       pollImagesTimer: null,
       pollImagesAbortResolve: null
@@ -1375,9 +1367,20 @@ export default {
         const item = items[it]
         if (!item || item.status !== 'SUCCEEDED' || !item.video_url) continue
         const sceneKey = String(item.scene_number || '').trim()
+        const oi = Number(item.order_index || item.orderIndex)
         let idx = -1
-        if (sceneKey && shotOrder.length) idx = shotOrder.indexOf(sceneKey)
-        if (idx < 0) idx = this.scenes.findIndex(sc => !Array.isArray(sc.clips) || !sc.clips.length || !/\.mp4($|\?)/i.test(String(sc.clips[0].url || '')))
+        if (sceneKey) {
+          idx = this.scenes.findIndex(sc => String(sc.scene_number || '').trim() === sceneKey)
+          if (idx < 0 && shotOrder.length) idx = shotOrder.indexOf(sceneKey)
+        }
+        if (idx < 0 && Number.isFinite(oi) && oi > 0) {
+          idx = this.scenes.findIndex(sc => Number(sc.order_index) === oi)
+          if (idx < 0 && this._orderIndexMap instanceof Map) {
+            const keyByOi = [...this._orderIndexMap.entries()].find(([k, v]) => Number(v) === oi)
+            if (keyByOi) idx = this.scenes.findIndex(sc => String(sc.scene_number || '').trim() === String(keyByOi[0] || '').trim())
+          }
+        }
+        if (idx < 0) continue
         if (idx >= 0 && idx < this.scenes.length) {
           const scene = this.scenes[idx]
           if (item.scene_script) {
@@ -1394,7 +1397,6 @@ export default {
           if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
           this.updatingKeySet.add(k)
           const url = this.cleanUrl(item.video_url)
-          const oi = Number(item.order_index || item.orderIndex)
           const duration = Number(item.duration) ? Number(item.duration) * 1000 : undefined
           
           const first = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
@@ -1426,8 +1428,11 @@ export default {
       if (anySucceeded) {
         this.isConverting = false
         this.isVideoConverting = false
-        this.sortScenesByServerOrder()
-        this.updateTimeMarkers()
+        const complete = Array.isArray(this.scenes) && this.scenes.length > 0 && this.scenes.every(sc => Number(sc.order_index) > 0)
+        if (complete) {
+          this.sortScenesByServerOrder()
+          this.updateTimeMarkers()
+        }
       }
       const pendingEmpty = this.pendingVideoSet instanceof Set ? this.pendingVideoSet.size === 0 : true
       if (pendingEmpty) {
@@ -1438,12 +1443,19 @@ export default {
     getSceneClips(scene) {
       let baseUrl = ''
       let duration = 0
+      const key = String(scene && scene.scene_number || '').trim()
+      const oi = Number(scene && scene.order_index)
+      let prefer = null
+      if (key && this.imagesDetailMap instanceof Map) prefer = this.imagesDetailMap.get(key) || null
+      if (!prefer && Number.isFinite(oi) && oi > 0 && this.imagesDetailMap instanceof Map) prefer = this.imagesDetailMap.get(`oi:${oi}`) || null
+      const preferUrl = prefer ? this.cleanUrl(prefer.video_url || prefer.reference_image_url || '') : ''
       const first = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
       const clipUrl = this.cleanUrl((first && first.url) || (scene && scene.video_url) || '')
-      const hasVideoClip = !!clipUrl && (scene && scene.hasVideo || this.isVideo(clipUrl))
+      const urlCandidate = preferUrl || clipUrl
+      const hasVideoClip = !!urlCandidate && this.isVideo(urlCandidate)
       if (hasVideoClip) {
-        baseUrl = clipUrl
-        const cached = (this.durationMap instanceof Map && clipUrl) ? Number(this.durationMap.get(clipUrl)) || 0 : 0
+        baseUrl = urlCandidate
+        const cached = (this.durationMap instanceof Map && urlCandidate) ? Number(this.durationMap.get(urlCandidate)) || 0 : 0
         duration = Number(first && first.durationMs) || cached || 5000
       } else {
         const active = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
@@ -1453,7 +1465,7 @@ export default {
           baseUrl = activeImage
           duration = Number(first && first.durationMs) || 5000
         } else {
-          baseUrl = this.cleanUrl((scene && scene.thumbnail) || '')
+          baseUrl = preferUrl || this.cleanUrl((scene && scene.thumbnail) || '')
           duration = 5000
         }
       }
@@ -1694,13 +1706,15 @@ export default {
               this.sortScenesByServerOrder()
               this.updateTimeMarkers()
             }
-            const content = data && data.prompt && data.prompt.content ? data.prompt.content : null
+            const content = (data && data.prompt && data.prompt.content) ? data.prompt.content : ((data && data.scene_script && data.scene_script.content) ? data.scene_script.content : null)
             if (content) {
-              const parts = []
-              if (content.shot_title) parts.push(content.shot_title)
-              if (content.visual_description) parts.push(content.visual_description)
-              const desc = parts.length ? parts.join('：') : ''
-              if (desc) target.description = desc
+              const scriptObj = Object.assign({}, target.scene_script || {})
+              if (content.shot_title) scriptObj.shot_title = content.shot_title
+              if (content.visual_description) scriptObj.visual_description = content.visual_description
+              if (content.dialogue_or_narration) scriptObj.dialogue_or_narration = content.dialogue_or_narration
+              if (content.camera_direction) scriptObj.camera_direction = content.camera_direction
+              if (this.$set) this.$set(target, 'scene_script', scriptObj); else target.scene_script = scriptObj
+              if (content.visual_description) target.description = content.visual_description
               if (!target.scene_number) target.scene_number = incomingKey || content.shot_id || undefined
             }
           }
@@ -1818,6 +1832,7 @@ export default {
             try { resp = JSON.parse(text) } catch { resp = null }
             const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
             if (list.length) {
+              const map = new Map()
               const idxMap = new Map()
               let anyVideoQueued = false
               for (let i = 0; i < list.length; i++) {
@@ -1830,6 +1845,11 @@ export default {
                 const sc = this.scenes[idx]
                 const refImg = this.cleanUrl(item.reference_image_url || '')
                 const vurl = this.cleanUrl(item.video_url || '')
+                const shotTitle = (item && item.scene_script && item.scene_script.shot_title) || item.shot_title || ''
+                const visualDesc = (item && item.scene_script && item.scene_script.visual_description) || item.visual_description || ''
+                const sceneKey = String(item.scene_number || '').trim()
+                if (sceneKey) map.set(sceneKey, { video_url: vurl, reference_image_url: refImg })
+                if (Number.isFinite(oi) && oi > 0) map.set(`oi:${oi}`, { video_url: vurl, reference_image_url: refImg })
                 if (refImg) {
                   sc.thumbnail = refImg
                   if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 5000 }]
@@ -1847,6 +1867,13 @@ export default {
                     anyVideoQueued = true
                   }
                 }
+                if (shotTitle || visualDesc) {
+                  const scriptObj = Object.assign({}, sc.scene_script || {})
+                  if (shotTitle) scriptObj.shot_title = shotTitle
+                  if (visualDesc) scriptObj.visual_description = visualDesc
+                  if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
+                  if (visualDesc) sc.description = visualDesc
+                }
                 if (Number.isFinite(oi) && oi > 0) {
                   sc.order_index = oi
                   sc.title = `分镜${oi}`
@@ -1854,25 +1881,29 @@ export default {
                   if (key) { sc.scene_number = key; idxMap.set(key, oi) }
                 }
               }
+              this.imagesDetailMap = map
               if (anyVideoQueued) this.isVideoGenerating = true
-            if (idxMap.size > 0) {
-              this._orderIndexMap = idxMap
-              this.sortScenesByServerOrder()
-              this.updateTimeMarkers()
-              try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
+              if (idxMap.size > 0) {
+                this._orderIndexMap = idxMap
+                const complete = Array.isArray(this.scenes) && this.scenes.length > 0 && this.scenes.every(sc => Number(sc.order_index) > 0)
+                if (complete) {
+                  this.sortScenesByServerOrder()
+                  this.updateTimeMarkers()
+                }
+                try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
+              }
+              await this.ensurePreviewFromScenes()
+              const allReady = list.every(x => this.cleanUrl(x.reference_image_url || ''))
+              if (allReady) { this.pollImagesActive = false; break }
+              
             }
-            await this.ensurePreviewFromScenes()
-            const allReady = list.every(x => this.cleanUrl(x.reference_image_url || ''))
-            if (allReady) { this.pollImagesActive = false; break }
-            
-          }
-        } catch (e) { void 0 }
-        await new Promise(r => {
-          if (!this.pollImagesActive) return r()
-          const id = setTimeout(() => { this.pollImagesAbortResolve = null; r() }, 30000)
-          this.pollImagesTimer = id
-          this.pollImagesAbortResolve = r
-        })
+          } catch (e) { void 0 }
+          await new Promise(r => {
+            if (!this.pollImagesActive) return r()
+            const id = setTimeout(() => { this.pollImagesAbortResolve = null; r() }, 30000)
+            this.pollImagesTimer = id
+            this.pollImagesAbortResolve = r
+          })
         }
       } catch (e) { void 0 } finally {
         this.isConverting = false
@@ -1881,6 +1912,53 @@ export default {
         }
         this.pollImagesActive = false
       }
+    },
+    async updateLeftPreviewFromImagesDetail() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return
+        const text = await getStoryboardImagesDetail({ videoId, token })
+        let resp = null
+        try { resp = JSON.parse(text) } catch { resp = null }
+        const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
+        if (!list.length) return
+        const map = new Map()
+        for (const item of list) {
+          const key = String(item.scene_number || '').trim()
+          const oi = Number(item.order_index || item.orderIndex)
+          const refImg = this.cleanUrl(item.reference_image_url || '')
+          const vurl = this.cleanUrl(item.video_url || '')
+          if (key) map.set(key, { video_url: vurl, reference_image_url: refImg })
+          if (Number.isFinite(oi) && oi > 0) map.set(`oi:${oi}`, { video_url: vurl, reference_image_url: refImg })
+        }
+        this.imagesDetailMap = map
+        const active = this.scenes[this.activeSceneIndex] || {}
+        const activeIdx = this.activeSceneIndex
+        const activeKey = String(active.scene_number || '').trim()
+        const oi = Number(active.order_index)
+        let match = null
+        if (activeKey) match = list.find(x => String(x.scene_number || '').trim() === activeKey) || null
+        if (!match && Number.isFinite(oi) && oi > 0) match = list[oi - 1] || null
+        if (!match) match = list[activeIdx] || null
+        if (!match) return
+        const refImg = this.cleanUrl(match.reference_image_url || '')
+        const vurl = this.cleanUrl(match.video_url || '')
+        const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
+        const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
+        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || vurl }
+        if (activeIdx >= 0 && activeIdx < this.scenes.length) {
+          const sc = this.scenes[activeIdx]
+          const shotTitle = (match && match.scene_script && match.scene_script.shot_title) || match.shot_title || ''
+          const visualDesc = (match && match.scene_script && match.scene_script.visual_description) || match.visual_description || ''
+          const scriptObj = Object.assign({}, sc.scene_script || {})
+          if (shotTitle) scriptObj.shot_title = shotTitle
+          if (visualDesc) scriptObj.visual_description = visualDesc
+          if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
+          if (visualDesc) sc.description = visualDesc
+        }
+      } catch (e) { void 0 }
     },
     async prefetchInitialScenesDetails() {
       try {
@@ -2078,9 +2156,15 @@ export default {
     },
     getActualSceneSeconds(scene) {
       const c = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
+      const key = String(scene && scene.scene_number || '').trim()
+      const oi = Number(scene && scene.order_index)
+      let prefer = null
+      if (key && this.imagesDetailMap instanceof Map) prefer = this.imagesDetailMap.get(key) || null
+      if (!prefer && Number.isFinite(oi) && oi > 0 && this.imagesDetailMap instanceof Map) prefer = this.imagesDetailMap.get(`oi:${oi}`) || null
+      const preferUrl = prefer ? this.cleanUrl(prefer.video_url || prefer.reference_image_url || '') : ''
       const urlClip = this.cleanUrl((c && c.url) || '')
       const urlScene = this.cleanUrl((scene && scene.video_url) || '')
-      const url = urlClip || urlScene
+      const url = preferUrl || urlClip || urlScene
       const cached = (this.durationMap instanceof Map && url) ? Number(this.durationMap.get(url)) || 0 : 0
       const durMs = Number(c && c.durationMs) || cached
       if (url && this.isVideo(url) && Number(durMs)) {
@@ -2390,11 +2474,15 @@ export default {
             this.isVideoConverting = false
             this.isVideoGenerating = true
           }
-          this.sortScenesByServerOrder()
+          const complete = Array.isArray(this.scenes) && this.scenes.length > 0 && this.scenes.every(sc => Number(sc.order_index) > 0)
+          if (complete) this.sortScenesByServerOrder()
         }
         this.toastText = '第一个视频会在1分钟左右显示，5~7分钟'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 4000)
+        this.updateLeftPreviewFromImagesDetail()
+        this.pollImagesActive = true
+        this.pollStoryboardImagesDetail()
         // 每30秒轮询一次分镜视频生成状态（localhost）
         if (this._storyboardQueryInterval) clearInterval(this._storyboardQueryInterval)
         this._storyboardQueryInterval = setInterval(async () => {
@@ -2449,7 +2537,7 @@ export default {
           this.playbackLeftPx = tracks.offsetLeft + absolutePx - tracks.scrollLeft
         }
       }
-      // 仅在用户点击分镜时请求分镜详情
+      // 仅在用户点击分镜时请求分镜详情（查看态左侧依赖 getStoryboardSceneDetail）
       this.fetchCurrentSceneDetail()
       if (this.isPlaying) {
         this.$nextTick(() => {
