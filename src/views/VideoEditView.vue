@@ -26,7 +26,7 @@
         <button class="navbar-btn premium-btn">开通会员</button>
         <button class="navbar-btn convert-btn" @click="convertToVideo"
           :disabled="!allImagesReady || isVideo(currentPreviewUrl) || previewImgErrored">一键转视频</button>
-        <button class="navbar-btn export-btn">导出视频</button>
+        <button class="navbar-btn export-btn" @click="exportVideo" :disabled="!allVideosReady">导出视频</button>
       </div>
     </div>
 
@@ -616,8 +616,11 @@
 
   <div v-if="successModalVisible" class="success-modal-overlay" @click="closeSuccessModal">
     <div class="success-modal" @click.stop>
-      <div class="success-title">任务创建成功</div>
-      <button class="success-close-btn" @click="closeSuccessModal">确定</button>
+      <div class="success-title">{{ successTitle || '任务创建成功' }}</div>
+      <div style="display:flex; gap:12px; justify-content:center; margin-top:16px;">
+        <button v-if="successPreviewUrl" class="success-close-btn" @click="previewSuccessUrl">预览</button>
+        <!-- <button class="success-close-btn" @click="closeSuccessModal">确定</button> -->
+      </div>
     </div>
   </div>
 </template>
@@ -627,7 +630,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -678,6 +681,8 @@ export default {
       // 对口型页面显示状态
       showLipSyncView: false,
       successModalVisible: false,
+      successTitle: '',
+      successPreviewUrl: '',
       isConverting: false,
       isVideoConverting: false,
       sceneDetail: { reference_image_url: '', video_url: '' },
@@ -805,6 +810,7 @@ export default {
     if (!this._entryIsGenerate) { this.pollImagesActive = true; this.pollStoryboardImagesDetail() }
     this.precacheSceneThumbnails()
     this.$nextTick(() => { this.tryAttachHls() })
+    this.$nextTick(() => { this.initLeftPanelScript() })
   },
   computed: {
     userStore() {
@@ -830,6 +836,14 @@ export default {
       return this.scenes.every(sc => {
         const url = this.cleanUrl(sc?.thumbnail || '')
         return this.shouldRenderImage(url)
+      })
+    },
+    allVideosReady() {
+      const arr = Array.isArray(this.scenes) ? this.scenes : []
+      if (arr.length === 0) return false
+      return arr.every(sc => {
+        const u = this.cleanUrl(sc && sc.video_url || '')
+        return !!u && this.isVideo(u)
       })
     },
     pendingSkeletonCount() {
@@ -1960,6 +1974,54 @@ export default {
         }
       } catch (e) { void 0 }
     },
+    async initLeftPanelScript() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return
+        const idx = this.activeSceneIndex
+        const sc = this.scenes[idx] || {}
+        const sceneNumber = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[idx] : '') || '')
+        let title = ''
+        let visual = ''
+        try {
+          const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
+          let json
+          try { json = JSON.parse(text) } catch { json = null }
+          const data = json && json.data ? json.data : null
+          const content = (data && data.prompt && data.prompt.content) ? data.prompt.content : ((data && data.scene_script && data.scene_script.content) ? data.scene_script.content : null)
+          if (content) {
+            title = String(content.shot_title || '').trim()
+            visual = String(content.visual_description || '').trim()
+          }
+        } catch (e) { void 0 }
+        if (!title && !visual) {
+          try {
+            const text = await getStoryboardImagesDetail({ videoId, token })
+            let resp
+            try { resp = JSON.parse(text) } catch { resp = null }
+            const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
+            let match = null
+            const key = String(sc.scene_number || '').trim()
+            const oi = Number(sc.order_index)
+            if (key) match = list.find(x => String(x.scene_number || '').trim() === key) || null
+            if (!match && Number.isFinite(oi) && oi > 0) match = list[oi - 1] || null
+            if (!match) match = list[idx] || null
+            if (match) {
+              title = String((match.scene_script && match.scene_script.shot_title) || match.shot_title || '').trim()
+              visual = String((match.scene_script && match.scene_script.visual_description) || match.visual_description || '').trim()
+            }
+          } catch (e) { void 0 }
+        }
+        if (title || visual) {
+          const scriptObj = Object.assign({}, sc.scene_script || {})
+          if (title) scriptObj.shot_title = title
+          if (visual) scriptObj.visual_description = visual
+          if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
+        }
+      } catch (e) { void 0 }
+    },
     async prefetchInitialScenesDetails() {
       try {
         const projectId = this.$route.params.id
@@ -2512,6 +2574,43 @@ export default {
         this.isConverting = false
         this.isVideoConverting = false
       }
+    },
+    async exportVideo() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) {
+          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
+          return
+        }
+        const resp = await exportWorksVideo({ videoId, token })
+        const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
+        const code = obj && typeof obj.code === 'number' ? obj.code : null
+        const msg = obj && obj.message ? String(obj.message).trim() : ''
+        const data = obj && obj.data ? obj.data : null
+        if (code === 0 && data && data.success && data.video_url) {
+          this.successTitle = '导出成功'
+          this.successPreviewUrl = String(data.video_url || '').trim()
+          this.successModalVisible = true
+        } else if (code === 1 && /未转换为视频/.test(msg)) {
+          try { alert('您还有分镜未转换为视频，请检查视频轨道') } catch (e) { void 0 }
+        } else {
+          this.toastText = '导出失败'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        }
+      } catch (e) {
+        this.toastText = '导出失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }
+    },
+    previewSuccessUrl() {
+      try {
+        const u = String(this.successPreviewUrl || '').trim()
+        if (u) window.open(u, '_blank')
+      } catch (e) { void 0 }
     },
     closeSuccessModal() {
       this.successModalVisible = false

@@ -473,6 +473,24 @@ export async function getWorksVideoStatus({ videoId, token }) {
   return res.text()
 }
 
+export async function exportWorksVideo({ videoId, token }) {
+  const url = `${BASE_URL}/detail/works/video/export?videoId=${encodeURIComponent(videoId)}`
+  const requestOptions = {
+    method: 'POST',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
 // 邮箱登录
 export async function emailLogin({ email, password }) {
   const url = `${BASE_URL}/user/emailLogin`
@@ -624,4 +642,5 @@ export default {
   , reorderStoryboardScenes
   , clipStoryboardVideo
   , deleteConversation
+  , exportWorksVideo
 }
