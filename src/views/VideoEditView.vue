@@ -235,9 +235,14 @@
                 </div>
                 <div class="voice-script-controls">
                   <div class="voice-play-controls">
-                    <button class="voice-icon-btn" @click="startVoiceAudition">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <button class="voice-icon-btn" @click="startVoiceAudition" :disabled="isVoiceLoading">
+                      <svg v-if="!isVoiceLoading" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M8 5v14l11-7z" />
+                      </svg>
+                      <svg v-else width="16" height="16" viewBox="0 0 50 50" fill="none">
+                        <circle cx="25" cy="25" r="20" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round">
+                          <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite"/>
+                        </circle>
                       </svg>
                     </button>
                     <button class="voice-icon-btn" @click="stopVoiceAudition">
@@ -258,9 +263,14 @@
                 </div>
 
                 <div class="voice-card" @click="showToneSelector = true">
-                  <button class="voice-card-play" @click.stop="startVoiceAudition">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <button class="voice-card-play" @click.stop="startVoiceAudition" :disabled="isVoiceLoading">
+                    <svg v-if="!isVoiceLoading" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M8 5v14l11-7z" />
+                    </svg>
+                    <svg v-else width="12" height="12" viewBox="0 0 50 50" fill="none">
+                      <circle cx="25" cy="25" r="20" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round">
+                        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite"/>
+                      </circle>
                     </svg>
                   </button>
                   <div class="voice-card-tags">
@@ -375,7 +385,8 @@
         <!-- 视频画面 -->
         <div class="video-preview">
           <div class="video-container" ref="videoContainer">
-            <video v-if="isVideo(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || scenes[activeSceneIndex]?.video_url || scenes[activeSceneIndex]?.thumbnail)"
+            <div v-if="isVideoConverting" class="skeleton-image" style="height:100%"></div>
+            <video v-else-if="isVideo(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || scenes[activeSceneIndex]?.video_url || scenes[activeSceneIndex]?.thumbnail)"
               ref="previewVideo"
               :src="cleanUrl(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || scenes[activeSceneIndex]?.video_url || scenes[activeSceneIndex]?.thumbnail)"
               :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
@@ -708,6 +719,7 @@ export default {
       voiceVolume: 100,
       voiceSpeed: 100,
       isVoiceAuditionPlaying: false,
+      isVoiceLoading: false,
       voiceAuditionTaskId: '',
       voiceAudioUrl: '',
       voicePollTimer: null,
@@ -2768,9 +2780,24 @@ export default {
         const text = String(this.voiceScript || '').trim() || String((this.scenes[this.activeSceneIndex] && this.scenes[this.activeSceneIndex].scene_script && this.scenes[this.activeSceneIndex].scene_script.dialogue_or_narration) || (this.scenes[this.activeSceneIndex] && this.scenes[this.activeSceneIndex].scene_script && this.scenes[this.activeSceneIndex].scene_script.visual_description) || '').trim() || '今天很适合吃点好吃的，喝点小酒，快来找我玩吧！'
         const languageType = this.voiceLanguage || 'Chinese'
         const voice = this.voiceName || 'cherry'
+
+        const cacheKey = `ali-tts-cache:${voice}:${languageType}:${text}`
+        try {
+          const cachedUrl = localStorage.getItem(cacheKey)
+          if (cachedUrl) {
+            this.isVoiceLoading = false
+            this.voiceAudioUrl = cachedUrl
+            const el = new Audio(cachedUrl)
+            el.addEventListener('ended', () => { this.isVoiceAuditionPlaying = false })
+            this.voiceAudioEl = el
+            try { await el.play(); this.isVoiceAuditionPlaying = true } catch (e) { this.isVoiceAuditionPlaying = false }
+            return
+          }
+        } catch (e) { /* no-op */ }
+        this.isVoiceLoading = true
         const submit = await aliTtsSubmit({ text, languageType, voice, token })
         const taskId = (submit && submit.task_id) || (submit && submit.data && submit.data.task_id) || (typeof submit === 'string' ? (() => { try { const o = JSON.parse(submit); return o && (o.task_id || (o.data && o.data.task_id)) } catch { return '' } })() : '')
-        if (!taskId) { this.toastText = '语音任务创建失败'; this.toastVisible = true; setTimeout(() => { this.toastVisible = false }, 2000); return }
+        if (!taskId) { this.isVoiceLoading = false; this.toastText = '语音任务创建失败'; this.toastVisible = true; setTimeout(() => { this.toastVisible = false }, 2000); return }
         this.voiceAuditionTaskId = taskId
         if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { void 0 } this.voicePollTimer = null }
         this.voicePollTimer = setInterval(async () => {
@@ -2782,7 +2809,9 @@ export default {
             if (status === 'SUCCEEDED' && url) {
               try { clearInterval(this.voicePollTimer) } catch (e) { void 0 }
               this.voicePollTimer = null
+              this.isVoiceLoading = false
               this.voiceAudioUrl = this.cleanUrl(url)
+              try { localStorage.setItem(cacheKey, this.voiceAudioUrl) } catch (e) { /* no-op */ }
               const el = new Audio(this.voiceAudioUrl)
               el.addEventListener('ended', () => { this.isVoiceAuditionPlaying = false })
               this.voiceAudioEl = el
@@ -2791,6 +2820,7 @@ export default {
           } catch (e) { /* no-op */ }
         }, 3000)
       } catch (e) {
+        this.isVoiceLoading = false
         this.toastText = '试听失败'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 2000)
@@ -2836,6 +2866,7 @@ export default {
         if (this.voiceAudioEl) { try { this.voiceAudioEl.pause() } catch (e) { void 0 } this.voiceAudioEl = null }
         if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { void 0 } this.voicePollTimer = null }
       } catch (e) { void 0 }
+      this.isVoiceLoading = false
       this.isVoiceAuditionPlaying = false
     },
     async applyVoiceover() {

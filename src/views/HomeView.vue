@@ -131,11 +131,11 @@
         <!-- 搜索建议 -->
         <div class="search-suggestions">
           <button v-for="suggestion in searchSuggestions" :key="suggestion.id" class="suggestion-tag"
-            @click="applySuggestion(suggestion.text)">
+            @click="applySuggestion(suggestion)">
             <svg class="suggestion-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
-            {{ suggestion.text }}
+            {{ truncateSuggestion(suggestion) }}
           </button>
         </div>
       </div>
@@ -165,6 +165,7 @@
 import { getCreativeWorkList, getMaterialsList } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { projectPlaceholders } from '@/utils/placeholder'
+import { ART_STYLES, SCRIPT_SUGGESTIONS, NARRATION_SUGGESTIONS } from '@/utils/homeData'
 import CreateSubjectModal from '@/components/CreateSubjectModal.vue'
 
 export default {
@@ -191,76 +192,13 @@ export default {
       // 主体数据
       subjects: [],
       // 画风数据
-      artStyles: [
-        {
-          id: 1,
-          name: '2D日漫风格',
-          description: '典型的日本二维动画风格，具有鲜明的线条、大眼睛、鲜艳配色和赛璐璐着色（cel shading），常见于电视动画和漫画插画。',
-          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/2D日漫风格.png'
-        },
-        {
-          id: 2,
-          name: '3D动画风格',
-          description: '采用三维建模并以卡通渲染（如三渲二）呈现的角色风格，兼具立体感与动漫美感，代表作品包括《原神》《蜘蛛侠：平行宇宙》。',
-          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/3D动画风格.png'
-        },
-        {
-          id: 3,
-          name: '都市写实风格',
-          description: '以真实城市环境为背景的写实人像风格，强调自然光影、皮肤质感和现代服饰，接近摄影效果但带有电影感构图。',
-          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/都市写实风格.png'
-        },
-        {
-          id: 4,
-          name: '复古手绘风格',
-          description: '模仿20世纪80-90年代手绘动画的质感，带有胶片颗粒、有限色板和粗手绘线稿，如《新世纪福音战士》《猫眼三姐妹》。',
-          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/复古手绘风格.png'
-        },
-        {
-          id: 5,
-          name: '吉卜力风格',
-          description: '日本吉卜力工作室特有的手绘动画风格，色彩柔和、背景细腻、充满自然光影与童话氛围，如《千与千寻》《龙猫》。',
-          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/吉卜力风格.png'
-        },
-        {
-          id: 6,
-          name: '赛博朋克',
-          description: '未来都市题材，融合霓虹灯光、雨夜街道、高科技低生活氛围，主色调为紫、蓝、青、粉，强调科技与人性冲突。',
-          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/赛博朋克.png'
-        },
-        {
-          id: 7,
-          name: '水墨画',
-          description: '中国传统水墨风格，以墨色浓淡表现意境，强调留白、笔触流动与写意精神，常用于山水或文人肖像。',
-          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/水墨画.png'
-        },
-        {
-          id: 8,
-          name: '古代风格',
-          description: '中国古典人物形象，身着汉服或古装，背景多为庭院、山水或宫殿，融合历史服饰与东方美学，兼具写实与诗意。',
-          image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/古代风格.png'
-        },
-        {
-          id: 9,
-          name: '写实生活人像',
-          description: "高度逼真的人物肖像，置于咖啡馆、街头、厨房等日常场景中，强调自然光线、真实皮肤质感与生活化动作，追求摄影级细节与沉浸感。",
-          image: "https://www.xydriftcraft.com:1770/uploadfile/artstyle/写实风格.png"
-        },
-        {
-          id: 10,
-          name: '复古胶片人像',
-          description: "画面带有颗粒感、泛黄褪色色调、柔和对比与轻微漏光，结合阳台修收音机、老街杂货店等怀旧生活场景，营造真实而富有年代感的纪实氛围。",
-          image: "https://www.xydriftcraft.com:1770/uploadfile/artstyle/胶片风格.png"
-        }
-      ],
+      artStyles: ART_STYLES,
       selectedSubjects: [],
       selectedStyles: [],
       selectedStyleName: '',
-      searchSuggestions: [
-        { id: 1, text: '小羊介绍新疆伊犁的自然风光' },
-        { id: 2, text: '女娲后人与修道者大战' },
-        { id: 3, text: '末世逃亡' }
-      ],
+      searchSuggestions: [],
+      scriptSuggestionPool: SCRIPT_SUGGESTIONS,
+      narrationSuggestionPool: NARRATION_SUGGESTIONS,
       recommendations: [],
       // 页面消息
       message: {
@@ -307,6 +245,7 @@ export default {
         try { arr2 = JSON.parse(ids) } catch (e) { arr2 = null }
         if (Array.isArray(arr2)) this.selectedSubjectIds = arr2.filter(x => x != null).map(x => String(x))
       }
+      this.refreshSuggestions()
     } catch (e) { /* no-op */ }
   },
   beforeUnmount() {
@@ -315,9 +254,42 @@ export default {
   watch: {
     searchQuery(val) {
       try { localStorage.setItem('home:searchQuery', String(val || '')) } catch (e) { /* no-op */ }
+    },
+    activeFeature(val) {
+      this.refreshSuggestions()
     }
   },
   methods: {
+    refreshSuggestions() {
+      if (this.activeFeature === 'script') {
+        const items = this.pickRandomItems(this.scriptSuggestionPool, 3)
+        this.searchSuggestions = items.map((it, i) => ({
+          id: (it && it.id) || (i + 1),
+          text: (it && it.prompt) || '',
+          prompt: (it && it.prompt) || '',
+          style: (it && it.style) || ''
+        }))
+      } else {
+        const items = this.pickRandomItems(this.narrationSuggestionPool, 3)
+        this.searchSuggestions = items.map((it, i) => ({
+          id: (it && it.id) || (i + 1),
+          text: (it && it.narration) || '',
+          narration: (it && it.narration) || '',
+          style: (it && it.style) || ''
+        }))
+      }
+    },
+    pickRandomItems(arr, n) {
+      const source = Array.isArray(arr) ? arr.slice() : []
+      const result = []
+      const len = Math.min(n, source.length)
+      for (let i = 0; i < len; i++) {
+        const idx = Math.floor(Math.random() * source.length)
+        result.push(source[idx])
+        source.splice(idx, 1)
+      }
+      return result
+    },
     showMessage(text, type = 'success') {
       this.message = { show: true, text, type }
       setTimeout(() => { this.message.show = false }, 3000)
@@ -363,8 +335,19 @@ export default {
         localStorage.setItem('home:selectedSubjectIds', JSON.stringify(this.selectedSubjectIds))
       } catch (e) { /* no-op */ }
     },
-    applySuggestion(suggestionText) {
-      this.searchQuery = suggestionText
+    applySuggestion(suggestion) {
+      if (suggestion && typeof suggestion === 'object' && (suggestion.prompt || suggestion.narration)) {
+        const content = String((suggestion.prompt || suggestion.narration || '')).trim()
+        const style = String(suggestion.style || '').trim()
+        this.searchQuery = content
+        if (style) {
+          this.selectedStyles = [style]
+          try { localStorage.setItem('home:selectedStyles', JSON.stringify(this.selectedStyles)) } catch (e) { /* no-op */ }
+        }
+      } else {
+        const suggestionText = typeof suggestion === 'string' ? suggestion : String(suggestion && suggestion.text || '')
+        this.searchQuery = suggestionText
+      }
       try {
         const input = this.$el && this.$el.querySelector && this.$el.querySelector('.search-input')
         if (input) {
@@ -373,6 +356,14 @@ export default {
           if (input.setSelectionRange) input.setSelectionRange(len, len)
         }
       } catch (e) { /* no-op */ }
+    },
+    truncateText(text, maxLen = 6) {
+      const s = String(text || '')
+      return s.length > maxLen ? (s.slice(0, maxLen) + '…') : s
+    },
+    truncateSuggestion(suggestion) {
+      const base = (suggestion && (suggestion.text || suggestion.prompt || suggestion.narration)) || ''
+      return this.truncateText(base, 6)
     },
     openRecommendation(item) {
       // 跳转到灵感详情页面
