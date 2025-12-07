@@ -28,9 +28,8 @@
       </div>
       <div class="navbar-right">
         <button class="navbar-btn premium-btn" @click="showMembershipModal = true">开通会员</button>
-        <button class="navbar-btn convert-btn" @click="convertToVideo"
-          :disabled="!allImagesReady || previewImgErrored">一键转视频</button>
-        <button class="navbar-btn export-btn" @click="exportVideo" :disabled="!allVideosReady">导出视频</button>
+        <button class="navbar-btn convert-btn" @click="convertToVideo" :disabled="true">一键转视频</button>
+        <!-- <button class="navbar-btn export-btn" @click="exportVideo" :disabled="true">导出视频</button> -->
       </div>
     </div>
 
@@ -666,7 +665,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, copyStoryboardVideo, reorderStoryboardScenes, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery } from '@/api'
+import { getScriptDetailByVideo, regenerateImage, queryRegenerateImage, copyStoryboardVideo, reorderStoryboardScenes, clipStoryboardVideo, updateVideoTitle, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -811,7 +810,34 @@ export default {
             this.toastVisible = true
             setTimeout(() => { this.toastVisible = false }, 2000)
           } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
-            this.sceneDetail = { reference_image_url: String(img || ''), video_url: String(vid || ''), audio_url: String(aud || '') }
+            const videoUrl = this.cleanUrl(String(vid || ''))
+            const imageUrl = this.cleanUrl(String(img || ''))
+            const audioUrl = this.cleanUrl(String(aud || ''))
+            this.sceneDetail = { reference_image_url: imageUrl, video_url: videoUrl, audio_url: audioUrl }
+            let clipUrl = videoUrl || imageUrl
+            let durMs = 5000
+            if (videoUrl) {
+              try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 }
+            }
+            if (!Array.isArray(this.scenes) || this.scenes.length === 0) {
+              this.scenes = [{ id: 1, title: '分镜1', description: '数字人视频', thumbnail: imageUrl || clipUrl, clips: [{ url: clipUrl, durationMs: durMs }], video_url: clipUrl, hasVideo: !!videoUrl, order_index: 1, audio_url: audioUrl }]
+              this.activeSceneIndex = 0
+            } else {
+              const idx = this.activeSceneIndex
+              const sc = this.scenes[idx] || {}
+              sc.thumbnail = imageUrl || sc.thumbnail || clipUrl
+              sc.video_url = clipUrl
+              sc.hasVideo = !!videoUrl
+              sc.audio_url = audioUrl
+              sc.clips = [{ url: clipUrl, durationMs: durMs }]
+            }
+            try {
+              if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+              if (clipUrl) this.durationMap.set(clipUrl, durMs)
+              if (videoUrl && clipUrl !== videoUrl) this.durationMap.set(videoUrl, durMs)
+            } catch (e) { void 0 }
+            this.updateTimeMarkers()
+            this.ensurePreviewFromScenes()
             this.isVideoGenerating = false
             if (this.digitalVideoQueryInterval) { try { clearInterval(this.digitalVideoQueryInterval) } catch (e) { void 0 } this.digitalVideoQueryInterval = null }
             this.$nextTick(() => { this.tryAttachHls() })
@@ -2236,149 +2262,6 @@ export default {
       }
       this.$router.push(`/project/${projectId}`)
     },
-    async convertToVideo() {
-      const projectId = this.$route.params.id
-      const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-      const token = (this.userStore && this.userStore.token) || ''
-      const modelName = 'wan2.2-i2v-flash'
-      try {
-        this.pollImagesActive = false
-        if (this.pollImagesAbortResolve) { try { this.pollImagesAbortResolve() } catch (e) { /* no-op */ } this.pollImagesAbortResolve = null }
-        if (this.pollImagesTimer) { try { clearTimeout(this.pollImagesTimer) } catch (e) { /* no-op */ } this.pollImagesTimer = null }
-        this.isVideoConverting = true
-        this.isConverting = true
-        this.isVideoGenerating = true
-        const set = new Set()
-        for (let i = 0; i < this.scenes.length; i++) {
-          const sc = this.scenes[i] || {}
-          const hasVid = Array.isArray(sc.clips) && sc.clips.length && this.isVideo(sc.clips[0].url || '')
-          if (!hasVid) {
-            const k = this.getSceneKey(sc, i)
-            set.add(k)
-          }
-        }
-        this.pendingVideoSet = set
-        const text = await generateStoryboardVideo({ videoId, modelName, token })
-        let result
-        try { result = JSON.parse(text) } catch { result = { raw: text } }
-        console.log('一键转视频接口返回:', result)
-        if (result && result.code === 0 && Array.isArray(result.data)) {
-          const items = result.data
-          let anyImmediateVideo = false
-          for (let i = 0; i < items.length; i++) {
-            const item = items[i]
-            const sn = String(item.scene_number || '').trim()
-            let idx = this.scenes.findIndex(sc => String(sc.scene_number || '').trim() === sn)
-            if (idx === -1 && i < this.scenes.length) idx = i
-            if (idx >= 0 && idx < this.scenes.length) {
-              const sc = this.scenes[idx]
-              const oldKey = this.getSceneKey(sc, idx)
-              if (!sc.scene_number && sn) sc.scene_number = sn
-              const oi = Number(item.order_index)
-              if (Number.isFinite(oi)) sc.order_index = oi
-
-              const newKey = this.getSceneKey(sc, idx)
-              if (oldKey !== newKey && this.pendingVideoSet instanceof Set && this.pendingVideoSet.has(oldKey)) {
-                this.pendingVideoSet.delete(oldKey)
-                this.pendingVideoSet.add(newKey)
-              }
-
-              if (item.scene_script) {
-                if (this.$set) this.$set(sc, 'scene_script', item.scene_script)
-                else sc.scene_script = item.scene_script
-                const script = item.scene_script
-                const parts = []
-                if (script.shot_title) parts.push(script.shot_title)
-                if (script.visual_description) parts.push(script.visual_description)
-                if (script.dialogue_or_narration) parts.push(`旁白：${script.dialogue_or_narration}`)
-                sc.description = parts.join('\n')
-              }
-
-              const vurl = this.cleanUrl(item.video_url || '')
-              if (vurl && this.isVideo(vurl)) {
-                const k = this.getSceneKey(sc, idx)
-                if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
-                this.pendingVideoSet.add(k)
-                this.queueVideoForScene(idx, vurl, Number.isFinite(oi) ? oi : undefined, sn, k)
-                anyImmediateVideo = true
-              }
-            }
-          }
-          if (anyImmediateVideo) {
-            this.isVideoConverting = false
-            this.isVideoGenerating = true
-          }
-          const complete = Array.isArray(this.scenes) && this.scenes.length > 0 && this.scenes.every(sc => Number(sc.order_index) > 0)
-          if (complete) this.sortScenesByServerOrder()
-        }
-        this.toastText = '第一个视频会在1分钟左右显示，5~7分钟'
-        this.toastVisible = true
-        setTimeout(() => { this.toastVisible = false }, 4000)
-        this.updateLeftPreviewFromImagesDetail()
-        this.pollImagesActive = true
-        this.pollStoryboardImagesDetail()
-        // 每30秒轮询一次分镜视频生成状态（localhost）
-        if (this.storyboardQueryInterval) clearInterval(this.storyboardQueryInterval)
-        this.storyboardQueryInterval = setInterval(async () => {
-          try {
-            const statusText = await queryStoryboardVideoStatus({ videoId, token })
-            let statusJson = null
-            try { statusJson = JSON.parse(statusText) } catch (e) { statusJson = null }
-            if (statusJson && statusJson.success && Array.isArray(statusJson.items)) {
-              const items = statusJson.items
-              this.updateScenesWithQueryItems(items)
-              const pendingEmpty = this.pendingVideoSet instanceof Set && this.pendingVideoSet.size === 0
-              if (pendingEmpty) {
-                if (this.storyboardQueryInterval) {
-                  try { clearInterval(this.storyboardQueryInterval) } catch (e) { void 0 }
-                  this.storyboardQueryInterval = null
-                }
-                this.isConverting = false
-                this.isVideoConverting = false
-              }
-            }
-          } catch (e) {
-            console.warn('查询分镜视频生成状态失败:', e)
-          }
-        }, 30000)
-      } catch (err) {
-        console.error('一键转视频失败:', err)
-        this.isConverting = false
-        this.isVideoConverting = false
-      }
-    },
-    async exportVideo() {
-      try {
-        const projectId = this.$route.params.id
-        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-        const token = (this.userStore && this.userStore.token) || ''
-        if (!token) {
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
-          return
-        }
-        const resp = await exportWorksVideo({ videoId, token })
-        const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
-        const code = obj && typeof obj.code === 'number' ? obj.code : null
-        const msg = obj && obj.message ? String(obj.message).trim() : ''
-        const data = obj && obj.data ? obj.data : null
-        if (code === 0 && data && data.success && data.video_url) {
-          this.successTitle = '导出成功'
-          this.successPreviewUrl = String(data.video_url || '').trim()
-          this.successFilename = String(data.filename || '').trim()
-          this.successModalVisible = true
-        } else if (code === 1 && /未转换为视频/.test(msg)) {
-          try { alert('您还有分镜未转换为视频，请检查视频轨道') } catch (e) { void 0 }
-        } else {
-          this.toastText = '导出失败'
-          this.toastVisible = true
-          setTimeout(() => { this.toastVisible = false }, 2000)
-        }
-      } catch (e) {
-        this.toastText = '导出失败'
-        this.toastVisible = true
-        setTimeout(() => { this.toastVisible = false }, 2000)
-      }
-    },
     async startVoiceAudition() {
       try {
         if (this.isVoiceAuditionPlaying) { this.stopVoiceAudition(); return }
@@ -2504,54 +2387,6 @@ export default {
         }
       } catch (e) {
         this.toastText = '应用失败'
-        this.toastVisible = true
-        setTimeout(() => { this.toastVisible = false }, 2000)
-      }
-    },
-    async downloadExportVideo() {
-      try {
-        const projectId = this.$route.params.id
-        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-        const token = (this.userStore && this.userStore.token) || ''
-        if (!token) {
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
-          return
-        }
-        // 优先使用后端返回的可公开访问地址，借助浏览器原生下载条目
-        const directUrl = this.cleanUrl(this.successPreviewUrl || '')
-        let filename = this.successFilename || ''
-        if (!filename) filename = `work_${videoId}.mp4`
-        if (directUrl) {
-          const a = document.createElement('a')
-          a.href = directUrl
-          a.download = filename
-          a.target = '_blank'
-          a.rel = 'noopener'
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
-          return
-        }
-        // 回退：走受保护下载接口，生成本地对象链接后触发下载
-        const { blob, headers } = await exportWorksVideoDownload({ videoId, token })
-        const url = URL.createObjectURL(blob)
-        try {
-          const cd = headers && headers.get ? headers.get('content-disposition') : ''
-          const m = cd && cd.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/)
-          const fn = (m && (m[1] || m[2])) || ''
-          if (fn) filename = fn
-        } catch (e) { /* no-op */ }
-        const a = document.createElement('a')
-        a.href = url
-        a.download = filename
-        a.target = '_blank'
-        a.rel = 'noopener'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        setTimeout(() => { try { URL.revokeObjectURL(url) } catch (e) { /* no-op */ } }, 1000)
-      } catch (e) {
-        this.toastText = '下载失败'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 2000)
       }
