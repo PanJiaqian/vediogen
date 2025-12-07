@@ -417,6 +417,28 @@ export async function updateVideoTitle({ videoId, newTitle, token }) {
   return res.text()
 }
 
+// 分镜配音上传（POST）
+export async function uploadStoryboardVoiceoverAudio({ videoId, shotId, audioUrl, token }) {
+  const myHeaders = buildAuthHeaders(token)
+  const formdata = new FormData()
+  formdata.append('videoId', String(videoId))
+  formdata.append('shotId', String(shotId))
+  formdata.append('audioUrl', String(audioUrl))
+
+  const requestOptions = {
+    method: 'POST',
+    headers: myHeaders,
+    body: formdata,
+    redirect: 'follow'
+  }
+
+  const res = await fetch(`${BASE_URL}/detail/storyboard/voiceover/uploadaudio`, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
 export async function generateStoryboardVideo({ videoId, modelName, token }) {
   const url = `${BASE_URL}/api/video/storyboard/generate?videoId=${encodeURIComponent(videoId)}&modelName=${encodeURIComponent(modelName)}`
   const requestOptions = {
@@ -484,6 +506,121 @@ export async function exportWorksVideo({ videoId, token }) {
   if (res.status === 401) {
     try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
   }
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
+export async function exportWorksVideoDownload({ videoId, token }) {
+  const url = `${BASE_URL}/detail/works/video/export/download?videoId=${encodeURIComponent(videoId)}`
+  const headers = buildAuthHeaders(token)
+  headers.append('Accept', 'video/mp4')
+  const requestOptions = {
+    method: 'GET',
+    headers,
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  const blob = await res.blob()
+  return { blob, headers: res.headers }
+}
+
+export async function aliTtsSubmit({ text, languageType, voice, token }) {
+  const url = `${BASE_URL}/api/ali-tts/submit?text=${encodeURIComponent(text)}&languageType=${encodeURIComponent(languageType)}&voice=${encodeURIComponent(voice)}`
+  const requestOptions = {
+    method: 'POST',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
+export async function getTonesList({ modelName, token }) {
+  const url = `${BASE_URL}/detail/voice/getTonesList?modelName=${encodeURIComponent(modelName)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
+export async function aliTtsQuery({ taskId, token }) {
+  const url = `${BASE_URL}/api/ali-tts/query?taskId=${encodeURIComponent(taskId)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
+export async function objectDetectionSeedream({ imageFile, token }) {
+  const url = `${BASE_URL}/api/video/seedream/object_detection`
+  const headers = buildAuthHeaders(token)
+  const formdata = new FormData()
+  formdata.append('image', imageFile)
+  const requestOptions = {
+    method: 'POST',
+    headers,
+    body: formdata,
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
+export async function digitalhumanGen({ imageFile, imageUrl, audio, audioUrl, maskUrls, token }) {
+  const url = `${BASE_URL}/api/video/digitalhumanGen`
+  const headers = buildAuthHeaders(token)
+  const formdata = new FormData()
+  if (imageFile) formdata.append('imageFile', imageFile)
+  else if (imageUrl) formdata.append('imageUrl', String(imageUrl).trim())
+  if (audio) formdata.append('audio', audio)
+  else if (audioUrl) formdata.append('audioUrl', String(audioUrl).trim())
+  if (maskUrls) formdata.append('maskUrls', String(maskUrls).trim())
+  const requestOptions = { method: 'POST', headers, body: formdata, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
+export async function digitalhumanQuery({ taskId, token }) {
+  const url = `${BASE_URL}/api/video/digitalhumanQuery?taskId=${encodeURIComponent(taskId)}`
+  const requestOptions = { method: 'GET', headers: buildAuthHeaders(token), redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
   try {
     return await res.json()
   } catch (e) {
@@ -643,4 +780,11 @@ export default {
   , clipStoryboardVideo
   , deleteConversation
   , exportWorksVideo
+  , exportWorksVideoDownload
+  , aliTtsSubmit
+  , aliTtsQuery
+  , objectDetectionSeedream
+  , digitalhumanGen
+  , digitalhumanQuery
+  , uploadStoryboardVoiceoverAudio
 }

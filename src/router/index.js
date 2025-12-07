@@ -45,6 +45,11 @@ const routes = [
     component: () => import(/* webpackChunkName: "video-edit" */ '../views/VideoEditView.vue')
   },
   {
+    path: '/digital-video/:taskId?',
+    name: 'DigitalVideo',
+    component: () => import(/* webpackChunkName: "digital-video" */ '../views/DigitalVideo.vue')
+  },
+  {
     path: '/inspiration/:id',
     name: 'InspirationDetail',
     component: () => import(/* webpackChunkName: "inspiration-detail" */ '../views/InspirationDetailView.vue')

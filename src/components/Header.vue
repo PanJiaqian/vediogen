@@ -12,7 +12,7 @@
       <!-- 右侧功能区 -->
       <div class="header__right">
         <div class="header-items">
-          <div class="header-item membership-btn">开通会员</div>
+          <div class="header-item membership-btn" @click="showMembershipModal = true">开通会员</div>
           <div class="header-item theme-toggle" @click="toggleTheme" :aria-label="isDark ? '切换为浅色' : '切换为深色'">
             <svg v-if="!isDark" class="header-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 17a5 5 0 100-10 5 5 0 000 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -94,6 +94,9 @@
     <LoginModal :visible="loginModalVisible" @close="hideLoginModal" @success="handleLoginSuccess"
       @social-login="handleSocialLogin" />
 
+    <!-- 会员弹窗 -->
+    <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
+
     <div v-if="centerPromptVisible" class="center-prompt-overlay" @click="closeCenterPrompt">
       <div class="center-prompt" @click.stop>
         <div class="prompt-text">{{ centerPromptText }}</div>
@@ -105,12 +108,14 @@
 
 <script>
 import LoginModal from './LoginModal.vue'
+import MembershipModal from '@/components/MembershipModal.vue'
 import { useUserStore } from '@/stores/user'
 
 export default {
   name: 'AppHeader',
   components: {
-    LoginModal
+    LoginModal,
+    MembershipModal
   },
   data() {
     return {
@@ -118,7 +123,8 @@ export default {
       showUserMenu: false,
       centerPromptVisible: false,
       centerPromptText: '',
-      isDark: false
+      isDark: false,
+      showMembershipModal: false
     }
   },
   computed: {
@@ -138,7 +144,16 @@ export default {
     // 监听全局事件以弹出登录弹窗
     window.addEventListener('open-login-modal', this.showLoginModal)
     window.addEventListener('auth-401', this.handleAuth401)
-    this.isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const saved = localStorage.getItem('darkMode')
+    if (saved === 'true' || saved === '1') {
+      document.documentElement.setAttribute('data-theme', 'dark')
+      this.isDark = true
+    } else if (saved === 'false' || saved === '0') {
+      document.documentElement.removeAttribute('data-theme')
+      this.isDark = false
+    } else {
+      this.isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    }
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside)
@@ -231,9 +246,11 @@ export default {
       if (next) {
         root.setAttribute('data-theme', next)
         this.isDark = true
+        try { localStorage.setItem('darkMode', 'true') } catch (e) { /* no-op */ }
       } else {
         root.removeAttribute('data-theme')
         this.isDark = false
+        try { localStorage.setItem('darkMode', 'false') } catch (e) { /* no-op */ }
       }
     }
     ,

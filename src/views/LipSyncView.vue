@@ -12,7 +12,7 @@
         <span class="page-title">对口型</span>
       </div>
       <div class="navbar-right">
-        <button class="navbar-btn">开通会员</button>
+        <button class="navbar-btn" @click="showMembershipModal = true">开通会员</button>
       </div>
     </div>
 
@@ -22,12 +22,12 @@
       <div class="left-panel">
         <div class="scene-preview">
           <div class="scene-image-container">
-            <img src="/logo.png" alt="分镜图片" class="scene-image" />
+            <img :src="imageUrl || '/logo.png'" alt="分镜图片" class="scene-image" />
           </div>
-          <div class="scene-info">
-            <h3 class="scene-title">分镜 1</h3>
-            <p class="scene-description">Hello Kitty的快乐魔法时间开始！</p>
-          </div>
+          <!-- <div class="scene-info">
+            <h3 class="scene-title">{{ sceneTitle || '分镜' }}</h3>
+            <p class="scene-description">{{ sceneDescription || '' }}</p>
+          </div> -->
         </div>
       </div>
 
@@ -36,20 +36,29 @@
         <DigitalHumanToolbar />
       </div>
     </div>
+    <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
   </div>
 </template>
 
 <script>
 import DigitalHumanToolbar from '@/components/DigitalHumanToolbar.vue'
+import MembershipModal from '@/components/MembershipModal.vue'
 
 export default {
   name: 'LipSyncView',
   components: {
-    DigitalHumanToolbar
+    DigitalHumanToolbar,
+    MembershipModal
+  },
+  props: {
+    imageUrl: { type: String, default: '' },
+    sceneTitle: { type: String, default: '' },
+    sceneDescription: { type: String, default: '' }
   },
   data() {
     return {
       // 页面数据
+      showMembershipModal: false
     }
   },
   methods: {
@@ -159,17 +168,19 @@ export default {
   align-items: center;
   justify-content: center;
   padding: 40px;
+  height: 100%;
 }
 
 .scene-preview {
   max-width: 600px;
   width: 100%;
+  height: 100%;
 }
 
 .scene-image-container {
   position: relative;
   width: 100%;
-  max-height: calc(100vh - 200px);
+  height: 100%;
   background: var(--bg-secondary);
   border-radius: 12px;
   overflow: hidden;
@@ -180,8 +191,8 @@ export default {
 }
 
 .scene-image {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 
