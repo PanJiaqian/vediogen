@@ -150,7 +150,7 @@
           @click="openRecommendation(item)">
           <img :src="item.image" :alt="item.title" class="card-image" />
           <div class="card-content">
-            <h3 class="card-title">{{ item.title }}</h3>
+            <h3 class="card-title">{{item.title }}</h3>
           </div>
         </div>
       </div>
@@ -357,13 +357,13 @@ export default {
         }
       } catch (e) { /* no-op */ }
     },
-    truncateText(text, maxLen = 6) {
+    truncateText(text, maxLen = 12) {
       const s = String(text || '')
       return s.length > maxLen ? (s.slice(0, maxLen) + '…') : s
     },
     truncateSuggestion(suggestion) {
       const base = (suggestion && (suggestion.text || suggestion.prompt || suggestion.narration)) || ''
-      return this.truncateText(base, 6)
+      return this.truncateText(base, 12)
     },
     openRecommendation(item) {
       // 跳转到灵感详情页面

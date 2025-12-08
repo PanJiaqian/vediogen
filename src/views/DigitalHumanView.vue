@@ -38,14 +38,19 @@
     <div v-if="showCropModal" class="crop-modal-overlay" @click.self="cancelCrop">
       <div class="crop-modal">
         <div class="crop-modal-header">裁剪图片</div>
-        <div class="crop-modal-body">
-          <div class="crop-preview" :style="aspectStyle">
-            <img :src="selectedImageUrl" class="crop-image" />
+        <div class="crop-modal-body" @mousemove="onMouseMove" @mouseup="onMouseUp">
+          <div class="crop-preview" ref="cropPreview">
+            <img :src="selectedImageUrl" class="crop-image" ref="cropImage" @load="onCropImageLoad" />
+            <div v-if="cropRatio!=='free'" class="crop-select" :style="cropSelectBoxStyle" @mousedown.prevent="onSelectMouseDown">
+              <div class="crop-handle handle-nw" @mousedown.stop.prevent="onHandleMouseDown('nw', $event)"></div>
+              <div class="crop-handle handle-ne" @mousedown.stop.prevent="onHandleMouseDown('ne', $event)"></div>
+              <div class="crop-handle handle-sw" @mousedown.stop.prevent="onHandleMouseDown('sw', $event)"></div>
+              <div class="crop-handle handle-se" @mousedown.stop.prevent="onHandleMouseDown('se', $event)"></div>
+            </div>
           </div>
         </div>
         <div class="crop-modal-footer">
           <div class="ratio-buttons">
-            <button :class="['ratio-btn', {active: cropRatio==='free'}]" @click="cropRatio='free'">自由</button>
             <button :class="['ratio-btn', {active: cropRatio==='9:16'}]" @click="cropRatio='9:16'">9:16</button>
             <button :class="['ratio-btn', {active: cropRatio==='16:9'}]" @click="cropRatio='16:9'">16:9</button>
             <button :class="['ratio-btn', {active: cropRatio==='3:4'}]" @click="cropRatio='3:4'">3:4</button>
@@ -84,7 +89,21 @@ export default {
       showCropModal: false,
       cropRatio: 'free',
       selectedImageFile: null,
-      selectedImageUrl: null
+      selectedImageUrl: null,
+      cropSelX: 0,
+      cropSelY: 0,
+      cropSelW: 0,
+      cropSelH: 0,
+      isDraggingSel: false,
+      dragStartX: 0,
+      dragStartY: 0,
+      dragStartSelX: 0,
+      dragStartSelY: 0,
+      isResizingSel: false,
+      resizeDir: '',
+      dragStartW: 0,
+      dragStartH: 0,
+      displayRect: null
     }
   },
   computed: {
@@ -98,6 +117,22 @@ export default {
       const rw = parseFloat(parts[0]) || 1
       const rh = parseFloat(parts[1]) || 1
       return { aspectRatio: `${rw} / ${rh}` }
+    }
+    , cropSelectBoxStyle() {
+      const r = String(this.cropRatio || '').trim()
+      if (!r || r === 'free' || !this.displayRect) return {}
+      const x = Math.round(this.cropSelX)
+      const y = Math.round(this.cropSelY)
+      const w = Math.round(this.cropSelW)
+      const h = Math.round(this.cropSelH)
+      return { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` }
+    }
+  },
+  watch: {
+    cropRatio(val) {
+      if (val && val !== 'free') {
+        this.$nextTick(() => { this.initSelection() })
+      }
     }
   },
   methods: {
@@ -134,6 +169,187 @@ export default {
       this.cropRatio = 'free'
       this.showCropModal = true
     },
+    onCropImageLoad() {
+      this.computeDisplayRect()
+      if (this.cropRatio && this.cropRatio !== 'free') {
+        this.initSelection()
+      }
+    },
+    computeDisplayRect() {
+      try {
+        const imgEl = this.$refs.cropImage
+        const previewEl = this.$refs.cropPreview
+        if (!imgEl || !previewEl) return
+        const contW = previewEl.clientWidth
+        const contH = previewEl.clientHeight
+        const nW = imgEl.naturalWidth || imgEl.width
+        const nH = imgEl.naturalHeight || imgEl.height
+        const imgRatio = nW / nH
+        const contRatio = contW / contH
+        let dispW, dispH
+        if (contRatio > imgRatio) {
+          dispH = contH
+          dispW = Math.round(dispH * imgRatio)
+        } else {
+          dispW = contW
+          dispH = Math.round(dispW / imgRatio)
+        }
+        const left = Math.round((contW - dispW) / 2)
+        const top = Math.round((contH - dispH) / 2)
+        this.displayRect = { left, top, width: dispW, height: dispH }
+      } catch (e) { /* no-op */ }
+    },
+    initSelection() {
+      const r = String(this.cropRatio || '').trim()
+      if (!this.displayRect || !r || r === 'free') return
+      const parts = r.split(':')
+      const rw = parseFloat(parts[0]) || 1
+      const rh = parseFloat(parts[1]) || 1
+      const ratio = rw / rh
+      const W = this.displayRect.width
+      const H = this.displayRect.height
+      let w, h
+      if (W / H > ratio) {
+        h = H
+        w = Math.round(h * ratio)
+      } else {
+        w = W
+        h = Math.round(w / ratio)
+      }
+      const x = Math.round(this.displayRect.left + (W - w) / 2)
+      const y = Math.round(this.displayRect.top + (H - h) / 2)
+      this.cropSelW = w
+      this.cropSelH = h
+      this.cropSelX = x
+      this.cropSelY = y
+    },
+    onSelectMouseDown(e) {
+      this.isDraggingSel = true
+      this.dragStartX = e.clientX
+      this.dragStartY = e.clientY
+      this.dragStartSelX = this.cropSelX
+      this.dragStartSelY = this.cropSelY
+    },
+    onHandleMouseDown(dir, e) {
+      this.isResizingSel = true
+      this.resizeDir = String(dir || '')
+      this.dragStartX = e.clientX
+      this.dragStartY = e.clientY
+      this.dragStartSelX = this.cropSelX
+      this.dragStartSelY = this.cropSelY
+      this.dragStartW = this.cropSelW
+      this.dragStartH = this.cropSelH
+    },
+    onMouseMove(e) {
+      if (!this.displayRect) return
+      if (this.isResizingSel) {
+        this.resizeSelection(e)
+        return
+      }
+      if (!this.isDraggingSel) return
+      const dx = e.clientX - this.dragStartX
+      const dy = e.clientY - this.dragStartY
+      let nx = this.dragStartSelX + dx
+      let ny = this.dragStartSelY + dy
+      const minX = this.displayRect.left
+      const minY = this.displayRect.top
+      const maxX = this.displayRect.left + this.displayRect.width - this.cropSelW
+      const maxY = this.displayRect.top + this.displayRect.height - this.cropSelH
+      if (nx < minX) nx = minX
+      if (ny < minY) ny = minY
+      if (nx > maxX) nx = maxX
+      if (ny > maxY) ny = maxY
+      this.cropSelX = nx
+      this.cropSelY = ny
+    },
+    onMouseUp() {
+      this.isDraggingSel = false
+      this.isResizingSel = false
+    },
+    resizeSelection(e) {
+      const rStr = String(this.cropRatio || '').trim()
+      if (!this.displayRect || !rStr || rStr === 'free') return
+      const parts = rStr.split(':')
+      const rw = parseFloat(parts[0]) || 1
+      const rh = parseFloat(parts[1]) || 1
+      const ratio = rw / rh
+      const dx = e.clientX - this.dragStartX
+      const dy = e.clientY - this.dragStartY
+      const minX = this.displayRect.left
+      const minY = this.displayRect.top
+      const maxXEdge = this.displayRect.left + this.displayRect.width
+      const maxYEdge = this.displayRect.top + this.displayRect.height
+
+      let w = this.dragStartW
+      let h = this.dragStartH
+      let x = this.dragStartSelX
+      let y = this.dragStartSelY
+
+      const minW = 20
+      const minH = Math.round(minW / ratio)
+
+      if (this.resizeDir === 'se') {
+        w = this.dragStartW + dx
+        if (w < minW) w = minW
+        h = Math.round(w / ratio)
+        // clamp by right and bottom edges
+        const maxWByRight = maxXEdge - this.dragStartSelX
+        const maxHByBottom = maxYEdge - this.dragStartSelY
+        const maxWByBottom = Math.floor(maxHByBottom * ratio)
+        const maxWAllowed = Math.min(maxWByRight, maxWByBottom)
+        if (w > maxWAllowed) { w = maxWAllowed; h = Math.round(w / ratio) }
+        x = this.dragStartSelX
+        y = this.dragStartSelY
+      } else if (this.resizeDir === 'sw') {
+        w = this.dragStartW - dx
+        if (w < minW) w = minW
+        h = Math.round(w / ratio)
+        const anchorX = this.dragStartSelX + this.dragStartW
+        const maxWByLeft = anchorX - minX
+        const maxHByBottom = maxYEdge - this.dragStartSelY
+        const maxWByBottom = Math.floor(maxHByBottom * ratio)
+        const maxWAllowed = Math.min(maxWByLeft, maxWByBottom)
+        if (w > maxWAllowed) { w = maxWAllowed; h = Math.round(w / ratio) }
+        x = anchorX - w
+        y = this.dragStartSelY
+      } else if (this.resizeDir === 'ne') {
+        w = this.dragStartW + dx
+        if (w < minW) w = minW
+        h = Math.round(w / ratio)
+        const anchorY = this.dragStartSelY + this.dragStartH
+        const maxWByRight = maxXEdge - this.dragStartSelX
+        const maxHByTop = anchorY - minY
+        const maxWByTop = Math.floor(maxHByTop * ratio)
+        const maxWAllowed = Math.min(maxWByRight, maxWByTop)
+        if (w > maxWAllowed) { w = maxWAllowed; h = Math.round(w / ratio) }
+        x = this.dragStartSelX
+        y = anchorY - h
+      } else if (this.resizeDir === 'nw') {
+        w = this.dragStartW - dx
+        if (w < minW) w = minW
+        h = Math.round(w / ratio)
+        const anchorX = this.dragStartSelX + this.dragStartW
+        const anchorY = this.dragStartSelY + this.dragStartH
+        const maxWByLeft = anchorX - minX
+        const maxHByTop = anchorY - minY
+        const maxWByTop = Math.floor(maxHByTop * ratio)
+        const maxWAllowed = Math.min(maxWByLeft, maxWByTop)
+        if (w > maxWAllowed) { w = maxWAllowed; h = Math.round(w / ratio) }
+        x = anchorX - w
+        y = anchorY - h
+      }
+
+      // final clamp inside displayRect
+      if (x < minX) x = minX
+      if (y < minY) y = minY
+      if (x + w > maxXEdge) x = maxXEdge - w
+      if (y + h > maxYEdge) y = maxYEdge - h
+
+      this.cropSelX = Math.round(x)
+      this.cropSelY = Math.round(y)
+      this.cropSelW = Math.round(w)
+      this.cropSelH = Math.round(h)
+    },
     cancelCrop() {
       this.showCropModal = false
       this.selectedImageFile = null
@@ -168,24 +384,42 @@ export default {
         const img = new Image()
         img.onload = () => {
           try {
-            let targetW = img.width
-            let targetH = img.height
+            const nW = img.naturalWidth || img.width
+            const nH = img.naturalHeight || img.height
+            let targetW = nW
+            let targetH = nH
             if (ratioName && ratioName !== 'free') {
               const parts = ratioName.split(':')
               const rw = parseFloat(parts[0]) || 1
               const rh = parseFloat(parts[1]) || 1
               const ratio = rw / rh
-              const imgRatio = img.width / img.height
+              const imgRatio = nW / nH
               let cropW, cropH
-              if (imgRatio > ratio) {
-                cropH = img.height
-                cropW = Math.round(cropH * ratio)
+              let startX, startY
+              if (this.displayRect && this.cropSelW && this.cropSelH) {
+                const scaleX = nW / this.displayRect.width
+                const scaleY = nH / this.displayRect.height
+                const selRelX = this.cropSelX - this.displayRect.left
+                const selRelY = this.cropSelY - this.displayRect.top
+                cropW = Math.round(this.cropSelW * scaleX)
+                cropH = Math.round(this.cropSelH * scaleY)
+                startX = Math.round(selRelX * scaleX)
+                startY = Math.round(selRelY * scaleY)
               } else {
-                cropW = img.width
-                cropH = Math.round(cropW / ratio)
+                if (imgRatio > ratio) {
+                  cropH = nH
+                  cropW = Math.round(cropH * ratio)
+                } else {
+                  cropW = nW
+                  cropH = Math.round(cropW / ratio)
+                }
+                startX = Math.floor((nW - cropW) / 2)
+                startY = Math.floor((nH - cropH) / 2)
               }
-              const startX = Math.floor((img.width - cropW) / 2)
-              const startY = Math.floor((img.height - cropH) / 2)
+              if (startX < 0) startX = 0
+              if (startY < 0) startY = 0
+              if (startX + cropW > nW) cropW = nW - startX
+              if (startY + cropH > nH) cropH = nH - startY
               targetW = cropW
               targetH = cropH
               const canvas = document.createElement('canvas')
@@ -203,7 +437,7 @@ export default {
             canvas.width = targetW
             canvas.height = targetH
             const ctx = canvas.getContext('2d')
-            ctx.drawImage(img, 0, 0)
+            ctx.drawImage(img, 0, 0, nW, nH, 0, 0, targetW, targetH)
             canvas.toBlob(blob => {
               if (!blob) { reject(new Error('toBlob失败')); return }
               resolve(new File([blob], 'original.png', { type: 'image/png' }))
@@ -390,17 +624,37 @@ export default {
   height: 60vh;
 }
 .crop-preview {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   border: 1px dashed var(--border-secondary);
   border-radius: 8px;
   overflow: hidden;
+  position: relative;
 }
 .crop-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center center;
 }
+.crop-select {
+  position: absolute;
+  border: 2px solid var(--primary-color);
+  background: rgba(0, 0, 0, 0.15);
+  cursor: move;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.2) inset;
+}
+.crop-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--primary-color);
+  border-radius: 50%;
+}
+.handle-nw { left: -6px; top: -6px; cursor: nwse-resize; }
+.handle-ne { right: -6px; top: -6px; cursor: nesw-resize; }
+.handle-sw { left: -6px; bottom: -6px; cursor: nesw-resize; }
+.handle-se { right: -6px; bottom: -6px; cursor: nwse-resize; }
 .crop-modal-footer {
   display: flex;
   align-items: center;
