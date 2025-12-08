@@ -44,35 +44,72 @@
 
           <!-- 用户登录状态 -->
           <div v-if="isLoggedIn" class="user-info" @click="toggleUserMenu">
-            <img :src="currentUser.avatar" :alt="currentUser.name" class="user-avatar">
-            <span class="user-name">{{ currentUser.name }}</span>
+            <img :src="userBasicInfo.avatar || currentUser.avatar" :alt="userBasicInfo.nickname || currentUser.name" class="user-avatar">
+            <span class="user-name">{{ userBasicInfo.nickname || currentUser.name }}</span>
 
             <!-- 用户菜单下拉 -->
-            <div v-if="showUserMenu" class="user-menu">
-              <div class="menu-item" @click="viewProfile">
-                <svg class="menu-icon" viewBox="0 0 24 24" fill="none">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" />
-                  <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" />
-                </svg>
-                个人资料
+            <div v-if="showUserMenu" class="user-menu-popover" @click.stop>
+              <div class="user-card-header">
+                <div class="user-card-avatar-wrapper" @click="triggerAvatarUpload">
+                  <img :src="userBasicInfo.avatar || currentUser.avatar" class="user-card-avatar" />
+                  <input type="file" ref="avatarInput" accept="image/*" style="display:none" @change="handleAvatarChange" />
+                </div>
+                <div class="user-card-info">
+                  <div class="user-card-name-row">
+                    <span v-if="!isEditingName" class="user-card-name">{{ userBasicInfo.nickname || currentUser.name }}</span>
+                    <input v-else v-model="editingName" class="user-name-input" @blur="saveNickname" @keyup.enter="saveNickname" ref="nameInput" />
+                  </div>
+                  <div class="user-card-uid" @click="copyUid">复制UID</div>
+                </div>
+                <div class="user-card-edit-btn" @click="startEditName">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </div>
               </div>
-              <div class="menu-item" @click="viewSettings">
-                <svg class="menu-icon" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
-                  <path
-                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1 1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
-                    stroke="currentColor" stroke-width="2" />
+
+              <div class="vip-card">
+                <svg class="vip-card-watermark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                  <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
                 </svg>
-                设置
+                <div class="vip-status">
+                  <div class="vip-icon-box">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
+                    </svg>
+                  </div>
+                  <span class="vip-text">{{ userBasicInfo.vipStatus === 'ACTIVE' ? 'VIP会员' : '免费会员' }}</span>
+                </div>
+                <div class="vip-divider"></div>
+                <div class="points-info">
+                  <div class="points-row">
+                    <span class="points-label">当前积分</span>
+                    <span class="points-value">{{ userBasicInfo.pointsBalance || 0 }}</span>
+                  </div>
+                  <div class="points-row">
+                    <span class="points-label">付费积分</span>
+                    <span class="points-value">0</span>
+                  </div>
+                  <div class="points-row">
+                    <span class="points-label">赠送积分</span>
+                    <span class="points-value">{{ userBasicInfo.pointsBalance || 0 }}</span>
+                  </div>
+                </div>
+                <div class="menu-actions">
+                  <div class="action-btn">订阅管理</div>
+                  <div class="action-divider">|</div>
+                  <div class="action-btn">订单记录</div>
+                </div>
               </div>
-              <div class="menu-divider"></div>
-              <div class="menu-item logout" @click="logout">
-                <svg class="menu-icon" viewBox="0 0 24 24" fill="none">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="2" />
-                  <polyline points="16,17 21,12 16,7" stroke="currentColor" stroke-width="2" />
-                  <line x1="21" y1="12" x2="9" y2="12" stroke="currentColor" stroke-width="2" />
+
+              <div class="logout-btn" @click="logout">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                   <polyline points="16 17 21 12 16 7"></polyline>
+                   <line x1="21" y1="12" x2="9" y2="12"></line>
                 </svg>
-                退出登录
+                <span>退出登录</span>
               </div>
             </div>
           </div>
@@ -110,6 +147,7 @@
 import LoginModal from './LoginModal.vue'
 import MembershipModal from '@/components/MembershipModal.vue'
 import { useUserStore } from '@/stores/user'
+import { getUserBasicStatus, updateAvatarAndNickname } from '@/api'
 
 export default {
   name: 'AppHeader',
@@ -124,7 +162,10 @@ export default {
       centerPromptVisible: false,
       centerPromptText: '',
       isDark: false,
-      showMembershipModal: false
+      showMembershipModal: false,
+      userBasicInfo: {},
+      isEditingName: false,
+      editingName: ''
     }
   },
   computed: {
@@ -207,8 +248,119 @@ export default {
     // 检查登录状态（由 main.js 已加载，这里无需额外处理）
 
     // 切换用户菜单显示
-    toggleUserMenu() {
+    async toggleUserMenu() {
       this.showUserMenu = !this.showUserMenu
+      if (this.showUserMenu) {
+        await this.fetchUserBasicStatus()
+      }
+    },
+
+    async fetchUserBasicStatus() {
+      const token = this.userStore.token
+      if (!token) return
+      try {
+        const res = await getUserBasicStatus(token)
+        if (res && res.code === 0 && res.data) {
+          this.userBasicInfo = res.data
+          // 更新 store
+          this.userStore.setUser({
+            ...this.currentUser,
+            name: res.data.nickname || this.currentUser.name,
+            avatar: res.data.avatar || this.currentUser.avatar
+          })
+        }
+      } catch (e) {
+        console.warn('获取用户状态失败:', e)
+      }
+    },
+
+    triggerAvatarUpload() {
+      this.$refs.avatarInput.click()
+    },
+
+    async handleAvatarChange(e) {
+      const file = e.target.files[0]
+      if (!file) return
+      
+      const token = this.userStore.token
+      try {
+        const res = await updateAvatarAndNickname({
+          token,
+          imageFile: file
+        })
+        if (res && res.code === 0 && res.data) {
+          this.userBasicInfo.avatar = res.data.avatar
+          this.userStore.setUser({
+            ...this.currentUser,
+            avatar: res.data.avatar
+          })
+          this.openCenterPrompt('头像更新成功')
+        } else {
+          this.openCenterPrompt(res.message || '头像更新失败')
+        }
+      } catch (e) {
+        console.error('更新头像失败:', e)
+        this.openCenterPrompt('更新头像失败')
+      }
+      // 重置 input
+      e.target.value = ''
+    },
+
+    startEditName() {
+      this.editingName = this.userBasicInfo.nickname || this.currentUser.name
+      this.isEditingName = true
+      this.$nextTick(() => {
+        if (this.$refs.nameInput) this.$refs.nameInput.focus()
+      })
+    },
+
+    async saveNickname() {
+      if (!this.isEditingName) return
+      const newName = this.editingName.trim()
+      if (!newName) {
+        this.isEditingName = false
+        return
+      }
+      if (newName === (this.userBasicInfo.nickname || this.currentUser.name)) {
+        this.isEditingName = false
+        return
+      }
+
+      const token = this.userStore.token
+      try {
+        const res = await updateAvatarAndNickname({
+          token,
+          nickname: newName
+        })
+        if (res && res.code === 0 && res.data) {
+          this.userBasicInfo.nickname = res.data.nickname
+          this.userStore.setUser({
+            ...this.currentUser,
+            name: res.data.nickname
+          })
+          this.openCenterPrompt('昵称更新成功')
+        } else {
+          this.openCenterPrompt(res.message || '昵称更新失败')
+        }
+      } catch (e) {
+        console.error('更新昵称失败:', e)
+        this.openCenterPrompt('更新昵称失败')
+      } finally {
+        this.isEditingName = false
+      }
+    },
+
+    copyUid() {
+      // UID 好像不在 basicStatus 里，或者在 claims 里。
+      // 假设 basicStatus 没返回 id，我们可以用 currentUser.id 或者 claims 解析。
+      // 示例图里显示 "复制UID"。
+      // 暂时用 store 里的 id
+      const uid = this.currentUser.id || '未知'
+      navigator.clipboard.writeText(String(uid)).then(() => {
+        this.openCenterPrompt('UID 已复制')
+      }).catch(() => {
+        this.openCenterPrompt('复制失败')
+      })
     },
 
     // 点击外部关闭用户菜单
@@ -447,53 +599,217 @@ export default {
 }
 
 /* 用户菜单下拉样式 */
-.user-menu {
+.user-menu-popover {
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: 0.5rem;
+  margin-top: 10px;
+  width: 320px;
   background: var(--bg-primary);
   border: 1px solid var(--border-secondary);
-  border-radius: 8px;
-  box-shadow: var(--shadow-md);
-  min-width: 180px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
   z-index: 3000;
   overflow: hidden;
+  cursor: default;
 }
 
-.menu-item {
+.user-card-header {
+  padding: 20px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-secondary);
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+  gap: 15px;
+}
+
+.user-card-edit-btn {
+  color: var(--text-tertiary);
   cursor: pointer;
-  transition: background-color 0.2s;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  margin-left: auto;
 }
 
-.menu-item:hover {
-  background-color: var(--bg-tertiary);
+.user-card-edit-btn:hover {
+  color: var(--primary-color);
+  background: var(--bg-tertiary);
 }
 
-.menu-item.logout {
-  color: var(--error-color);
-}
-
-.menu-item.logout:hover {
-  background-color: var(--bg-quaternary);
-}
-
-.menu-icon {
-  width: 16px;
-  height: 16px;
+.user-card-avatar-wrapper {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  cursor: pointer;
+  overflow: hidden;
   flex-shrink: 0;
 }
 
-.menu-divider {
-  height: 1px;
-  background-color: var(--border-secondary);
-  margin: 0.25rem 0;
+.user-card-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-card-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.user-card-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-name-input {
+  font-size: 16px;
+  padding: 2px 4px;
+  border: 1px solid var(--primary-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  width: 120px;
+}
+
+.user-card-uid {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.user-card-uid:hover {
+  color: var(--text-secondary);
+}
+
+.vip-card {
+  margin: 15px 20px;
+  padding: 15px;
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  color: var(--text-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.vip-card-watermark {
+  position: absolute;
+  right: -10px;
+  top: -10px;
+  width: 80px;
+  height: 80px;
+  opacity: 0.05;
+  transform: rotate(15deg);
+  pointer-events: none;
+  color: currentColor;
+}
+
+[data-theme='dark'] .vip-card {
+  background: var(--bg-tertiary);
+  color: #ffffff;
+}
+
+.vip-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+[data-theme='dark'] .vip-status {
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.vip-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.points-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.points-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.sub-points {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.points-value {
+  font-weight: 600;
+}
+
+.menu-actions {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-secondary);
+}
+
+.action-btn {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.action-btn:hover {
+  color: var(--primary-color);
+}
+
+.action-divider {
+  color: var(--border-secondary);
+  font-size: 12px;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  color: var(--error-color);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-top: 1px solid var(--border-secondary);
+}
+
+.logout-btn:hover {
+  background: var(--bg-tertiary);
+}
+
+.logout-icon {
+  width: 16px;
+  height: 16px;
 }
 
 /* 响应式设计 */

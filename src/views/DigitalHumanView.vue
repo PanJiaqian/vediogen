@@ -87,7 +87,7 @@ export default {
       uploadToastVisible: false,
       uploadToastText: '',
       showCropModal: false,
-      cropRatio: 'free',
+      cropRatio: '9:16',
       selectedImageFile: null,
       selectedImageUrl: null,
       cropSelX: 0,
