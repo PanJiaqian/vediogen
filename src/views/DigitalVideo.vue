@@ -233,22 +233,32 @@
                   <textarea v-model="voiceScript" class="voice-script-input" placeholder="输入想要人物讲述的台词"></textarea>
                 </div>
                 <div class="voice-script-controls">
-                  <div class="voice-play-controls">
-                    <button class="voice-icon-btn" @click="startVoiceAudition">
-                      <div v-if="isVoiceLoading" class="spinner" style="width:16px;height:16px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>
-                      <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </button>
-                    <button class="voice-icon-btn" @click="stopVoiceAudition">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="6" y="5" width="4" height="14" />
-                        <rect x="14" y="5" width="4" height="14" />
-                      </svg>
-                    </button>
-                  </div>
-                  <!-- <span class="voice-duration">约 0s 音频 0/240</span> -->
+                <div class="voice-play-controls">
+                  <button class="voice-icon-btn" @click="startVoiceAudition">
+                    <div v-if="isVoiceLoading" class="spinner" style="width:16px;height:16px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>
+                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </button>
+                  <button class="voice-icon-btn" @click="stopVoiceAudition">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="5" width="4" height="14" />
+                      <rect x="14" y="5" width="4" height="14" />
+                    </svg>
+                  </button>
+                  <input ref="voiceFileInput" type="file" accept="audio/*" style="display:none" @change="onVoiceFileSelected" />
+                  <button class="voice-icon-btn" @click="triggerVoiceFileUpload" title="上传音频">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 5v14" />
+                      <path d="M5 12h14" />
+                    </svg>
+                  </button>
                 </div>
+                <!-- <span class="voice-duration">约 0s 音频 0/240</span> -->
+              </div>
+              <div v-if="voiceAudioUrl" class="voice-audio-player-wrap">
+                <audio :src="voiceAudioUrl" controls class="voice-audio-player"></audio>
+              </div>
               </div>
 
               <!-- 声音音色区域 -->
@@ -2362,6 +2372,27 @@ export default {
       } catch (e) { void 0 }
       this.isVoiceAuditionPlaying = false
     },
+    triggerVoiceFileUpload() {
+      if (this.$refs.voiceFileInput) this.$refs.voiceFileInput.click()
+    },
+    onVoiceFileSelected(e) {
+      const file = e.target.files && e.target.files[0]
+      if (!file) return
+      try {
+        const url = URL.createObjectURL(file)
+        this.voiceAudioUrl = this.cleanUrl(url)
+        const el = new Audio(this.voiceAudioUrl)
+        el.addEventListener('ended', () => { this.isVoiceAuditionPlaying = false })
+        this.voiceAudioEl = el
+        this.isVoiceAuditionPlaying = false
+        const idx = this.activeSceneIndex
+        const sc = Array.isArray(this.scenes) ? this.scenes[idx] : null
+        if (sc) { if (this.$set) this.$set(sc, 'audio_url', this.voiceAudioUrl); else sc.audio_url = this.voiceAudioUrl }
+        this.sceneDetail = Object.assign({}, this.sceneDetail, { audio_url: this.voiceAudioUrl })
+        this.syncPreviewPlayback()
+      } catch (err) { /* no-op */ }
+      e.target.value = ''
+    },
     async applyVoiceover() {
       try {
         const projectId = this.$route.params.id
@@ -4040,6 +4071,8 @@ input:checked+.slider:before {
   overflow: hidden;
   /* 防止内容溢出 */
 }
+.voice-audio-player-wrap { margin-top: 8px; }
+.voice-audio-player { width: 100%; max-width: 480px; }
 
 .voice-scrollable-content {
   flex: 1;

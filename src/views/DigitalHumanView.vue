@@ -41,7 +41,7 @@
         <div class="crop-modal-body" @mousemove="onMouseMove" @mouseup="onMouseUp">
           <div class="crop-preview" ref="cropPreview">
             <img :src="selectedImageUrl" class="crop-image" ref="cropImage" @load="onCropImageLoad" />
-            <div v-if="cropRatio!=='free'" class="crop-select" :style="cropSelectBoxStyle" @mousedown.prevent="onSelectMouseDown">
+            <div v-if="displayRect" class="crop-select" :style="cropSelectBoxStyle" @mousedown.prevent="onSelectMouseDown">
               <div class="crop-handle handle-nw" @mousedown.stop.prevent="onHandleMouseDown('nw', $event)"></div>
               <div class="crop-handle handle-ne" @mousedown.stop.prevent="onHandleMouseDown('ne', $event)"></div>
               <div class="crop-handle handle-sw" @mousedown.stop.prevent="onHandleMouseDown('sw', $event)"></div>
@@ -87,7 +87,7 @@ export default {
       uploadToastVisible: false,
       uploadToastText: '',
       showCropModal: false,
-      cropRatio: '9:16',
+      cropRatio: '',
       selectedImageFile: null,
       selectedImageUrl: null,
       cropSelX: 0,
@@ -119,8 +119,7 @@ export default {
       return { aspectRatio: `${rw} / ${rh}` }
     }
     , cropSelectBoxStyle() {
-      const r = String(this.cropRatio || '').trim()
-      if (!r || r === 'free' || !this.displayRect) return {}
+      if (!this.displayRect) return {}
       const x = Math.round(this.cropSelX)
       const y = Math.round(this.cropSelY)
       const w = Math.round(this.cropSelW)
@@ -166,14 +165,11 @@ export default {
       const objectUrl = URL.createObjectURL(file)
       this.selectedImageFile = file
       this.selectedImageUrl = objectUrl
-      this.cropRatio = 'free'
       this.showCropModal = true
     },
     onCropImageLoad() {
       this.computeDisplayRect()
-      if (this.cropRatio && this.cropRatio !== 'free') {
-        this.initSelection()
-      }
+      this.initSelection()
     },
     computeDisplayRect() {
       try {
@@ -201,20 +197,26 @@ export default {
     },
     initSelection() {
       const r = String(this.cropRatio || '').trim()
-      if (!this.displayRect || !r || r === 'free') return
-      const parts = r.split(':')
-      const rw = parseFloat(parts[0]) || 1
-      const rh = parseFloat(parts[1]) || 1
-      const ratio = rw / rh
+      if (!this.displayRect) return
       const W = this.displayRect.width
       const H = this.displayRect.height
       let w, h
-      if (W / H > ratio) {
-        h = H
-        w = Math.round(h * ratio)
+      if (!r || r === 'free') {
+        const size = Math.round(Math.min(W, H) * 0.8)
+        w = size
+        h = size
       } else {
-        w = W
-        h = Math.round(w / ratio)
+        const parts = r.split(':')
+        const rw = parseFloat(parts[0]) || 1
+        const rh = parseFloat(parts[1]) || 1
+        const ratio = rw / rh
+        if (W / H > ratio) {
+          h = H
+          w = Math.round(h * ratio)
+        } else {
+          w = W
+          h = Math.round(w / ratio)
+        }
       }
       const x = Math.round(this.displayRect.left + (W - w) / 2)
       const y = Math.round(this.displayRect.top + (H - h) / 2)
@@ -354,7 +356,7 @@ export default {
       this.showCropModal = false
       this.selectedImageFile = null
       this.selectedImageUrl = null
-      this.cropRatio = 'free'
+      this.cropRatio = ''
     },
     async applyCrop() {
       try {
@@ -433,11 +435,31 @@ export default {
               }, 'image/png', 0.92)
               return
             }
+            let cropW = nW
+            let cropH = nH
+            let startX = 0
+            let startY = 0
+            if (this.displayRect && this.cropSelW && this.cropSelH) {
+              const scaleX = nW / this.displayRect.width
+              const scaleY = nH / this.displayRect.height
+              const selRelX = (this.cropSelX - this.displayRect.left)
+              const selRelY = (this.cropSelY - this.displayRect.top)
+              cropW = Math.round(this.cropSelW * scaleX)
+              cropH = Math.round(this.cropSelH * scaleY)
+              startX = Math.round(selRelX * scaleX)
+              startY = Math.round(selRelY * scaleY)
+              if (startX < 0) startX = 0
+              if (startY < 0) startY = 0
+              if (startX + cropW > nW) cropW = nW - startX
+              if (startY + cropH > nH) cropH = nH - startY
+              targetW = cropW
+              targetH = cropH
+            }
             const canvas = document.createElement('canvas')
             canvas.width = targetW
             canvas.height = targetH
             const ctx = canvas.getContext('2d')
-            ctx.drawImage(img, 0, 0, nW, nH, 0, 0, targetW, targetH)
+            ctx.drawImage(img, startX, startY, cropW, cropH, 0, 0, targetW, targetH)
             canvas.toBlob(blob => {
               if (!blob) { reject(new Error('toBlob失败')); return }
               resolve(new File([blob], 'original.png', { type: 'image/png' }))
@@ -671,7 +693,7 @@ export default {
 }
 .ratio-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
 .crop-actions { display: flex; gap: 10px; }
-.crop-cancel { padding: 6px 12px; border: 1px solid var(--border-secondary); border-radius: 8px; background: var(--bg-primary); }
+.crop-cancel { padding: 6px 12px; border: 1px solid var(--border-secondary); border-radius: 8px; background: var(--bg-primary); color: var(--text-primary); }
 .crop-apply { padding: 6px 12px; border: none; border-radius: 8px; background: var(--primary-color); color: #fff; }
 
 /* 响应式调整 */

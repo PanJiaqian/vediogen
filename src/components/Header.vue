@@ -195,6 +195,9 @@ export default {
     } else {
       this.isDark = document.documentElement.getAttribute('data-theme') === 'dark'
     }
+    if (this.userStore && this.userStore.isLoggedIn && this.userStore.token) {
+      this.fetchUserBasicStatus()
+    }
   },
   beforeUnmount() {
     document.removeEventListener('click', this.handleClickOutside)
@@ -213,23 +216,26 @@ export default {
     },
 
     // 登录成功处理
-    handleLoginSuccess(payload) {
-      const user = payload?.user || payload || {}
-      const name = user.name || user.phone || user.email
-      this.userStore.setUser({
-        id: user.id || Date.now(),
-        name,
-        email: user.email || '',
-        phone: user.phone || '',
-        avatar: user.avatar || '/logo.png'
-      })
-      if (user.token) {
-        this.userStore.setToken(user.token)
-      }
-      this.hideLoginModal()
-      const t = String(payload && payload.type || '').toLowerCase()
-      this.openCenterPrompt(t === 'register' ? '注册成功！' : '登录成功！')
-    },
+  handleLoginSuccess(payload) {
+    const user = payload?.user || payload || {}
+    const name = user.name || user.phone || user.email
+    this.userStore.setUser({
+      id: user.id || Date.now(),
+      name,
+      email: user.email || '',
+      phone: user.phone || '',
+      avatar: user.avatar || '/logo.png'
+    })
+    if (user.token) {
+      this.userStore.setToken(user.token)
+    }
+    this.hideLoginModal()
+    const t = String(payload && payload.type || '').toLowerCase()
+    this.openCenterPrompt(t === 'register' ? '注册成功！' : '登录成功！')
+    if (this.userStore && this.userStore.token) {
+      this.fetchUserBasicStatus()
+    }
+  },
 
     // 第三方登录处理
     handleSocialLogin(provider, userData) {
