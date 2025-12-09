@@ -1,5 +1,17 @@
 <template>
-  <div class="video-edit-container">
+  <div v-if="isSceneLipSyncMode" class="lip-sync-full-page" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:var(--bg-primary);">
+    <LipSyncView 
+      @close="goBack" 
+      @task-created="onLipSyncTaskCreated"
+      :imageUrl="lipSyncImageUrl"
+      :sceneTitle="$route.query.sceneTitle || ''"
+      :sceneDescription="$route.query.sceneDescription || ''"
+      :detection="lipSyncDetection"
+      :videoId="lipSyncVideoId"
+      :shotId="lipSyncShotId" />
+  </div>
+
+  <div v-else class="video-edit-container">
     <!-- 顶部导航栏 -->
     <div class="top-navbar">
       <div class="navbar-left">
@@ -72,7 +84,7 @@
             <span class="scene-number">分镜{{ (scenes && scenes[activeSceneIndex] &&
               Number(scenes[activeSceneIndex].order_index) > 0) ? Number(scenes[activeSceneIndex].order_index) : ''
               }}</span>
-            <span class="scene-type" v-if="activeTab === 'image'">镜头策划</span>
+            <span class="scene-type" v-if="activeTab === 'image' && !isBlankScene(scenes[activeSceneIndex])">镜头策划</span>
             <span class="scene-type" v-if="activeTab === 'voice'">配音编辑</span>
           </div>
         </div>
@@ -90,8 +102,8 @@
         <template v-else>
           <!-- 分镜内容 - 画面模式 -->
           <div class="scene-content" v-if="activeTab === 'image'">
-            <!-- 可滚动内容区域 -->
-            <div class="scene-scrollable-content">
+            <!-- 可滚动内容区域（空白分镜时隐藏，仅保留“分镜2”标题） -->
+            <div class="scene-scrollable-content" v-if="!isBlankScene(scenes[activeSceneIndex])">
               <!-- 图片提示词区域 -->
               <div class="prompt-section">
                 <div class="prompt-header">
@@ -158,11 +170,22 @@
               <!-- 图片展示 -->
               <div class="image-container">
                 <div
-                  v-if="isActiveSceneCropping || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)"
+                  v-if="(isActiveSceneCropping || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])"
                   class="skeleton-image"></div>
-                <video v-else-if="sceneDetail.video_url" ref="sceneVideo"
+                <div v-else-if="isBlankScene(scenes[activeSceneIndex])" class="blank-scene-display"
+                  @click="triggerUpload(activeSceneIndex)">
+                  <svg class="upload-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                    <path d="M12 12v6"></path>
+                    <path d="M9 15l3-3 3 3"></path>
+                  </svg>
+                  <div class="upload-text">从本地上传图片吧</div>
+                </div>
+                <video v-else-if="isVideo(sceneDetail.video_url)" ref="sceneVideo"
                   :src="cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
-                  preload="metadata" class="scene-image" playsinline muted loop controls></video>
+                  preload="metadata" class="scene-image" playsinline muted controls></video>
                 <img v-else-if="sceneDetail.reference_image_url && !previewImgErrored"
                   :src="cleanUrl(sceneDetail.reference_image_url)" alt="分镜图片" class="scene-image" decoding="async"
                   fetchpriority="high" />
@@ -384,13 +407,23 @@
         </div>
 
         <!-- 视频画面 -->
-        <div class="video-preview">
-          <div class="video-container" ref="videoContainer">
-            <div
-              v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)"
+          <div class="video-preview">
+            <div class="video-container" ref="videoContainer">
+              <div
+              v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])"
               class="skeleton-image"></div>
-            <template v-else>
-              <video v-if="sceneDetail.video_url" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)"
+              <template v-else>
+              <div v-if="isBlankScene(scenes[activeSceneIndex])" class="blank-scene-display" @click="triggerUpload(activeSceneIndex)">
+                <svg class="upload-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                  <polyline points="21 15 16 10 5 21"></polyline>
+                  <path d="M12 12v6"></path>
+                  <path d="M9 15l3-3 3 3"></path>
+                </svg>
+                <div class="upload-text">从本地上传图片吧</div>
+              </div>
+              <video v-if="isVideo(sceneDetail.video_url)" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)"
                 :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" playsinline muted loop
                 class="video-image"></video>
               <img v-else-if="sceneDetail.reference_image_url && !isPreviewPending"
@@ -402,12 +435,12 @@
                 class="video-overlay">
                 <div class="error-banner">小梦刚刚打瞌睡了，请重新生成试试吧</div>
               </div>
-            </template>
-            <audio ref="previewAudio" style="display:none" preload="auto"></audio>
-          </div>
+              </template>
+              <audio ref="previewAudio" style="display:none" preload="auto"></audio>
+            </div>
           <div class="preview-aside">
             <template
-              v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)">
+              v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])">
               <div class="thumb-card">
                 <div class="skeleton-image"></div>
               </div>
@@ -416,7 +449,7 @@
               </div>
             </template>
             <template v-else>
-              <div v-if="sceneDetail.video_url && !isPreviewPending" class="thumb-card">
+              <div v-if="isVideo(sceneDetail.video_url) && !isPreviewPending" class="thumb-card">
                 <div class="thumb-label">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
@@ -560,15 +593,29 @@
                           <div class="skeleton-image" style="height:28px;"></div>
                         </div>
                       </template>
-                      <template v-else-if="index === activeSceneIndex && (isPreviewPending || isActiveImageMissing)">
+                      <template v-else-if="index === activeSceneIndex && (isPreviewPending || isActiveImageMissing) && !isBlankScene(scene)">
                         <div v-for="m in 10" :key="'prev-skel-' + index + '-' + m" class="scene-clip">
                           <div class="skeleton-image" style="height:28px;"></div>
+                        </div>
+                      </template>
+                      <template v-else-if="isBlankScene(scene)">
+                        <div class="blank-scene-placeholder" @click.stop="triggerUpload(index)" style="height:28px; width:100%" title="添加图片">
+                          <div class="blank-upload-ui">
+                            <svg class="upload-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                              <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                              <polyline points="21 15 16 10 5 21"></polyline>
+                              <path d="M12 12v6"></path>
+                              <path d="M9 15l3-3 3 3"></path>
+                            </svg>
+                            <span class="blank-upload-label">添加图片</span>
+                          </div>
                         </div>
                       </template>
                       <template v-else>
                         <div v-for="(clip, cidx) in getSceneClips(scene)" :key="cidx" class="scene-clip"
                           :class="{ active: index === activeSceneIndex }" :style="getClipStyle(scene, clip)">
-                          <video v-if="scene.hasVideo || scene.video_url"
+                          <video v-if="isVideo(clip.url || scene.video_url || scene.thumbnail)"
                             :src="cleanUrl(clip.url || scene.video_url || scene.thumbnail)"
                             :poster="cleanUrl(scene.thumbnail || '')" class="clip-thumbnail" muted loop playsinline
                             :preload="index < 4 ? 'metadata' : 'none'" disablepictureinpicture></video>
@@ -585,8 +632,15 @@
                         </div>
                       </template>
                     </div>
+                    <div class="add-scene-plus-btn" @click.stop="addBlankScene(index)" title="添加空白分镜">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </div>
+
                     <div class="track-audio">
-                      <button v-if="scene.audio_url" class="audio-btn">
+                      <button v-if="scene.audio_url" class="audio-btn" @click.stop="openVoiceTab(index)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                           <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
                           <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
@@ -594,7 +648,7 @@
                         </svg>
                         配音
                       </button>
-                      <button v-else class="audio-btn add-audio" @click.stop="activeSceneIndex = index; activeTab = 'voice'">
+                      <button v-else class="audio-btn add-audio" @click.stop="openVoiceTab(index)">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                           <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
                           <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="2" />
@@ -643,13 +697,48 @@
       :imageUrl="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
       :durationMs="(scenes[activeSceneIndex] && scenes[activeSceneIndex].clips && scenes[activeSceneIndex].clips[0] && Number(scenes[activeSceneIndex].clips[0].durationMs)) || 5000"
       @close="closeCropModal" @apply="applyCropSelection" />
+      
+    <input ref="digitalHumanImageInput" type="file" accept="image/*" style="display:none" @change="handleDigitalHumanImageSelected" />
+
+    <div v-if="showImageCropModal" class="crop-modal-overlay" @click.self="cancelImageCrop">
+      <div class="crop-modal">
+        <div class="crop-modal-header">裁剪图片</div>
+        <div class="crop-modal-body" @mousemove="onMouseMove" @mouseup="onMouseUp">
+          <div class="crop-preview" ref="cropPreview">
+            <img :src="selectedImageUrl" class="crop-image" ref="cropImage" @load="onCropImageLoad" />
+            <div v-if="displayRect" class="crop-select" :style="cropSelectBoxStyle" @mousedown.prevent="onSelectMouseDown">
+              <div class="crop-handle handle-nw" @mousedown.stop.prevent="onHandleMouseDown('nw', $event)"></div>
+              <div class="crop-handle handle-ne" @mousedown.stop.prevent="onHandleMouseDown('ne', $event)"></div>
+              <div class="crop-handle handle-sw" @mousedown.stop.prevent="onHandleMouseDown('sw', $event)"></div>
+              <div class="crop-handle handle-se" @mousedown.stop.prevent="onHandleMouseDown('se', $event)"></div>
+            </div>
+          </div>
+        </div>
+        <div class="crop-modal-footer">
+          <div class="ratio-buttons">
+            <button :class="['ratio-btn', {active: cropRatio==='9:16'}]" @click="cropRatio='9:16'">9:16</button>
+            <button :class="['ratio-btn', {active: cropRatio==='16:9'}]" @click="cropRatio='16:9'">16:9</button>
+            <button :class="['ratio-btn', {active: cropRatio==='3:4'}]" @click="cropRatio='3:4'">3:4</button>
+            <button :class="['ratio-btn', {active: cropRatio==='4:3'}]" @click="cropRatio='4:3'">4:3</button>
+          </div>
+          <div class="crop-actions">
+            <button class="crop-cancel" @click="cancelImageCrop">取消</button>
+            <button class="crop-apply" @click="applyImageCrop">应用</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- 对口型页面覆盖层 -->
     <div v-if="showLipSyncView" class="lip-sync-overlay">
-      <LipSyncView @close="toggleLipSyncView"
+      <LipSyncView @close="toggleLipSyncView" @task-created="onLipSyncTaskCreated"
         :imageUrl="lipSyncImageUrl || cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
         :sceneTitle="scenes[activeSceneIndex]?.title || ''"
-        :sceneDescription="(scenes[activeSceneIndex]?.description || ((scenes[activeSceneIndex]?.scene_script?.shot_title || '') + (scenes[activeSceneIndex]?.scene_script?.visual_description ? '：' + scenes[activeSceneIndex]?.scene_script?.visual_description : ''))) || ''" />
+        :sceneDescription="(scenes[activeSceneIndex]?.description || ((scenes[activeSceneIndex]?.scene_script?.shot_title || '') + (scenes[activeSceneIndex]?.scene_script?.visual_description ? '：' + scenes[activeSceneIndex]?.scene_script?.visual_description : ''))) || ''"
+        :detection="lipSyncDetection"
+        :videoId="lipSyncVideoId"
+        :shotId="lipSyncShotId"
+        :workId="lipSyncWorkId" />
     </div>
   </div>
 
@@ -675,12 +764,12 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, regenerateImage, queryRegenerateImage, copyStoryboardVideo, reorderStoryboardScenes, clipStoryboardVideo, updateVideoTitle, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery } from '@/api'
+import { getScriptDetailByVideo, regenerateImage, queryRegenerateImage, copyStoryboardVideo, reorderStoryboardScenes, clipStoryboardVideo, updateVideoTitle, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, getDigitalHumanWorksByConversation, getDigitalHumanWorkSingle, objectDetectionByScene, uploadDigitalHumanWorkImage, objectDetectionByWork, digitalhumanGenByWork } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
 export default {
-  name: 'VideoEditView',
+  name: 'DigitalVideo',
   components: {
     ToneSelector,
     MembershipModal,
@@ -762,10 +851,34 @@ export default {
       pollImagesTimer: null,
       pollImagesAbortResolve: null
       , lipSyncImageUrl: ''
-      , digitalVideoQueryInterval: null
-      , storyboardQueryInterval: null
+      , lipSyncDetection: null
+      , lipSyncVideoId: ''
+      , lipSyncShotId: ''
+      , lipSyncWorkId: '',
+      digitalVideoQueryInterval: null,
+      storyboardQueryInterval: null,
+      // Image Crop State
+      showImageCropModal: false,
+      cropRatio: 'free',
+      selectedImageFile: null,
+      selectedImageUrl: null,
+      cropSelX: 0,
+      cropSelY: 0,
+      cropSelW: 0,
+      cropSelH: 0,
+      isDraggingSel: false,
+      isResizingSel: false,
+      resizeDir: '',
+      dragStartX: 0,
+      dragStartY: 0,
+      dragStartSelX: 0,
+      dragStartSelY: 0,
+      dragStartW: 0,
+      dragStartH: 0,
+      displayRect: null
     }
   },
+
   beforeUnmount() {
     if (this.storyboardQueryInterval) {
       clearInterval(this.storyboardQueryInterval)
@@ -798,6 +911,23 @@ export default {
     }
   },
   mounted() {
+    if (this.isSceneLipSyncMode) {
+      const q = this.$route.query
+      this.lipSyncImageUrl = q.imageUrl || ''
+      this.lipSyncVideoId = q.videoId || ''
+      this.lipSyncShotId = q.shotId || ''
+      // Trigger detection immediately
+      const token = (this.userStore && this.userStore.token) || ''
+      if (this.lipSyncVideoId && this.lipSyncShotId && token) {
+        objectDetectionByScene({ videoId: this.lipSyncVideoId, shotId: this.lipSyncShotId, token })
+          .then(detResp => {
+             const obj = typeof detResp === 'string' ? (() => { try { return JSON.parse(detResp) } catch { return null } })() : detResp
+             this.lipSyncDetection = obj || null
+          })
+          .catch(() => { this.lipSyncDetection = null })
+      }
+      return
+    }
     const taskId = this.$route.params.taskId
     if (taskId) {
       this.isVideoGenerating = true
@@ -830,13 +960,13 @@ export default {
               try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 }
             }
             if (!Array.isArray(this.scenes) || this.scenes.length === 0) {
-              this.scenes = [{ id: 1, title: '分镜1', description: '数字人视频', thumbnail: imageUrl || clipUrl, clips: [{ url: clipUrl, durationMs: durMs }], video_url: clipUrl, hasVideo: !!videoUrl, order_index: 1, audio_url: audioUrl }]
+              this.scenes = [{ id: 1, title: '分镜1', description: '数字人视频', thumbnail: imageUrl || clipUrl, clips: [{ url: clipUrl, durationMs: durMs }], video_url: videoUrl, hasVideo: !!videoUrl, order_index: 1, audio_url: audioUrl }]
               this.activeSceneIndex = 0
             } else {
               const idx = this.activeSceneIndex
               const sc = this.scenes[idx] || {}
               sc.thumbnail = imageUrl || sc.thumbnail || clipUrl
-              sc.video_url = clipUrl
+              sc.video_url = videoUrl
               sc.hasVideo = !!videoUrl
               sc.audio_url = audioUrl
               sc.clips = [{ url: clipUrl, durationMs: durMs }]
@@ -856,6 +986,11 @@ export default {
       }
       poll()
       this.digitalVideoQueryInterval = setInterval(poll, 30000)
+    }
+    const conversationId = this.$route.query && this.$route.query.conversationId
+    if (!taskId && conversationId) {
+      this.loadDigitalHumanByConversation(String(conversationId))
+      return
     }
     const projectId = this.$route.params.id
     let initialLoading = false
@@ -940,12 +1075,31 @@ export default {
     this.$nextTick(() => { this.prefetchFirstSceneAudioIfMissing() })
   },
   computed: {
+    isSceneLipSyncMode() {
+      return this.$route.query.mode === 'scene_lipsync'
+    },
     userStore() {
       return useUserStore()
     },
+    aspectStyle() {
+      const r = String(this.cropRatio || '').trim()
+      if (!r || r === 'free') return {}
+      const parts = r.split(':')
+      const rw = parseFloat(parts[0]) || 1
+      const rh = parseFloat(parts[1]) || 1
+      return { aspectRatio: `${rw} / ${rh}` }
+    },
+    cropSelectBoxStyle() {
+      if (!this.displayRect) return {}
+      const x = Math.round(this.cropSelX)
+      const y = Math.round(this.cropSelY)
+      const w = Math.round(this.cropSelW)
+      const h = Math.round(this.cropSelH)
+      return { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` }
+    },
     currentPreviewUrl() {
-      const fromApi = this.cleanUrl(this.sceneDetail.video_url || this.sceneDetail.reference_image_url || '')
-      return fromApi
+      const v = this.cleanUrl(this.sceneDetail.video_url || '')
+      return this.isVideo(v) ? v : this.cleanUrl(this.sceneDetail.reference_image_url || '')
     },
     // 动态时间显示：当前播放时间和总时长
     currentTimeText() {
@@ -1013,13 +1167,75 @@ export default {
     }
   },
   watch: {
+    '$route.params.taskId'(taskId) {
+      try { if (this.digitalVideoQueryInterval) { clearInterval(this.digitalVideoQueryInterval); this.digitalVideoQueryInterval = null } } catch (e) { void 0 }
+      if (!taskId) return
+      this.isVideoGenerating = true
+      this.sceneDetail = { reference_image_url: '', video_url: '', audio_url: '' }
+      const token = (this.userStore && this.userStore.token) || ''
+      const poll = async () => {
+        try {
+          const resp = await digitalhumanQuery({ taskId, token })
+          const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
+          const data = obj && obj.data
+          const status = (obj && obj.status) || (data && data.task_status)
+          const vid = data && data.generated_video_url
+          const img = data && data.image_url
+          const aud = data && data.audio_url
+          const s = String(status || '').toLowerCase()
+          if (s === 'failed') {
+            if (this.digitalVideoQueryInterval) { try { clearInterval(this.digitalVideoQueryInterval) } catch (e) { void 0 } this.digitalVideoQueryInterval = null }
+            this.isVideoGenerating = false
+            this.toastText = '生成失败'
+            this.toastVisible = true
+            setTimeout(() => { this.toastVisible = false }, 2000)
+          } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
+            const videoUrl = this.cleanUrl(String(vid || ''))
+            const imageUrl = this.cleanUrl(String(img || ''))
+            const audioUrl = this.cleanUrl(String(aud || ''))
+            this.sceneDetail = { reference_image_url: imageUrl, video_url: videoUrl, audio_url: audioUrl }
+            let clipUrl = videoUrl || imageUrl
+            let durMs = 5000
+            if (videoUrl) {
+              try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 }
+            }
+            if (!Array.isArray(this.scenes) || this.scenes.length === 0) {
+              this.scenes = [{ id: 1, title: '分镜1', description: '数字人视频', thumbnail: imageUrl || clipUrl, clips: [{ url: clipUrl, durationMs: durMs }], video_url: clipUrl, hasVideo: !!videoUrl, order_index: 1, audio_url: audioUrl }]
+              this.activeSceneIndex = 0
+            } else {
+              const idx = this.activeSceneIndex
+              const sc = this.scenes[idx] || {}
+              sc.thumbnail = imageUrl || sc.thumbnail || clipUrl
+              sc.video_url = clipUrl
+              sc.hasVideo = !!videoUrl
+              sc.audio_url = audioUrl
+              sc.clips = [{ url: clipUrl, durationMs: durMs }]
+            }
+            try {
+              if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+              if (clipUrl) this.durationMap.set(clipUrl, durMs)
+              if (videoUrl && clipUrl !== videoUrl) this.durationMap.set(videoUrl, durMs)
+            } catch (e) { void 0 }
+            this.updateTimeMarkers()
+            this.ensurePreviewFromScenes()
+            this.isVideoGenerating = false
+            if (this.digitalVideoQueryInterval) { try { clearInterval(this.digitalVideoQueryInterval) } catch (e) { void 0 } this.digitalVideoQueryInterval = null }
+            this.$nextTick(() => { this.tryAttachHls() })
+          }
+        } catch (e) { void 0 }
+      }
+      poll()
+      this.digitalVideoQueryInterval = setInterval(poll, 30000)
+    },
     activeSceneIndex() {
       this.previewImgErrored = false
       try {
         const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
         const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
         const ref = this.cleanUrl((sc && sc.thumbnail) || '')
-        const vid = this.cleanUrl((first && first.url) || (sc && sc.video_url) || '')
+        const firstUrl = this.cleanUrl((first && first.url) || '')
+        const sceneVid = this.cleanUrl((sc && sc.video_url) || '')
+        const vid = this.isVideo(sceneVid) ? sceneVid : (this.isVideo(firstUrl) ? firstUrl : '')
         const audio = this.cleanUrl((sc && sc.audio_url) || '')
         this.sceneDetail = { reference_image_url: ref, video_url: vid, audio_url: audio }
         this.syncPreviewPlayback()
@@ -1060,6 +1276,70 @@ export default {
     }
   },
   methods: {
+    async loadDigitalHumanByConversation(conversationId) {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        const text = await getDigitalHumanWorksByConversation({ conversationId, token })
+        let resp = null
+        try { resp = JSON.parse(text) } catch (e) { resp = null }
+        const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
+        if (!list.length) return
+        const scenes = []
+        for (let i = 0; i < list.length; i++) {
+          const it = list[i] || {}
+          const v = this.cleanUrl(String(it.generated_video_url || ''))
+          const img = this.cleanUrl(String(it.image_url || ''))
+          const aud = this.cleanUrl(String(it.audio_url || ''))
+          const wid = String((it.work_id || it.workid || it.id || it.workId || '')).trim()
+          const clip = v || img
+          let durMs = 5000
+          if (v) { try { durMs = await this.measureVideoDurationMs(v) } catch (e) { durMs = 5000 } }
+        scenes.push({ id: i + 1, title: '分镜' + (i + 1), description: '数字人视频', thumbnail: img || clip, clips: [{ url: clip, durationMs: durMs }], video_url: v, hasVideo: !!v, order_index: i + 1, audio_url: aud, work_id: wid })
+          try { if (!(this.durationMap instanceof Map)) this.durationMap = new Map(); if (clip) this.durationMap.set(clip, durMs); if (v && clip !== v) this.durationMap.set(v, durMs) } catch (e) { void 0 }
+        }
+        this.scenes = scenes
+        this.activeSceneIndex = 0
+        const first = scenes[0] || {}
+        this.sceneDetail = { reference_image_url: this.cleanUrl(String(first.thumbnail || '')), video_url: this.cleanUrl(String(first.video_url || '')), audio_url: this.cleanUrl(String(first.audio_url || '')) }
+        this.updateTimeMarkers()
+        this.ensurePreviewFromScenes()
+        this.$nextTick(() => { this.tryAttachHls() })
+        const wid0 = String(first.work_id || first.workid || first.id || '').trim()
+        if (wid0) { try { await this.loadDigitalHumanSingle(String(conversationId), wid0) } catch (e) { void 0 } }
+      } catch (e) { void 0 }
+    },
+    async loadDigitalHumanSingle(conversationId, workId) {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        const text = await getDigitalHumanWorkSingle({ conversationId, workId, token })
+        let resp = null
+        try { resp = JSON.parse(text) } catch (e) { resp = null }
+        const d = resp && resp.code === 0 && resp.data ? resp.data : null
+        if (!d) return
+        const v = this.cleanUrl(String(d.generated_video_url || ''))
+        const img = this.cleanUrl(String(d.image_url || ''))
+        const aud = this.cleanUrl(String(d.audio_url || ''))
+        const clip = v || img
+        let durMs = 5000
+        if (v) { try { durMs = await this.measureVideoDurationMs(v) } catch (e) { durMs = 5000 } }
+        this.sceneDetail = { reference_image_url: img || clip, video_url: v, audio_url: aud }
+        if (!Array.isArray(this.scenes) || this.scenes.length === 0) {
+          this.scenes = [{ id: 1, title: '分镜1', description: '数字人视频', thumbnail: img || clip, clips: [{ url: clip, durationMs: durMs }], video_url: clip, hasVideo: !!v, order_index: 1, audio_url: aud }]
+        } else {
+          const idx = this.activeSceneIndex
+          const sc = this.scenes[idx] || {}
+          sc.thumbnail = img || sc.thumbnail || clip
+          sc.video_url = v
+          sc.hasVideo = !!v
+          sc.audio_url = aud
+          sc.clips = [{ url: clip, durationMs: durMs }]
+        }
+        try { if (!(this.durationMap instanceof Map)) this.durationMap = new Map(); if (clip) this.durationMap.set(clip, durMs); if (v && clip !== v) this.durationMap.set(v, durMs) } catch (e) { void 0 }
+        this.updateTimeMarkers()
+        this.ensurePreviewFromScenes()
+        this.$nextTick(() => { this.tryAttachHls() })
+      } catch (e) { void 0 }
+    },
     startEditTitle() {
       this.editingTitle = this.projectTitle
       this.isEditingTitle = true
@@ -1232,7 +1512,13 @@ export default {
     },
     isVideo(u) {
       const s = this.cleanUrl(u)
-      return !!s
+      if (!s) return false
+      if (this.isM3u8(s)) return true
+      if (/^data:video\//i.test(s)) return true
+      if (/^blob:/i.test(s)) {
+        try { return this.durationMap instanceof Map && this.durationMap.has(s) } catch (e) { return true }
+      }
+      return /\.(mp4|webm|mov|mkv|avi|mpg|mpeg|ts|m4v)(\?|#|$)/i.test(s)
     },
     getSceneKey(scene, index) {
       const sn = String((scene && scene.scene_number) || '').trim()
@@ -1356,16 +1642,31 @@ export default {
         }
 
         const el = this.$refs.previewVideo
-        if (!el) return
-        let src = this.cleanUrl(this.sceneDetail && this.sceneDetail.video_url || '')
-        if (!src) {
-          const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
-          const firstClip = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
-          const candidate = this.cleanUrl((sc && sc.video_url) || (firstClip && firstClip.url) || '')
-          if (candidate && candidate !== src) {
-            this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: candidate })
-            src = candidate
+        const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+        const firstClip = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
+        if (!el) {
+          const imgCandidate = this.cleanUrl((sc && sc.thumbnail) || (firstClip && firstClip.url) || '')
+          if (imgCandidate && imgCandidate !== this.sceneDetail.reference_image_url) {
+            this.sceneDetail = Object.assign({}, this.sceneDetail, { reference_image_url: imgCandidate, video_url: '' })
           }
+          return
+        }
+        let src = this.cleanUrl(this.sceneDetail && this.sceneDetail.video_url || '')
+        const candidate = this.cleanUrl((sc && sc.video_url) || (firstClip && firstClip.url) || '')
+        const hasVideoCandidate = this.isVideo(candidate)
+        if (!src && hasVideoCandidate) {
+          this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: candidate })
+          src = candidate
+        }
+        // 当前分镜没有视频时，确保清空 video_url 并使用图片
+        if (src && !hasVideoCandidate) {
+          const imgCandidate = this.cleanUrl((sc && sc.thumbnail) || (firstClip && firstClip.url) || '')
+          this.sceneDetail = Object.assign({}, this.sceneDetail, { reference_image_url: imgCandidate, video_url: '' })
+          src = ''
+          try { el.pause(); el.currentTime = 0 } catch (e) { /* no-op */ }
+          try { if (this._hlsPreview && this._hlsPreview.destroy) this._hlsPreview.destroy() } catch (e) { /* no-op */ }
+          this._hlsPreview = null
+          this._hlsPreviewUrl = ''
         }
         if (this._lastPreviewUrl === src) {
           return
@@ -1772,7 +2073,8 @@ export default {
           if (ref || vid) {
             const refLocal = ref ? await this.getLocalUrl(ref) : ''
             const vidLocal = vid ? await this.getLocalUrl(vid) : ''
-            this.sceneDetail = { reference_image_url: refLocal || ref, video_url: vidLocal || vid, audio_url: audio }
+            const finalVideo = this.isVideo(vidLocal || vid) ? (vidLocal || vid) : ''
+            this.sceneDetail = { reference_image_url: refLocal || ref, video_url: finalVideo, audio_url: audio }
             this.syncPreviewPlayback()
             break
           }
@@ -1848,7 +2150,8 @@ export default {
         const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
         const vlocal = vurl ? await this.getLocalUrl(vurl) : ''
         const audio = this.cleanUrl(scene.audio_url || '')
-        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vlocal || vurl, audio_url: audio }
+        const finalVideo = this.isVideo(vlocal || vurl) ? (vlocal || vurl) : ''
+        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: finalVideo, audio_url: audio }
         this.syncPreviewPlayback()
       } catch (e) { void 0 } finally {
         try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
@@ -1879,7 +2182,8 @@ export default {
         const vurl = this.cleanUrl(active.video_url || '')
         const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
         const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
-        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || vurl, audio_url: this.cleanUrl(active.audio_url || '') }
+        const finalVideo = this.isVideo(vLocal || vurl) ? (vLocal || vurl) : ''
+        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: finalVideo, audio_url: this.cleanUrl(active.audio_url || '') }
       } catch (e) { void 0 }
     },
     async pollStoryboardImagesDetail() {
@@ -1905,7 +2209,8 @@ export default {
         const vurl = this.cleanUrl(active.video_url || '')
         const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
         const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
-        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || vurl, audio_url: this.cleanUrl(active.audio_url || '') }
+        const finalVideo = this.isVideo(vLocal || vurl) ? (vLocal || vurl) : ''
+        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: finalVideo, audio_url: this.cleanUrl(active.audio_url || '') }
       } catch (e) { void 0 }
     },
     async initLeftPanelScript() {
@@ -1946,7 +2251,10 @@ export default {
             if (vLocal) this.durationMap.set(vLocal, dur)
           }
           this.clearClipErrorsForIndex(i)
-          if (i === this.activeSceneIndex) this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || vurl }
+          if (i === this.activeSceneIndex) {
+            const finalVideo = this.isVideo(vLocal || vurl) ? (vLocal || vurl) : ''
+            this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: finalVideo }
+          }
           try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
         }
         if (!this.sceneDetail.reference_image_url && !this.sceneDetail.video_url) this.refreshSidebarFromLocal()
@@ -2062,6 +2370,10 @@ export default {
     },
     async measureVideoDurationMs(url) {
       try {
+        if (this.durationMap instanceof Map) {
+          const cached = Number(this.durationMap.get(url)) || 0
+          if (cached > 0) return cached
+        }
         const s = this.cleanUrl(url)
         if (this.isM3u8(s)) {
           try {
@@ -2447,11 +2759,508 @@ export default {
         }
       }
       this.fetchCurrentSceneDetail()
+      try {
+        const convId = this.$route.query && this.$route.query.conversationId
+        if (convId) {
+          const sc = this.scenes[index] || {}
+          const wid = String((sc.work_id || sc.workid || sc.id || '')).trim()
+          if (wid) { this.loadDigitalHumanSingle(String(convId), wid) }
+        }
+      } catch (e) { void 0 }
       if (this.isPlaying) {
         this.$nextTick(() => {
           this.syncPreviewPlayback()
           this.startPlayback()
         })
+      }
+    },
+    async onLipSyncTaskCreated(taskId) {
+      if (this.isSceneLipSyncMode && taskId) {
+        const q = this.$route.query
+        this.$router.push({
+          name: q.returnTo || 'VideoEdit',
+          params: { id: q.projectId },
+          query: { taskId, sceneIndex: q.sceneIndex }
+        })
+        return
+      }
+
+      try { if (this.digitalVideoQueryInterval) { clearInterval(this.digitalVideoQueryInterval); this.digitalVideoQueryInterval = null } } catch (e) { void 0 }
+      if (!taskId) return
+      this.isVideoGenerating = true
+      const token = (this.userStore && this.userStore.token) || ''
+      const poll = async () => {
+        try {
+          const resp = await digitalhumanQuery({ taskId, token })
+          const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
+          const data = obj && obj.data
+          const status = (obj && obj.status) || (data && data.task_status)
+          const vid = data && data.generated_video_url
+          const img = data && data.image_url
+          const aud = data && data.audio_url
+          const s = String(status || '').toLowerCase()
+          if (s === 'failed') {
+            if (this.digitalVideoQueryInterval) { try { clearInterval(this.digitalVideoQueryInterval) } catch (e) { void 0 } this.digitalVideoQueryInterval = null }
+            this.isVideoGenerating = false
+            this.toastText = '生成失败'
+            this.toastVisible = true
+            setTimeout(() => { this.toastVisible = false }, 2000)
+          } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
+            const videoUrl = this.cleanUrl(String(vid || ''))
+            const imageUrl = this.cleanUrl(String(img || ''))
+            const audioUrl = this.cleanUrl(String(aud || ''))
+            this.sceneDetail = { reference_image_url: imageUrl, video_url: videoUrl, audio_url: audioUrl }
+            let clipUrl = videoUrl || imageUrl
+            let durMs = 5000
+            if (videoUrl) { try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 } }
+            const idx = this.activeSceneIndex
+            const sc = this.scenes[idx] || {}
+            sc.thumbnail = imageUrl || sc.thumbnail || clipUrl
+            sc.video_url = videoUrl
+            sc.hasVideo = !!videoUrl
+            sc.audio_url = audioUrl
+            sc.clips = [{ url: clipUrl, durationMs: durMs }]
+            try { if (!(this.durationMap instanceof Map)) this.durationMap = new Map(); if (clipUrl) this.durationMap.set(clipUrl, durMs); if (videoUrl && clipUrl !== videoUrl) this.durationMap.set(videoUrl, durMs) } catch (e) { void 0 }
+            this.updateTimeMarkers()
+            this.ensurePreviewFromScenes()
+            this.isVideoGenerating = false
+            if (this.digitalVideoQueryInterval) { try { clearInterval(this.digitalVideoQueryInterval) } catch (e) { void 0 } this.digitalVideoQueryInterval = null }
+            this.$nextTick(() => { this.tryAttachHls() })
+          }
+        } catch (e) { void 0 }
+      }
+      poll()
+      this.digitalVideoQueryInterval = setInterval(poll, 30000)
+    },
+    // 新增：空白分镜与图片上传相关方法
+    isBlankScene(scene) {
+      return !!(scene && scene.isBlank)
+    },
+    addBlankScene(index) {
+      const newScene = {
+        id: Date.now(), // temporary ID
+        isBlank: true,
+        title: '空白分镜',
+        description: '',
+        durationMs: 5000,
+        thumbnail: '',
+        clips: [],
+        video_url: '',
+        audio_url: '',
+        order_index: this.scenes.length + 1
+      }
+      this.scenes.splice(index + 1, 0, newScene)
+      // Re-index orders if necessary
+      this.scenes.forEach((sc, i) => { sc.order_index = i + 1 })
+      this.activeSceneIndex = index + 1
+      this.updateTimeMarkers()
+    },
+    triggerUpload(index) {
+      this.activeSceneIndex = index
+      if (this.$refs.digitalHumanImageInput) {
+        this.$refs.digitalHumanImageInput.click()
+      }
+    },
+    handleDigitalHumanImageSelected(e) {
+      const file = e.target.files && e.target.files[0]
+      if (!file) return
+      this.validateAndProcessImage(file)
+      e.target.value = ''
+    },
+    validateAndProcessImage(file) {
+      if (!file.type.startsWith('image/')) {
+        this.toastText = '请选择图片文件'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+        return
+      }
+      const url = URL.createObjectURL(file)
+      this.selectedImageFile = file
+      this.selectedImageUrl = url
+      this.cropRatio = 'free'
+      this.showImageCropModal = true
+    },
+    // 裁剪逻辑
+    onCropImageLoad(e) {
+      this.computeDisplayRect()
+      this.initSelection()
+    },
+    computeDisplayRect() {
+      try {
+        const imgEl = this.$refs.cropImage
+        const previewEl = this.$refs.cropPreview
+        if (!imgEl || !previewEl) return
+        const contW = previewEl.clientWidth
+        const contH = previewEl.clientHeight
+        const nW = imgEl.naturalWidth || imgEl.width
+        const nH = imgEl.naturalHeight || imgEl.height
+        const imgRatio = nW / nH
+        const contRatio = contW / contH
+        let dispW, dispH
+        if (contRatio > imgRatio) {
+          dispH = contH
+          dispW = Math.round(dispH * imgRatio)
+        } else {
+          dispW = contW
+          dispH = Math.round(dispW / imgRatio)
+        }
+        const left = Math.round((contW - dispW) / 2)
+        const top = Math.round((contH - dispH) / 2)
+        this.displayRect = { left, top, width: dispW, height: dispH }
+      } catch (e) { /* no-op */ }
+    },
+    initSelection() {
+      const r = String(this.cropRatio || '').trim()
+      if (!this.displayRect) return
+      const W = this.displayRect.width
+      const H = this.displayRect.height
+      let w, h
+      if (!r || r === 'free') {
+        const size = Math.round(Math.min(W, H) * 0.8)
+        w = size
+        h = size
+      } else {
+        const parts = r.split(':')
+        const rw = parseFloat(parts[0]) || 1
+        const rh = parseFloat(parts[1]) || 1
+        const ratio = rw / rh
+        if (W / H > ratio) {
+          h = H
+          w = Math.round(h * ratio)
+        } else {
+          w = W
+          h = Math.round(w / ratio)
+        }
+      }
+      const x = Math.round(this.displayRect.left + (W - w) / 2)
+      const y = Math.round(this.displayRect.top + (H - h) / 2)
+      this.cropSelW = w
+      this.cropSelH = h
+      this.cropSelX = x
+      this.cropSelY = y
+    },
+    onSelectMouseDown(e) {
+      this.isDraggingSel = true
+      this.dragStartX = e.clientX
+      this.dragStartY = e.clientY
+      this.dragStartSelX = this.cropSelX
+      this.dragStartSelY = this.cropSelY
+    },
+    onHandleMouseDown(dir, e) {
+      this.isResizingSel = true
+      this.resizeDir = String(dir || '')
+      this.dragStartX = e.clientX
+      this.dragStartY = e.clientY
+      this.dragStartSelX = this.cropSelX
+      this.dragStartSelY = this.cropSelY
+      this.dragStartW = this.cropSelW
+      this.dragStartH = this.cropSelH
+    },
+    onMouseMove(e) {
+      if (!this.displayRect) return
+      if (this.isResizingSel) {
+        this.resizeSelection(e)
+        return
+      }
+      if (!this.isDraggingSel) return
+      const dx = e.clientX - this.dragStartX
+      const dy = e.clientY - this.dragStartY
+      let nx = this.dragStartSelX + dx
+      let ny = this.dragStartSelY + dy
+      const minX = this.displayRect.left
+      const minY = this.displayRect.top
+      const maxX = this.displayRect.left + this.displayRect.width - this.cropSelW
+      const maxY = this.displayRect.top + this.displayRect.height - this.cropSelH
+      if (nx < minX) nx = minX
+      if (ny < minY) ny = minY
+      if (nx > maxX) nx = maxX
+      if (ny > maxY) ny = maxY
+      this.cropSelX = nx
+      this.cropSelY = ny
+    },
+    onMouseUp() {
+      this.isDraggingSel = false
+      this.isResizingSel = false
+    },
+    resizeSelection(e) {
+      const rStr = String(this.cropRatio || '').trim()
+      if (!this.displayRect || !rStr || rStr === 'free') return
+      const parts = rStr.split(':')
+      const rw = parseFloat(parts[0]) || 1
+      const rh = parseFloat(parts[1]) || 1
+      const ratio = rw / rh
+      const dx = e.clientX - this.dragStartX
+      const dy = e.clientY - this.dragStartY
+      const minX = this.displayRect.left
+      const minY = this.displayRect.top
+      const maxXEdge = this.displayRect.left + this.displayRect.width
+      const maxYEdge = this.displayRect.top + this.displayRect.height
+
+      let w = this.dragStartW
+      let h = this.dragStartH
+      let x = this.dragStartSelX
+      let y = this.dragStartSelY
+
+      const minW = 20
+      const minH = Math.round(minW / ratio)
+
+      if (this.resizeDir === 'se') {
+        w = this.dragStartW + dx
+        if (w < minW) w = minW
+        h = Math.round(w / ratio)
+        // clamp by right and bottom edges
+        const maxWByRight = maxXEdge - this.dragStartSelX
+        const maxHByBottom = maxYEdge - this.dragStartSelY
+        const maxWByBottom = Math.floor(maxHByBottom * ratio)
+        const maxWAllowed = Math.min(maxWByRight, maxWByBottom)
+        if (w > maxWAllowed) { w = maxWAllowed; h = Math.round(w / ratio) }
+        x = this.dragStartSelX
+        y = this.dragStartSelY
+      } else if (this.resizeDir === 'sw') {
+        w = this.dragStartW - dx
+        if (w < minW) w = minW
+        h = Math.round(w / ratio)
+        const anchorX = this.dragStartSelX + this.dragStartW
+        const maxWByLeft = anchorX - minX
+        const maxHByBottom = maxYEdge - this.dragStartSelY
+        const maxWByBottom = Math.floor(maxHByBottom * ratio)
+        const maxWAllowed = Math.min(maxWByLeft, maxWByBottom)
+        if (w > maxWAllowed) { w = maxWAllowed; h = Math.round(w / ratio) }
+        x = anchorX - w
+        y = this.dragStartSelY
+      } else if (this.resizeDir === 'ne') {
+        w = this.dragStartW + dx
+        if (w < minW) w = minW
+        h = Math.round(w / ratio)
+        const anchorY = this.dragStartSelY + this.dragStartH
+        const maxWByRight = maxXEdge - this.dragStartSelX
+        const maxHByTop = anchorY - minY
+        const maxWByTop = Math.floor(maxHByTop * ratio)
+        const maxWAllowed = Math.min(maxWByRight, maxWByTop)
+        if (w > maxWAllowed) { w = maxWAllowed; h = Math.round(w / ratio) }
+        x = this.dragStartSelX
+        y = anchorY - h
+      } else if (this.resizeDir === 'nw') {
+        w = this.dragStartW - dx
+        if (w < minW) w = minW
+        h = Math.round(w / ratio)
+        const anchorX = this.dragStartSelX + this.dragStartW
+        const anchorY = this.dragStartSelY + this.dragStartH
+        const maxWByLeft = anchorX - minX
+        const maxHByTop = anchorY - minY
+        const maxWByTop = Math.floor(maxHByTop * ratio)
+        const maxWAllowed = Math.min(maxWByLeft, maxWByTop)
+        if (w > maxWAllowed) { w = maxWAllowed; h = Math.round(w / ratio) }
+        x = anchorX - w
+        y = anchorY - h
+      }
+
+      // final clamp inside displayRect
+      if (x < minX) x = minX
+      if (y < minY) y = minY
+      if (x + w > maxXEdge) x = maxXEdge - w
+      if (y + h > maxYEdge) y = maxYEdge - h
+
+      this.cropSelX = Math.round(x)
+      this.cropSelY = Math.round(y)
+      this.cropSelW = Math.round(w)
+      this.cropSelH = Math.round(h)
+    },
+    cropToRatio(objectUrl, ratioName) {
+      return new Promise((resolve, reject) => {
+        const img = new Image()
+        img.onload = () => {
+          try {
+            const nW = img.naturalWidth || img.width
+            const nH = img.naturalHeight || img.height
+            let targetW = nW
+            let targetH = nH
+            if (ratioName && ratioName !== 'free') {
+              const parts = ratioName.split(':')
+              const rw = parseFloat(parts[0]) || 1
+              const rh = parseFloat(parts[1]) || 1
+              const ratio = rw / rh
+              const imgRatio = nW / nH
+              let cropW, cropH
+              let startX, startY
+              if (this.displayRect && this.cropSelW && this.cropSelH) {
+                const scaleX = nW / this.displayRect.width
+                const scaleY = nH / this.displayRect.height
+                const selRelX = this.cropSelX - this.displayRect.left
+                const selRelY = this.cropSelY - this.displayRect.top
+                cropW = Math.round(this.cropSelW * scaleX)
+                cropH = Math.round(this.cropSelH * scaleY)
+                startX = Math.round(selRelX * scaleX)
+                startY = Math.round(selRelY * scaleY)
+              } else {
+                if (imgRatio > ratio) {
+                  cropH = nH
+                  cropW = Math.round(cropH * ratio)
+                } else {
+                  cropW = nW
+                  cropH = Math.round(cropW / ratio)
+                }
+                startX = Math.floor((nW - cropW) / 2)
+                startY = Math.floor((nH - cropH) / 2)
+              }
+              if (startX < 0) startX = 0
+              if (startY < 0) startY = 0
+              if (startX + cropW > nW) cropW = nW - startX
+              if (startY + cropH > nH) cropH = nH - startY
+              targetW = cropW
+              targetH = cropH
+              const canvas = document.createElement('canvas')
+              canvas.width = targetW
+              canvas.height = targetH
+              const ctx = canvas.getContext('2d')
+              ctx.drawImage(img, startX, startY, cropW, cropH, 0, 0, targetW, targetH)
+              canvas.toBlob(blob => {
+                if (!blob) { reject(new Error('toBlob失败')); return }
+                resolve(new File([blob], 'crop.png', { type: 'image/png' }))
+              }, 'image/png', 0.92)
+              return
+            }
+            let cropW = nW
+            let cropH = nH
+            let startX = 0
+            let startY = 0
+            if (this.displayRect && this.cropSelW && this.cropSelH) {
+              const scaleX = nW / this.displayRect.width
+              const scaleY = nH / this.displayRect.height
+              const selRelX = (this.cropSelX - this.displayRect.left)
+              const selRelY = (this.cropSelY - this.displayRect.top)
+              cropW = Math.round(this.cropSelW * scaleX)
+              cropH = Math.round(this.cropSelH * scaleY)
+              startX = Math.round(selRelX * scaleX)
+              startY = Math.round(selRelY * scaleY)
+              if (startX < 0) startX = 0
+              if (startY < 0) startY = 0
+              if (startX + cropW > nW) cropW = nW - startX
+              if (startY + cropH > nH) cropH = nH - startY
+              targetW = cropW
+              targetH = cropH
+            }
+            const canvas = document.createElement('canvas')
+            canvas.width = targetW
+            canvas.height = targetH
+            const ctx = canvas.getContext('2d')
+            ctx.drawImage(img, startX, startY, cropW, cropH, 0, 0, targetW, targetH)
+            canvas.toBlob(blob => {
+              if (!blob) { reject(new Error('toBlob失败')); return }
+              resolve(new File([blob], 'original.png', { type: 'image/png' }))
+            }, 'image/png', 0.92)
+          } catch (err) { reject(err) }
+        }
+        img.onerror = () => reject(new Error('图片加载失败'))
+        img.src = objectUrl
+      })
+    },
+    cancelImageCrop() {
+      this.showImageCropModal = false
+      this.selectedImageFile = null
+      this.selectedImageUrl = null
+      this.cropRatio = ''
+    },
+    async applyImageCrop() {
+      try {
+        this.toastText = '正在处理...'
+        this.toastVisible = true
+        const blob = await this.cropToRatio(this.selectedImageUrl, this.cropRatio)
+        const file = new File([blob], 'cropped.png', { type: 'image/png' })
+        const token = (this.userStore && this.userStore.token) || ''
+        const conversationId = (this.$route.query && this.$route.query.conversationId) || '286'
+        const res = await uploadDigitalHumanWorkImage({ conversationId, imageFile: file, token })
+        if (res && res.code === 0 && res.data && res.data.success) {
+           const imageUrl = this.cleanUrl(res.data.image_url)
+           const workId = res.data.work_id
+           const sc = this.scenes[this.activeSceneIndex]
+           if (sc) {
+             sc.isBlank = false
+             sc.thumbnail = imageUrl
+             sc.work_id = workId
+             sc.clips = [{ url: imageUrl, durationMs: 5000 }]
+             this.sceneDetail = Object.assign({}, this.sceneDetail, { reference_image_url: imageUrl, video_url: '' })
+             this.ensurePreviewFromScenes()
+           }
+           this.showImageCropModal = false
+           this.toastText = '上传成功'
+           setTimeout(() => { this.toastVisible = false }, 1500)
+        } else {
+           throw new Error((res && res.message) || 'Upload failed')
+        }
+      } catch (e) {
+        console.error(e)
+        this.toastText = '上传失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }
+    },
+    async triggerObjectDetection(workId) {
+      if (!workId) return
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        const conversationId = (this.$route.query && this.$route.query.conversationId) || '286'
+        const res = await objectDetectionByWork({ conversationId, workId, token })
+        if (res && res.success) {
+           const sc = this.scenes[this.activeSceneIndex]
+           if (sc) {
+             sc.mask_url = res.maskurl
+           }
+        }
+      } catch (e) {
+        console.error('Object detection error:', e)
+      }
+    },
+    async generateVideo() {
+      try {
+        const sc = this.scenes[this.activeSceneIndex]
+        if (!sc || !sc.work_id) {
+          this.toastText = '请先上传数字人图片'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
+        if (!sc.audio_url) {
+          this.toastText = '请先添加配音'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
+
+        this.toastText = '正在生成视频...'
+        this.toastVisible = true
+
+        const token = (this.userStore && this.userStore.token) || ''
+        const conversationId = (this.$route.query && this.$route.query.conversationId) || '286'
+        const workId = sc.work_id
+        const audioUrl = sc.audio_url
+        if (!sc.mask_url) {
+           await this.triggerObjectDetection(workId)
+        }
+        const finalMaskUrl = sc.mask_url || sc.thumbnail
+        const res = await digitalhumanGenByWork({ conversationId, workId, audioUrl, maskUrls: finalMaskUrl, maskUrlsAlt: 'source', token })
+        if (res && res.success) {
+           this.toastText = '视频生成任务已提交'
+           setTimeout(() => { this.toastVisible = false }, 1500)
+           if (res.task_id) {
+             this.onLipSyncTaskCreated(res.task_id)
+           }
+        } else {
+           throw new Error((res && res.message) || 'Generation failed')
+        }
+      } catch (e) {
+        console.error(e)
+        this.toastText = '生成失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }
+    },
+    openVoiceTab(index) {
+      this.activeSceneIndex = index
+      this.activeTab = 'voice'
+      const sc = this.scenes[index]
+      if (sc && sc.work_id) {
+        this.triggerObjectDetection(sc.work_id)
       }
     },
     togglePlay() {
@@ -2535,6 +3344,15 @@ export default {
         if (idx !== this.activeSceneIndex) {
           this.activeSceneIndex = idx
           this.syncPreviewPlayback()
+          const scNext = this.scenes[idx] || {}
+          const firstNext = (scNext && Array.isArray(scNext.clips) && scNext.clips[0]) || null
+          const vCand = this.cleanUrl((scNext && scNext.video_url) || (firstNext && firstNext.url) || '')
+          const iCand = this.cleanUrl((scNext && scNext.thumbnail) || (firstNext && firstNext.url) || '')
+          if (!this.isVideo(vCand)) {
+            this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: '', reference_image_url: iCand })
+          } else {
+            this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: vCand })
+          }
         }
         
         // Audio sync
@@ -2669,7 +3487,7 @@ export default {
       this.showCropModal = true
     },
     // 对口型页面相关方法
-    toggleLipSyncView() {
+    async toggleLipSyncView() {
       try {
         if (!this.showLipSyncView) {
           const sc = this.scenes[this.activeSceneIndex] || {}
@@ -2686,6 +3504,33 @@ export default {
             url = this.cleanUrl((info && info.reference_image_url) || '')
           }
           this.lipSyncImageUrl = url
+          
+          // Digital Human Work Detection
+          if (sc.work_id) {
+             await this.triggerObjectDetection(sc.work_id)
+             if (sc.mask_url) {
+               this.lipSyncDetection = { maskurl: sc.mask_url }
+             } else {
+               this.lipSyncDetection = null
+             }
+             this.lipSyncWorkId = String(sc.work_id || '')
+          } else {
+            // Normal Video Scene Detection
+            const projectId = this.$route.params.id
+            const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+            const token = (this.userStore && this.userStore.token) || ''
+            const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
+            this.lipSyncVideoId = String(videoId || '')
+            this.lipSyncShotId = shotId
+            this.lipSyncWorkId = ''
+            if (videoId && shotId && token) {
+              try {
+                const detResp = await objectDetectionByScene({ videoId, shotId, token })
+                const obj = typeof detResp === 'string' ? (() => { try { return JSON.parse(detResp) } catch { return null } })() : detResp
+                this.lipSyncDetection = obj || null
+              } catch (e) { this.lipSyncDetection = null }
+            }
+          }
         }
       } catch (e) { /* no-op */ }
       this.showLipSyncView = !this.showLipSyncView
@@ -4554,4 +5399,185 @@ input:checked+.slider:before {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+.add-scene-plus-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  background: #fff;
+  border: 1px solid var(--border-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s;
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.timeline-track:hover .add-scene-plus-btn {
+  opacity: 1;
+  right: 6px; /* 完整显示在轨道内 */
+}
+
+.blank-scene-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.blank-scene-placeholder:hover {
+  background: var(--bg-tertiary);
+}
+
+.blank-upload-ui {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 6px;
+  background: var(--bg-primary);
+}
+
+.blank-upload-label {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+
+.timeline-track:hover .blank-upload-ui {
+  border-color: var(--primary-color);
+}
+
+.upload-icon-small {
+  width: 20px;
+  height: 20px;
+  color: var(--primary-color);
+}
+
+.blank-scene-display {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  gap: 16px;
+}
+
+.blank-scene-display:hover {
+  background: var(--bg-tertiary);
+}
+
+.upload-icon-large {
+  width: 48px;
+  height: 48px;
+  color: var(--primary-color);
+}
+
+.upload-text {
+  font-size: 16px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+/* Crop Modal Styles */
+.crop-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+.crop-modal {
+  width: 90%;
+  max-width: 800px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.crop-modal-header {
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-secondary);
+}
+.crop-modal-body {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  height: 60vh;
+}
+.crop-preview {
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--border-secondary);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+.crop-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
+}
+.crop-select {
+  position: absolute;
+  border: 2px solid var(--primary-color);
+  background: rgba(0, 0, 0, 0.15);
+  cursor: move;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.2) inset;
+}
+.crop-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--primary-color);
+  border-radius: 50%;
+}
+.handle-nw { left: -6px; top: -6px; cursor: nwse-resize; }
+.handle-ne { right: -6px; top: -6px; cursor: nesw-resize; }
+.handle-sw { left: -6px; bottom: -6px; cursor: nesw-resize; }
+.handle-se { right: -6px; bottom: -6px; cursor: nwse-resize; }
+.crop-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 16px;
+}
+.ratio-buttons { display: flex; gap: 8px; }
+.ratio-btn {
+  padding: 6px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 16px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+.ratio-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+.crop-actions { display: flex; gap: 10px; }
+.crop-cancel { padding: 6px 12px; border: 1px solid var(--border-secondary); border-radius: 8px; background: var(--bg-primary); color: var(--text-primary); }
+.crop-apply { padding: 6px 12px; border: none; border-radius: 8px; background: var(--primary-color); color: #fff; }
 </style>

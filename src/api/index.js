@@ -366,6 +366,34 @@ export async function getMyWorksList(token) {
   return res.text()
 }
 
+export async function getDigitalHumanWorksByConversation({ conversationId, token }) {
+  const url = `${BASE_URL}/detail/digitalhuman/works/byConversation?conversationId=${encodeURIComponent(conversationId)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
+export async function getDigitalHumanWorkSingle({ conversationId, workId, token }) {
+  const url = `${BASE_URL}/detail/digitalhuman/work/single?conversationId=${encodeURIComponent(conversationId)}&workid=${encodeURIComponent(workId)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
 // 查询-分镜图片详情列表（GET）
 export async function getStoryboardImagesDetail({ videoId, token }) {
   const url = `${BASE_URL}/detail/storyboard/images?videoId=${encodeURIComponent(videoId)}`
@@ -670,6 +698,98 @@ export async function digitalhumanQuery({ taskId, token }) {
   }
 }
 
+// 数字人作品：上传图片（POST）
+export async function uploadDigitalHumanWorkImage({ conversationId, imageFile, token }) {
+  const url = `${BASE_URL}/detail/digitalhuman/work/uploadImage`
+  const headers = buildAuthHeaders(token)
+  const formData = new FormData()
+  formData.append('conversationId', String(conversationId).trim())
+  formData.append('imageFile', imageFile)
+  const requestOptions = { method: 'POST', headers, body: formData, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
+// 数字人作品：主体检测（POST）
+export async function objectDetectionByWork({ conversationId, workId, token }) {
+  const url = `${BASE_URL}/api/digitalhuman/object_detection_by_work`
+  const headers = buildAuthHeaders(token)
+  const formData = new FormData()
+  formData.append('conversationId', String(conversationId).trim())
+  formData.append('workId', String(workId).trim())
+  const requestOptions = { method: 'POST', headers, body: formData, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
+// 数字人作品：对口型生成视频（POST）
+export async function digitalhumanGenByWork({ conversationId, workId, audioUrl, maskUrls, maskUrlsAlt = 'source', token }) {
+  const url = `${BASE_URL}/api/video/digitalhumanGenByWork`
+  const headers = buildAuthHeaders(token)
+  const formData = new FormData()
+  formData.append('conversationId', String(conversationId).trim())
+  formData.append('workId', String(workId).trim())
+  formData.append('audioUrl', String(audioUrl || '').trim())
+  if (maskUrls) formData.append('maskUrls', String(maskUrls).trim())
+  if (maskUrlsAlt) formData.append('maskUrlsAlt', String(maskUrlsAlt).trim())
+  const requestOptions = { method: 'POST', headers, body: formData, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
+export async function objectDetectionByScene({ videoId, shotId, token }) {
+  const url = `${BASE_URL}/api/digitalhuman/object_detection_by_scene`
+  const headers = buildAuthHeaders(token)
+  const formdata = new FormData()
+  if (videoId !== undefined && videoId !== null) formdata.append('videoId', String(videoId).trim())
+  if (shotId !== undefined && shotId !== null) formdata.append('shotId', String(shotId).trim())
+  const requestOptions = { method: 'POST', headers, body: formdata, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
+export async function digitalhumanGenByScene({ videoId, shotId, audioUrl, maskUrls, token }) {
+  const url = `${BASE_URL}/api/video/digitalhumanGenByScene`
+  const headers = buildAuthHeaders(token)
+  const formdata = new FormData()
+  if (videoId !== undefined && videoId !== null) formdata.append('videoId', String(videoId).trim())
+  if (shotId !== undefined && shotId !== null) formdata.append('shotId', String(shotId).trim())
+  if (audioUrl) formdata.append('audioUrl', String(audioUrl).trim())
+  if (maskUrls) formdata.append('maskUrls', String(maskUrls).trim())
+  const requestOptions = { method: 'POST', headers, body: formdata, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
 // 邮箱登录
 export async function emailLogin({ email, password }) {
   const url = `${BASE_URL}/user/emailLogin`
@@ -828,5 +948,8 @@ export default {
   , objectDetectionSeedream
   , digitalhumanGen
   , digitalhumanQuery
+  , uploadDigitalHumanWorkImage
+  , objectDetectionByWork
+  , digitalhumanGenByWork
   , uploadStoryboardVoiceoverAudio
 }

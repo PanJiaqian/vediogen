@@ -109,6 +109,7 @@ export default {
             const rawCover = String(item?.coverUrl || '').trim().replace(/^`+|`+$/g, '')
             const isUrl = /^https?:\/\//i.test(rawCover)
             const thumb = isUrl ? rawCover : generateGradientPlaceholder(300, 200, '667eea', '764ba2', '')
+            const convType = String(item?.conversationType || '').trim().toLowerCase()
 
             const mapped = {
               id: (item?.recentVideoId ?? item?.conversationId),
@@ -116,13 +117,12 @@ export default {
               name,
               createdAt: item?.createdAt || '',
               thumbnail: thumb,
-              type: item?.category === '数字人作品' ? 'avatar' : 'story'
+              type: convType === 'digital_human' ? 'avatar' : 'story'
             }
 
-            if (item?.category === '数字人作品') {
+            if (convType === 'digital_human') {
               avatar.push(mapped)
             } else {
-              // 默认归入“故事/视频作品”
               story.push(mapped)
             }
           }
@@ -152,6 +152,11 @@ export default {
         if (!token) {
           console.warn('未登录，无法查询分镜状态')
           try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { console.warn('打开登录弹窗失败:', e) }
+          return
+        }
+        if (project && project.type === 'avatar') {
+          const convId = project && project.conversationId
+          this.$router.push({ name: 'DigitalVideo', query: convId ? { conversationId: convId } : {} })
           return
         }
         const videoId = String(project.id)
@@ -256,7 +261,12 @@ export default {
           localStorage.setItem(`project:prompt:${project.id}`, String(project.name || ''))
           localStorage.setItem(`video-edit:loading:${project.id}`, '1')
         } catch (e) { console.warn('保存编辑页数据失败:', e) }
-        this.$router.push(`/video-edit/${project.id}`)
+        if (project.type === 'avatar') {
+          const convId = project && project.conversationId
+          this.$router.push({ name: 'DigitalVideo', query: convId ? { conversationId: convId } : {} })
+        } else {
+          this.$router.push(`/video-edit/${project.id}`)
+        }
       } catch (e) {
         console.error('打开项目失败:', e)
       }

@@ -33,7 +33,7 @@
 
       <!-- 右侧数字人工具栏区域 -->
       <div class="right-panel">
-        <DigitalHumanToolbar />
+        <DigitalHumanToolbar :detection="detection" :imageFile="null" :videoId="videoId" :shotId="shotId" :workId="workId" @task-created="$emit('task-created', $event)" />
       </div>
     </div>
     <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
@@ -53,7 +53,11 @@ export default {
   props: {
     imageUrl: { type: String, default: '' },
     sceneTitle: { type: String, default: '' },
-    sceneDescription: { type: String, default: '' }
+    sceneDescription: { type: String, default: '' },
+    detection: { type: [Object, String], default: null },
+    videoId: { type: [String, Number], default: '' },
+    shotId: { type: String, default: '' }
+    , workId: { type: [String, Number], default: '' }
   },
   data() {
     return {

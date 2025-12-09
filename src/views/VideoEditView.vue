@@ -159,11 +159,11 @@
               <!-- 图片展示 -->
               <div class="image-container">
                 <div
-                  v-if="isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
+                  v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
                   class="skeleton-image"></div>
                 <video v-else-if="isVideo(sceneDetail.video_url)" ref="sceneVideo"
                   :src="cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
-                  preload="metadata" class="scene-image" playsinline muted loop controls></video>
+                  preload="metadata" class="scene-image" playsinline muted controls></video>
                 <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url) && !previewImgErrored"
                   :src="cleanUrl(sceneDetail.reference_image_url)" alt="分镜图片" class="scene-image" decoding="async"
                   fetchpriority="high" />
@@ -385,12 +385,12 @@
         <!-- 视频画面 -->
         <div class="video-preview">
           <div class="video-container" ref="videoContainer">
-            <div v-if="isVideoConverting" class="skeleton-image" style="height:100%"></div>
+            <div v-if="isVideoConverting || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-image" style="height:100%"></div>
             <video v-else-if="isVideo(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || scenes[activeSceneIndex]?.video_url || scenes[activeSceneIndex]?.thumbnail)"
               ref="previewVideo"
               :src="cleanUrl(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || scenes[activeSceneIndex]?.video_url || scenes[activeSceneIndex]?.thumbnail)"
               :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
-              preload="metadata" playsinline muted loop
+              preload="metadata" playsinline muted
               class="video-image"></video>
             <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)"
               :src="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)"
@@ -569,7 +569,7 @@
                           :class="{ active: index === activeSceneIndex }" :style="getClipStyle(scene, clip)">
                           <video v-if="scene.hasVideo || isVideo(clip.url || scene.video_url || scene.thumbnail)"
                             :src="cleanUrl(clip.url || scene.video_url || scene.thumbnail)"
-                            :poster="cleanUrl(scene.thumbnail || '')" class="clip-thumbnail" muted loop playsinline
+                            :poster="cleanUrl(scene.thumbnail || '')" class="clip-thumbnail" muted playsinline
                             :preload="index < 4 ? 'metadata' : 'none'" disablepictureinpicture></video>
                           <img
                             v-else-if="shouldRenderImage(clip.url || scene.thumbnail) && !isClipImgErrored(index, cidx)"
@@ -585,22 +585,27 @@
                       </template>
                     </div>
                     <div class="track-audio">
-                      <button v-if="scene.audio_url" class="audio-btn">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                          <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
-                          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
-                            stroke-width="2" />
-                        </svg>
-                        配音
-                      </button>
-                      <button v-else class="audio-btn add-audio" @click.stop="activeSceneIndex = index; activeTab = 'voice'">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
-                          <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="2" />
-                          <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="2" />
-                        </svg>
-                        添加配音
-                      </button>
+                      <template v-if="isSceneUpdating(scene, index) || isCropPendingScene(scene, index) || isVideoPendingScene(scene, index)">
+                        <div class="skeleton-image" style="height:28px; width: 60px;"></div>
+                      </template>
+                      <template v-else>
+                        <button v-if="scene.audio_url" class="audio-btn">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
+                              stroke-width="2" />
+                          </svg>
+                          配音
+                        </button>
+                        <button v-else class="audio-btn add-audio" @click.stop="activeSceneIndex = index; activeTab = 'voice'">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                            <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="2" />
+                            <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="2" />
+                          </svg>
+                          添加配音
+                        </button>
+                      </template>
                     </div>
                   </div>
                   <div v-for="n in pendingSkeletonCount" :key="'pending-skel-' + n" class="timeline-track">
@@ -643,13 +648,7 @@
       :durationMs="(scenes[activeSceneIndex] && scenes[activeSceneIndex].clips && scenes[activeSceneIndex].clips[0] && Number(scenes[activeSceneIndex].clips[0].durationMs)) || 5000"
       @close="closeCropModal" @apply="applyCropSelection" />
 
-    <!-- 对口型页面覆盖层 -->
-    <div v-if="showLipSyncView" class="lip-sync-overlay">
-      <LipSyncView @close="toggleLipSyncView"
-        :imageUrl="lipSyncImageUrl || cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
-        :sceneTitle="scenes[activeSceneIndex]?.title || ''"
-        :sceneDescription="(scenes[activeSceneIndex]?.description || ((scenes[activeSceneIndex]?.scene_script?.shot_title || '') + (scenes[activeSceneIndex]?.scene_script?.visual_description ? '：' + scenes[activeSceneIndex]?.scene_script?.visual_description : ''))) || ''" />
-    </div>
+
   </div>
 
   <div v-if="toastVisible" class="floating-toast">{{ toastText }}</div>
@@ -674,7 +673,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -761,6 +760,9 @@ export default {
       pollImagesTimer: null,
       pollImagesAbortResolve: null
       , lipSyncImageUrl: ''
+      , lipSyncDetection: null
+      , lipSyncVideoId: ''
+      , lipSyncShotId: ''
     }
   },
   beforeUnmount() {
@@ -795,6 +797,7 @@ export default {
     let initialLoading = false
     try { initialLoading = localStorage.getItem(`video-edit:loading:${projectId}`) === '1' } catch (e) { initialLoading = false }
     if (initialLoading) this.isConverting = true
+    
     try {
       const mode = localStorage.getItem(`video-edit:entryMode:${projectId}`)
       if (mode === 'crop' || mode === 'canvas') this.entryMode = mode
@@ -858,6 +861,24 @@ export default {
       this._shotOrder = []
     }
     // 禁止进入页面自动调用分镜详情接口：不再加载服务器顺序索引
+
+    // Check if returning from Lip Sync generation (after scenes loaded)
+    try {
+      const q = this.$route.query
+      if (q && q.taskId && q.sceneIndex !== undefined) {
+        const tid = String(q.taskId)
+        const idx = Number(q.sceneIndex)
+        if (tid && Number.isFinite(idx)) {
+          this.$nextTick(() => {
+             if (this.scenes && this.scenes[idx]) {
+                this.activeSceneIndex = idx
+                this.onLipSyncTaskCreated(tid)
+             }
+          })
+          this.$router.replace({ name: 'VideoEdit', params: { id: projectId }, query: {} })
+        }
+      }
+    } catch (e) { console.warn('Check Lip Sync return failed:', e) }
 
     this.$nextTick(() => { this.initTimelineSync() })
     if (initialLoading) {
@@ -976,6 +997,7 @@ export default {
       } else {
         this.pausePreview()
       }
+      try { this._previewLoadSrc = '' } catch (e) { void 0 }
       this.$nextTick(() => { this.tryAttachHls() })
       this.$nextTick(() => { this.updateActiveSceneDurationFromVideo() })
     },
@@ -1301,7 +1323,10 @@ export default {
         } else {
           const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }
           try { el.addEventListener('canplay', onCanPlay, { once: true }) } catch (e) { void 0 }
-          try { el.load() } catch (e) { void 0 }
+          if (this._previewLoadSrc !== src) {
+            this._previewLoadSrc = src
+            try { el.load() } catch (e) { void 0 }
+          }
         }
       } catch (e) {
         console.warn('预览播放失败:', e)
@@ -2416,6 +2441,10 @@ export default {
     },
     async measureVideoDurationMs(url) {
       try {
+        if (this.durationMap instanceof Map) {
+          const cached = Number(this.durationMap.get(url)) || 0
+          if (cached > 0) return cached
+        }
         const s = this.cleanUrl(url)
         if (this.isM3u8(s)) {
           try {
@@ -3194,27 +3223,115 @@ export default {
       this.showCropModal = true
     },
     // 对口型页面相关方法
-    toggleLipSyncView() {
+    async toggleLipSyncView() {
       try {
-        if (!this.showLipSyncView) {
-          const sc = this.scenes[this.activeSceneIndex] || {}
-          let url = this.cleanUrl(this.sceneDetail.reference_image_url || sc.thumbnail || '')
-          if (!url) {
-            const map = (this.imagesDetailMap instanceof Map) ? this.imagesDetailMap : null
-            const key = String(sc.scene_number || '').trim()
-            let info = null
-            if (map && key) info = map.get(key) || null
-            if (!info && map) {
-              const oi = Number(sc.order_index)
-              if (Number.isFinite(oi) && oi > 0) info = map.get(`oi:${oi}`) || null
-            }
-            url = this.cleanUrl((info && info.reference_image_url) || '')
+        const sc = this.scenes[this.activeSceneIndex] || {}
+        let url = this.cleanUrl(this.sceneDetail.reference_image_url || sc.thumbnail || '')
+        if (!url) {
+          const map = (this.imagesDetailMap instanceof Map) ? this.imagesDetailMap : null
+          const key = String(sc.scene_number || '').trim()
+          let info = null
+          if (map && key) info = map.get(key) || null
+          if (!info && map) {
+            const oi = Number(sc.order_index)
+            if (Number.isFinite(oi) && oi > 0) info = map.get(`oi:${oi}`) || null
           }
-          this.lipSyncImageUrl = url
+          url = this.cleanUrl((info && info.reference_image_url) || '')
         }
-      } catch (e) { /* no-op */ }
-      this.showLipSyncView = !this.showLipSyncView
-      console.log('切换对口型页面显示状态:', this.showLipSyncView)
+        
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
+        const sceneTitle = sc.title || ''
+        const sceneDescription = (sc.description || ((sc.scene_script?.shot_title || '') + (sc.scene_script?.visual_description ? '：' + sc.scene_script?.visual_description : ''))) || ''
+
+        this.$router.push({
+          name: 'DigitalVideo',
+          query: {
+            mode: 'scene_lipsync',
+            returnTo: 'VideoEdit',
+            projectId,
+            sceneIndex: this.activeSceneIndex,
+            videoId,
+            shotId,
+            imageUrl: url,
+            sceneTitle,
+            sceneDescription
+          }
+        })
+      } catch (e) {
+        console.error('跳转对口型页面失败:', e)
+      }
+    },
+    async onLipSyncTaskCreated(taskId) {
+      try { if (this.digitalVideoQueryInterval) { clearInterval(this.digitalVideoQueryInterval); this.digitalVideoQueryInterval = null } } catch (e) { void 0 }
+      if (!taskId) return
+      
+      // Setup skeleton state
+      this.isVideoGenerating = true
+      const idx = this.activeSceneIndex
+      const sc = this.scenes[idx] || {}
+      const key = this.getSceneKey(sc, idx)
+          if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
+          this.pendingVideoSet.add(key)
+          this.pendingVideoSet = new Set(this.pendingVideoSet)
+          
+          const token = (this.userStore && this.userStore.token) || ''
+      const poll = async () => {
+        try {
+          const resp = await digitalhumanQuery({ taskId, token })
+          const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
+          const data = obj && obj.data
+          const status = (obj && obj.status) || (data && data.task_status)
+          const vid = data && data.generated_video_url
+          const img = data && data.image_url
+          const aud = data && data.audio_url
+          const s = String(status || '').toLowerCase()
+          
+          const finish = (isSuccess) => {
+            if (this.digitalVideoQueryInterval) { try { clearInterval(this.digitalVideoQueryInterval) } catch (e) { void 0 } this.digitalVideoQueryInterval = null }
+            if (this.pendingVideoSet instanceof Set) {
+              this.pendingVideoSet.delete(key)
+              this.pendingVideoSet = new Set(this.pendingVideoSet)
+            }
+            if (this.pendingVideoSet.size === 0) this.isVideoGenerating = false
+          }
+
+          if (s === 'failed') {
+            finish(false)
+            this.toastText = '生成失败'
+            this.toastVisible = true
+            setTimeout(() => { this.toastVisible = false }, 2000)
+          } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
+            const videoUrl = this.cleanUrl(String(vid || ''))
+            const imageUrl = this.cleanUrl(String(img || ''))
+            const audioUrl = this.cleanUrl(String(aud || ''))
+            const clipUrl = videoUrl || imageUrl
+            let durMs = 5000
+            if (videoUrl) { try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 } }
+            
+            const targetSc = this.scenes[idx] || {}
+            targetSc.thumbnail = imageUrl || targetSc.thumbnail || clipUrl
+            targetSc.video_url = clipUrl
+            targetSc.hasVideo = !!videoUrl
+            targetSc.audio_url = audioUrl
+            targetSc.clips = [{ url: clipUrl, durationMs: durMs }]
+            try { if (!(this.durationMap instanceof Map)) this.durationMap = new Map(); if (clipUrl) this.durationMap.set(clipUrl, durMs); if (videoUrl && clipUrl !== videoUrl) this.durationMap.set(videoUrl, durMs) } catch (e) { void 0 }
+            
+            // Only update sceneDetail if we are still on the same scene
+            if (this.activeSceneIndex === idx) {
+              this.sceneDetail = { reference_image_url: imageUrl || '', video_url: clipUrl, audio_url: audioUrl }
+              this.updateTimeMarkers()
+              this.ensurePreviewFromScenes && this.ensurePreviewFromScenes()
+              this.$nextTick(() => { this.tryAttachHls && this.tryAttachHls() })
+            }
+            
+            finish(true)
+          }
+        } catch (e) { void 0 }
+      }
+      poll()
+      this.digitalVideoQueryInterval = setInterval(poll, 30000)
     },
     closeCropModal() {
       this.showCropModal = false

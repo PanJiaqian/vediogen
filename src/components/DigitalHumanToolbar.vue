@@ -152,7 +152,7 @@
 </template>
 
 <script>
-import { aliTtsSubmit, aliTtsQuery, digitalhumanGen } from '@/api'
+import { aliTtsSubmit, aliTtsQuery, digitalhumanGen, digitalhumanGenByScene, digitalhumanGenByWork } from '@/api'
 import { useUserStore } from '@/stores/user'
 import ToneSelector from '@/components/ToneSelector.vue'
 
@@ -169,6 +169,18 @@ export default {
     , imageFile: {
       type: [File, Object],
       default: null
+    }
+    , videoId: {
+      type: [String, Number],
+      default: ''
+    }
+    , shotId: {
+      type: String,
+      default: ''
+    }
+    , workId: {
+      type: [String, Number],
+      default: ''
     }
   },
   data() {
@@ -238,7 +250,7 @@ export default {
         if (this.isVoiceLoading) return
         if (this.isPlaying) { this.handlePause(); return }
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ } return }
+        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void e } return }
         this.toastText = '收到，正在准备'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 1500)
@@ -259,12 +271,12 @@ export default {
             try { await el.play(); this.isPlaying = true } catch (e) { this.isPlaying = false }
             return
           }
-        } catch (e) { /* no-op */ }
+        } catch (e) { void e }
 
         const submit = await aliTtsSubmit({ text, languageType, voice, token })
         const taskId = (submit && submit.task_id) || (submit && submit.data && submit.data.task_id) || (typeof submit === 'string' ? (() => { try { const o = JSON.parse(submit); return o && (o.task_id || (o.data && o.data.task_id)) } catch { return '' } })() : '')
         if (!taskId) { this.isVoiceLoading = false; return }
-        if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { /* no-op */ } this.voicePollTimer = null }
+        if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { void e } this.voicePollTimer = null }
         this.voicePollTimer = setInterval(async () => {
           try {
             const q = await aliTtsQuery({ taskId, token })
@@ -272,25 +284,25 @@ export default {
             const status = obj && obj.status
             const url = obj && obj.result_url
             if (status === 'SUCCEEDED' && url) {
-              try { clearInterval(this.voicePollTimer) } catch (e) { /* no-op */ }
+              try { clearInterval(this.voicePollTimer) } catch (e) { void e }
               this.voicePollTimer = null
               this.isVoiceLoading = false
               const u = String(url).trim()
-              try { localStorage.setItem(cacheKey, u) } catch (e) { /* no-op */ }
+              try { localStorage.setItem(cacheKey, u) } catch (e) { void e }
               this.voiceAudioUrl = u
               const el = new Audio(u)
               el.addEventListener('ended', () => { this.isPlaying = false })
               this.voiceAudioEl = el
               try { await el.play(); this.isPlaying = true } catch (e) { this.isPlaying = false }
             }
-          } catch (e) { /* no-op */ }
+          } catch (e) { void e }
         }, 3000)
       } catch (e) { this.isVoiceLoading = false; /* no-op */ }
     },
     async handleGenerateVideo() {
       try {
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ } return }
+        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void e } return }
         const imgFile = this.imageFile || null
         const audioUrl = this.voiceAudioUrl || null
         const det = this.detection || null
@@ -303,21 +315,38 @@ export default {
         if (!masks) {
           masks = 'https://v3-default.365yg.com/c4d3a34d98215985a686b8a264395c1f/6932628e/video/tos/cn/tos-cn-i-242bcc/oMfeATHAlp8UEgi0VYKi5KlBCcAFMI1yR7DUAA/?a=0&ch=0&cr=0&dr=0&&br=0&bt=0&ft=Oi.pi77JWH6BM~hPLvr0PD1IN&mime_type=video_mp4&rc=QGlAYSNz&btag=c0000000008000&cquery=10gd&dy_q=1764906110&l=2025120511415069F525013617108D3BF3'
         }
-        const resp = await digitalhumanGen({ imageFile: imgFile, audioUrl, maskUrls: masks, token })
+        let resp = null
+        const vid = this.videoId || ''
+        const sid = this.shotId || ''
+        const wid = this.workId || ''
+        const conversationId = (this.$route && this.$route.query && this.$route.query.conversationId) || '286'
+        if (wid) {
+          resp = await digitalhumanGenByWork({ conversationId, workId: wid, audioUrl, maskUrls: masks, maskUrlsAlt: 'source', token })
+        } else if (vid && sid) {
+          resp = await digitalhumanGenByScene({ videoId: vid, shotId: sid, audioUrl, maskUrls: masks, token })
+        } else {
+          resp = await digitalhumanGen({ imageFile: imgFile, audioUrl, maskUrls: masks, token })
+        }
         const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
         const taskId = (obj && (obj.task_id || obj.taskId)) || ''
         if (!taskId) { return }
         this.toastText = '任务创建成功'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 1500)
-        this.$router.push({ name: 'DigitalVideo', params: { taskId } })
-      } catch (e) { /* no-op */ }
+        if (wid) {
+          this.$emit('task-created', taskId)
+        } else if (vid && sid) {
+          this.$emit('task-created', taskId)
+        } else {
+          this.$router.push({ name: 'DigitalVideo', params: { taskId } })
+        }
+      } catch (e) { void e }
     },
     handlePause() {
       try {
-        if (this.voiceAudioEl) { try { this.voiceAudioEl.pause() } catch (e) { /* no-op */ } this.voiceAudioEl = null }
-        if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { /* no-op */ } this.voicePollTimer = null }
-      } catch (e) { /* no-op */ }
+        if (this.voiceAudioEl) { try { this.voiceAudioEl.pause() } catch (e) { void e } this.voiceAudioEl = null }
+        if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { void e } this.voicePollTimer = null }
+      } catch (e) { void e }
       this.isPlaying = false
     }
   }
