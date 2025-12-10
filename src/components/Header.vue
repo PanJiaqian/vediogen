@@ -87,14 +87,14 @@
                     <span class="points-label">当前积分</span>
                     <span class="points-value">{{ userBasicInfo.pointsBalance || 0 }}</span>
                   </div>
-                  <div class="points-row">
+                  <!-- <div class="points-row">
                     <span class="points-label">付费积分</span>
                     <span class="points-value">0</span>
                   </div>
                   <div class="points-row">
                     <span class="points-label">赠送积分</span>
                     <span class="points-value">{{ userBasicInfo.pointsBalance || 0 }}</span>
-                  </div>
+                  </div> -->
                 </div>
                 <div class="menu-actions">
                   <div class="action-btn">订阅管理</div>

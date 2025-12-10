@@ -1628,9 +1628,6 @@ export default {
             audioEl.src = audioSrc
             if (audioSrc) try { audioEl.load() } catch (e) { void 0 }
           }
-          if (!audioSrc && this.isPlaying && !audioExplicitNull) {
-            try { this.fetchCurrentSceneDetail() } catch (e) { void 0 }
-          }
           if (this.isPlaying && audioEl.src) {
             try {
               if (audioEl.paused) {
@@ -2777,18 +2774,21 @@ export default {
     async onLipSyncTaskCreated(taskId) {
       if (this.isSceneLipSyncMode && taskId) {
         const q = this.$route.query
-        this.$router.push({
-          name: q.returnTo || 'VideoEdit',
-          params: { id: q.projectId },
-          query: { taskId, sceneIndex: q.sceneIndex }
-        })
-        return
+        this.$router.push({ name: 'DigitalVideo', params: {}, query: { taskId } })
       }
 
       try { if (this.digitalVideoQueryInterval) { clearInterval(this.digitalVideoQueryInterval); this.digitalVideoQueryInterval = null } } catch (e) { void 0 }
       if (!taskId) return
+      this.showLipSyncView = false
       this.isVideoGenerating = true
+      const idx = this.activeSceneIndex
+      const sc = this.scenes[idx] || {}
+      const key = this.getSceneKey(sc, idx)
+      if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
+      this.pendingVideoSet.add(key)
+      this.pendingVideoSet = new Set(this.pendingVideoSet)
       const token = (this.userStore && this.userStore.token) || ''
+      let remaining = 20
       const poll = async () => {
         try {
           const resp = await digitalhumanQuery({ taskId, token })
@@ -2799,9 +2799,25 @@ export default {
           const img = data && data.image_url
           const aud = data && data.audio_url
           const s = String(status || '').toLowerCase()
-          if (s === 'failed') {
+
+          const finish = (isSuccess) => {
             if (this.digitalVideoQueryInterval) { try { clearInterval(this.digitalVideoQueryInterval) } catch (e) { void 0 } this.digitalVideoQueryInterval = null }
-            this.isVideoGenerating = false
+            if (this.pendingVideoSet instanceof Set) {
+              this.pendingVideoSet.delete(key)
+              this.pendingVideoSet = new Set(this.pendingVideoSet)
+            }
+            if (this.pendingVideoSet.size === 0) this.isVideoGenerating = false
+          }
+
+          if (s === 'failed') {
+            // 失败：移除骨架并恢复失败前的渲染类型
+            finish(false)
+            const wasVideo = !!(sc && (sc.hasVideo || this.isVideo(this.cleanUrl(sc && sc.video_url || ''))))
+            if (!wasVideo) {
+              const img = this.cleanUrl((sc && sc.thumbnail) || ((sc && sc.clips && sc.clips[0] && sc.clips[0].url) || ''))
+              this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: '', reference_image_url: img })
+              this.$nextTick(() => { this.syncPreviewPlayback() })
+            }
             this.toastText = '生成失败'
             this.toastVisible = true
             setTimeout(() => { this.toastVisible = false }, 2000)
@@ -2809,25 +2825,33 @@ export default {
             const videoUrl = this.cleanUrl(String(vid || ''))
             const imageUrl = this.cleanUrl(String(img || ''))
             const audioUrl = this.cleanUrl(String(aud || ''))
-            this.sceneDetail = { reference_image_url: imageUrl, video_url: videoUrl, audio_url: audioUrl }
-            let clipUrl = videoUrl || imageUrl
+            const clipUrl = videoUrl || imageUrl
             let durMs = 5000
             if (videoUrl) { try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 } }
-            const idx = this.activeSceneIndex
-            const sc = this.scenes[idx] || {}
-            sc.thumbnail = imageUrl || sc.thumbnail || clipUrl
-            sc.video_url = videoUrl
-            sc.hasVideo = !!videoUrl
-            sc.audio_url = audioUrl
-            sc.clips = [{ url: clipUrl, durationMs: durMs }]
+            const targetSc = this.scenes[idx] || {}
+            targetSc.thumbnail = imageUrl || targetSc.thumbnail || clipUrl
+            targetSc.video_url = videoUrl
+            targetSc.hasVideo = !!videoUrl
+            targetSc.audio_url = audioUrl
+            targetSc.clips = [{ url: clipUrl, durationMs: durMs }]
             try { if (!(this.durationMap instanceof Map)) this.durationMap = new Map(); if (clipUrl) this.durationMap.set(clipUrl, durMs); if (videoUrl && clipUrl !== videoUrl) this.durationMap.set(videoUrl, durMs) } catch (e) { void 0 }
-            this.updateTimeMarkers()
-            this.ensurePreviewFromScenes()
-            this.isVideoGenerating = false
-            if (this.digitalVideoQueryInterval) { try { clearInterval(this.digitalVideoQueryInterval) } catch (e) { void 0 } this.digitalVideoQueryInterval = null }
-            this.$nextTick(() => { this.tryAttachHls() })
+            if (this.activeSceneIndex === idx) {
+              this.sceneDetail = { reference_image_url: imageUrl || '', video_url: videoUrl, audio_url: audioUrl }
+              this.updateTimeMarkers()
+              this.ensurePreviewFromScenes && this.ensurePreviewFromScenes()
+              this.$nextTick(() => { this.tryAttachHls && this.tryAttachHls() })
+            }
+            finish(true)
+          } else {
+            remaining -= 1
+            if (remaining <= 0) {
+              finish(false)
+              this.toastText = '生成超时，请稍后重试'
+              this.toastVisible = true
+              setTimeout(() => { this.toastVisible = false }, 2000)
+            }
           }
-        } catch (e) { void 0 }
+        } catch (e) { /* no-op */ }
       }
       poll()
       this.digitalVideoQueryInterval = setInterval(poll, 30000)
@@ -3239,6 +3263,12 @@ export default {
         }
         const finalMaskUrl = sc.mask_url || sc.thumbnail
         const res = await digitalhumanGenByWork({ conversationId, workId, audioUrl, maskUrls: finalMaskUrl, maskUrlsAlt: 'source', token })
+        if (res && res.success === false) {
+           this.toastText = String(res.message || '生成失败')
+           this.toastVisible = true
+           setTimeout(() => { this.toastVisible = false }, 2000)
+           return
+        }
         if (res && res.success) {
            this.toastText = '视频生成任务已提交'
            setTimeout(() => { this.toastVisible = false }, 1500)
@@ -3507,13 +3537,11 @@ export default {
           
           // Digital Human Work Detection
           if (sc.work_id) {
-             await this.triggerObjectDetection(sc.work_id)
-             if (sc.mask_url) {
-               this.lipSyncDetection = { maskurl: sc.mask_url }
-             } else {
-               this.lipSyncDetection = null
-             }
              this.lipSyncWorkId = String(sc.work_id || '')
+             this.lipSyncDetection = sc.mask_url ? { maskurl: sc.mask_url } : null
+             Promise.resolve().then(() => this.triggerObjectDetection(sc.work_id)).then(() => {
+               if (sc.mask_url) this.lipSyncDetection = { maskurl: sc.mask_url }
+             }).catch(() => {})
           } else {
             // Normal Video Scene Detection
             const projectId = this.$route.params.id

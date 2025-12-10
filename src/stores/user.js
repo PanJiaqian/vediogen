@@ -72,9 +72,9 @@ export const useUserStore = defineStore('user', {
         localStorage.removeItem('isLoggedIn')
       } catch (e) { console.warn('清理本地用户数据失败:', e) }
     },
-    // 安排自动登出（36小时）
+    // 安排自动登出（5天）
     scheduleAutoLogout() {
-      const EXPIRE_MS = 36 * 60 * 60 * 1000
+      const EXPIRE_MS = 5 * 24 * 60 * 60 * 1000
       const now = Date.now()
       const setAt = this.tokenSetAt || now
       const remain = Math.max(EXPIRE_MS - (now - setAt), 0)
@@ -108,8 +108,8 @@ export const useUserStore = defineStore('user', {
             this.userInfo = JSON.parse(userInfoStr)
           } catch (e) { console.warn('解析用户信息失败:', e) }
         }
-        // 判断 token 是否过期（36小时）
-        const EXPIRE_MS = 36 * 60 * 60 * 1000
+        // 判断 token 是否过期（5天）
+        const EXPIRE_MS = 5 * 24 * 60 * 60 * 1000
         const expired = this.token && this.tokenSetAt && (Date.now() - this.tokenSetAt >= EXPIRE_MS)
         if (expired) {
           this.logout()

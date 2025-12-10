@@ -328,6 +328,12 @@ export default {
           resp = await digitalhumanGen({ imageFile: imgFile, audioUrl, maskUrls: masks, token })
         }
         const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
+        if (obj && obj.success === false) {
+          this.toastText = String(obj.message || '生成失败')
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
         const taskId = (obj && (obj.task_id || obj.taskId)) || ''
         if (!taskId) { return }
         this.toastText = '任务创建成功'
