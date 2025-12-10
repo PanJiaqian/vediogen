@@ -62,7 +62,7 @@
                     <span v-if="!isEditingName" class="user-card-name">{{ userBasicInfo.nickname || currentUser.name }}</span>
                     <input v-else v-model="editingName" class="user-name-input" @blur="saveNickname" @keyup.enter="saveNickname" ref="nameInput" />
                   </div>
-                  <div class="user-card-uid" @click="copyUid">复制UID</div>
+                  <!-- <div class="user-card-uid" @click="copyUid">复制UID</div> -->
                 </div>
                 <div class="user-card-edit-btn" @click="openEditProfileModal">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

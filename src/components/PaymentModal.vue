@@ -23,12 +23,6 @@
           <span class="label">用户id:</span>
           <span class="value">
             {{ userInfo.id }}
-            <span class="copy-icon" @click="copyUid(userInfo.id)" title="复制UID">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-              </svg>
-            </span>
           </span>
         </div>
       </div>
@@ -81,15 +75,6 @@ export default {
       this.$emit('success')
       this.close()
     },
-    copyUid(uid) {
-      if (!uid) return
-      navigator.clipboard.writeText(String(uid)).then(() => {
-        // Simple alert or could use a toast if available
-        alert('UID 已复制')
-      }).catch(err => {
-        console.error('Failed to copy: ', err)
-      })
-    }
   }
 }
 </script>
@@ -218,19 +203,6 @@ export default {
 .en {
   font-size: 10px;
   color: var(--text-tertiary, #999);
-}
-
-.copy-icon {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 8px;
-  cursor: pointer;
-  color: #1890ff;
-  transition: color 0.2s;
-}
-
-.copy-icon:hover {
-  color: #096dd9;
 }
 
 .recommend-badge {
