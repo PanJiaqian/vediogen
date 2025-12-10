@@ -30,13 +30,6 @@
           <input v-else ref="titleInput" v-model="editingTitle" class="project-title-input" @blur="saveTitle"
             @keyup.enter="saveTitle" />
         </div>
-        <button class="back-btn" @click="goBack">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round" />
-          </svg>
-          返回策划
-        </button>
       </div>
       <div class="navbar-right">
         <button class="navbar-btn premium-btn" @click="showMembershipModal = true">开通会员</button>
@@ -4727,8 +4720,10 @@ input:checked+.slider:before {
   border-radius: 6px;
   border: 1px solid var(--border-secondary);
   transition: all 0.2s;
-  overflow: hidden;
+  /* overflow: hidden; */
   cursor: move;
+  position: relative;
+  z-index: 1;
 }
 
 .bgm-track {
@@ -4739,6 +4734,7 @@ input:checked+.slider:before {
   background: var(--bg-tertiary);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 100;
 }
 
 .timeline-track.active {
@@ -4757,6 +4753,7 @@ input:checked+.slider:before {
   color: var(--text-tertiary);
   font-weight: 500;
   justify-content: space-between;
+  border-radius: 5px 5px 0 0;
 }
 
 .track-title {
@@ -4805,6 +4802,8 @@ input:checked+.slider:before {
   padding: 8px 0;
   min-height: 60px;
   background: var(--bg-primary);
+  overflow: hidden;
+  border-radius: 0 0 6px 6px;
 }
 
 .bgm-track .track-clips {
@@ -5430,9 +5429,9 @@ input:checked+.slider:before {
 
 .add-scene-plus-btn {
   position: absolute;
-  right: 6px;
+  right: 0;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translate(50%, -50%);
   width: 24px;
   height: 24px;
   background: #fff;
@@ -5451,7 +5450,7 @@ input:checked+.slider:before {
 
 .timeline-track:hover .add-scene-plus-btn {
   opacity: 1;
-  right: 6px; /* 完整显示在轨道内 */
+  right: 0;
 }
 
 .blank-scene-placeholder {

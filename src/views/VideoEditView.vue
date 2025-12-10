@@ -404,7 +404,7 @@
             </div>
             <audio ref="previewAudio" style="display:none" preload="auto"></audio>
             <!-- 字幕叠加层 -->
-            <div v-if="subtitleEnabled && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration" class="subtitle-overlay">
+            <div v-if="subtitleEnabled && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen }">
               {{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
             </div>
           </div>
@@ -508,6 +508,17 @@
               <div class="playback-indicator" :style="{ left: playbackLeftPx + 'px' }"></div>
             </template>
             <template v-else>
+
+              <!-- 时间轴头部控制区 -->
+              <div class="timeline-header-control" style="display: flex; justify-content: flex-end; padding: 0 16px 8px;">
+                <div class="subtitle-switch" style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 12px; color: var(--text-secondary);">字幕</span>
+                  <label class="switch">
+                    <input type="checkbox" v-model="subtitleEnabled">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+              </div>
 
               <!-- 时间刻度 -->
               <div class="time-scale">
@@ -766,10 +777,17 @@ export default {
       , lipSyncImageUrl: ''
       , lipSyncDetection: null
       , lipSyncVideoId: ''
-      , lipSyncShotId: ''
+      , lipSyncShotId: '',
+      isFullscreen: false
     }
   },
   beforeUnmount() {
+    if (this.onFullscreenChange) {
+      document.removeEventListener('fullscreenchange', this.onFullscreenChange)
+      document.removeEventListener('webkitfullscreenchange', this.onFullscreenChange)
+      document.removeEventListener('msfullscreenchange', this.onFullscreenChange)
+      this.onFullscreenChange = null
+    }
     if (this._storyboardQueryInterval) {
       clearInterval(this._storyboardQueryInterval)
       this._storyboardQueryInterval = null
@@ -797,6 +815,13 @@ export default {
     }
   },
   mounted() {
+    this.onFullscreenChange = () => {
+      this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', this.onFullscreenChange)
+    document.addEventListener('webkitfullscreenchange', this.onFullscreenChange)
+    document.addEventListener('msfullscreenchange', this.onFullscreenChange)
+
     const projectId = this.$route.params.id
     let initialLoading = false
     try { initialLoading = localStorage.getItem(`video-edit:loading:${projectId}`) === '1' } catch (e) { initialLoading = false }
@@ -5211,5 +5236,55 @@ input:checked+.slider:before {
   z-index: 10;
   text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
   white-space: pre-wrap;
+}
+
+.subtitle-overlay.fullscreen-mode {
+  font-size: clamp(24px, 3vw, 40px);
+}
+
+/* Switch Styles */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: var(--primary-color);
+}
+
+input:checked + .slider:before {
+  transform: translateX(16px);
 }
 </style>
