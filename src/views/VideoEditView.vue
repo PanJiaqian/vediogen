@@ -162,7 +162,7 @@
                   v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
                   class="skeleton-image"></div>
                 <video v-else-if="isVideo(sceneDetail.video_url)" ref="sceneVideo"
-                  :src="cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
+                  :src="isM3u8(sceneDetail.video_url) ? '' : cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
                   preload="metadata" class="scene-image" playsinline muted controls></video>
                 <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url) && !previewImgErrored"
                   :src="cleanUrl(sceneDetail.reference_image_url)" alt="分镜图片" class="scene-image" decoding="async"
@@ -388,7 +388,7 @@
             <div v-if="isVideoConverting || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-image" style="height:100%"></div>
             <video v-else-if="isVideo(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || scenes[activeSceneIndex]?.video_url || scenes[activeSceneIndex]?.thumbnail)"
               ref="previewVideo"
-              :src="cleanUrl(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || scenes[activeSceneIndex]?.video_url || scenes[activeSceneIndex]?.thumbnail)"
+              :src="isM3u8(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || scenes[activeSceneIndex]?.video_url || scenes[activeSceneIndex]?.thumbnail) ? '' : cleanUrl(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || scenes[activeSceneIndex]?.video_url || scenes[activeSceneIndex]?.thumbnail)"
               :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
               preload="metadata" playsinline muted
               class="video-image"></video>
@@ -428,8 +428,13 @@
                   </svg>
                   <span>视频</span>
                 </div>
-                <video :src="cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
-                  class="thumb-image" muted loop playsinline preload="none" disablepictureinpicture></video>
+                <video v-if="!isM3u8(sceneDetail.video_url)"
+                  :src="cleanUrl(sceneDetail.video_url)"
+                  :poster="cleanUrl(sceneDetail.reference_image_url || '')"
+                  class="thumb-image" muted playsinline preload="none" disablepictureinpicture></video>
+                <img v-else
+                  :src="cleanUrl(sceneDetail.reference_image_url || '')"
+                  class="thumb-image" alt="缩略图" />
               </div>
               <div v-if="shouldRenderImage(sceneDetail.reference_image_url) && !previewImgErrored && !isPreviewPending"
                 class="thumb-card">
@@ -1108,17 +1113,46 @@ export default {
       const url = this.cleanUrl(src || '')
       if (!url || !this.isM3u8(url)) return null
       try {
-        if (videoEl.canPlayType && videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-          try { videoEl.src = url } catch (e) { void 0 }
-          return null
-        }
         const HlsLib = await this.ensureHlsLib()
         if (HlsLib && HlsLib.isSupported && HlsLib.isSupported()) {
-          const hls = new HlsLib()
+          let config = { autoStartLoad: false, lowLatencyMode: false, maxBufferLength: 10, backBufferLength: 0 }
+          if (HlsLib.DefaultConfig && HlsLib.DefaultConfig.loader) {
+            class VODLoader extends HlsLib.DefaultConfig.loader {
+              constructor(cfg) {
+                super(cfg)
+                const originalLoad = this.load.bind(this)
+                this.load = (context, cfg, callbacks) => {
+                  if (context.type === 'manifest' || context.type === 'level') {
+                    const onSuccess = callbacks.onSuccess
+                    callbacks.onSuccess = (response, stats, ctx) => {
+                      if (response.data && typeof response.data === 'string' && !response.data.includes('#EXT-X-ENDLIST')) {
+                        response.data += '\n#EXT-X-ENDLIST'
+                      }
+                      onSuccess(response, stats, ctx)
+                    }
+                  }
+                  originalLoad(context, cfg, callbacks)
+                }
+              }
+            }
+            config.loader = VODLoader
+          }
+          const hls = new HlsLib(config)
           hls.loadSource(url)
           hls.attachMedia(videoEl)
+          try {
+            const onPlay = () => { try { hls.startLoad() } catch (e) { void 0 } }
+            const onPause = () => { try { hls.stopLoad() } catch (e) { void 0 } }
+            const onEnded = () => { try { hls.stopLoad() } catch (e) { void 0 } }
+            videoEl.addEventListener('play', onPlay)
+            videoEl.addEventListener('pause', onPause)
+            videoEl.addEventListener('ended', onEnded)
+          } catch (e) { void 0 }
           return hls
         }
+        // 如果 Hls.js 不支持，回退为直接设置 src（可能是 Safari）
+        try { videoEl.src = url } catch (e) { void 0 }
+        return null
       } catch (e) { void 0 }
       return null
     },
@@ -1128,11 +1162,21 @@ export default {
       if (!this.isM3u8(src)) return
       const pv = this.$refs.previewVideo
       const sv = this.$refs.sceneVideo
-      if (this._hlsPreview && this._hlsPreviewUrl === src && this._hlsScene && this._hlsSceneUrl === src) return
-      try { if (this._hlsPreview && this._hlsPreview.destroy) this._hlsPreview.destroy() } catch (e) { void 0 }
-      try { if (this._hlsScene && this._hlsScene.destroy) this._hlsScene.destroy() } catch (e) { void 0 }
-      try { this._hlsPreview = await this.attachHls(pv, src); this._hlsPreviewUrl = src } catch (e) { void 0 }
-      try { this._hlsScene = await this.attachHls(sv, src); this._hlsSceneUrl = src } catch (e) { void 0 }
+      if (!pv && !sv) return
+      if (pv) {
+        const need = !(this._hlsPreview && this._hlsPreviewUrl === src)
+        if (need) {
+          try { if (this._hlsPreview && this._hlsPreview.destroy) this._hlsPreview.destroy() } catch (e) { void 0 }
+          try { this._hlsPreview = await this.attachHls(pv, src); this._hlsPreviewUrl = src } catch (e) { void 0 }
+        }
+      }
+      if (sv) {
+        const need = !(this._hlsScene && this._hlsSceneUrl === src)
+        if (need) {
+          try { if (this._hlsScene && this._hlsScene.destroy) this._hlsScene.destroy() } catch (e) { void 0 }
+          try { this._hlsScene = await this.attachHls(sv, src); this._hlsSceneUrl = src } catch (e) { void 0 }
+        }
+      }
     },
     initTimelineSync() {
       const tracks = this.$refs.timelineTracks
