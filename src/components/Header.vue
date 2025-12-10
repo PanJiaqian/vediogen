@@ -12,6 +12,9 @@
       <!-- 右侧功能区 -->
       <div class="header__right">
         <div class="header-items">
+          <div class="header-item points-display" @click="showPointsModal = true" v-if="isLoggedIn">
+            <span class="points-val">✨ {{ userBasicInfo.pointsBalance || 0 }}</span>
+          </div>
           <div class="header-item membership-btn" @click="showMembershipModal = true">开通会员</div>
           <div class="header-item theme-toggle" @click="toggleTheme" :aria-label="isDark ? '切换为浅色' : '切换为深色'">
             <svg v-if="!isDark" class="header-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -61,7 +64,7 @@
                   </div>
                   <div class="user-card-uid" @click="copyUid">复制UID</div>
                 </div>
-                <div class="user-card-edit-btn" @click="startEditName">
+                <div class="user-card-edit-btn" @click="openEditProfileModal">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -132,7 +135,11 @@
       @social-login="handleSocialLogin" />
 
     <!-- 会员弹窗 -->
-    <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
+    <MembershipModal :visible="showMembershipModal" :user-info="{ ...currentUser, ...userBasicInfo }" @close="showMembershipModal = false" />
+
+    <PointsModal :visible="showPointsModal" :user-info="{ ...currentUser, ...userBasicInfo }" @close="showPointsModal = false" />
+    <UserProfileEditModal :visible="editProfileModalVisible" :userInfo="{ ...currentUser, ...userBasicInfo }" @close="editProfileModalVisible = false" @save="handleProfileUpdate" />
+
 
     <div v-if="centerPromptVisible" class="center-prompt-overlay" @click="closeCenterPrompt">
       <div class="center-prompt" @click.stop>
@@ -146,6 +153,8 @@
 <script>
 import LoginModal from './LoginModal.vue'
 import MembershipModal from '@/components/MembershipModal.vue'
+import PointsModal from '@/components/PointsModal.vue'
+import UserProfileEditModal from '@/components/UserProfileEditModal.vue'
 import { useUserStore } from '@/stores/user'
 import { getUserBasicStatus, updateAvatarAndNickname } from '@/api'
 
@@ -153,7 +162,9 @@ export default {
   name: 'AppHeader',
   components: {
     LoginModal,
-    MembershipModal
+    MembershipModal,
+    PointsModal,
+    UserProfileEditModal
   },
   data() {
     return {
@@ -163,6 +174,8 @@ export default {
       centerPromptText: '',
       isDark: false,
       showMembershipModal: false,
+      showPointsModal: false,
+      editProfileModalVisible: false,
       userBasicInfo: {},
       isEditingName: false,
       editingName: ''
@@ -427,6 +440,34 @@ export default {
     },
     goHome() {
       this.$router.push('/')
+    },
+    openEditProfileModal() {
+      this.editProfileModalVisible = true
+      this.showUserMenu = false
+    },
+    async handleProfileUpdate({ nickname, avatarFile }) {
+      const token = this.userStore.token
+      try {
+        if (avatarFile) {
+           const res = await updateAvatarAndNickname({ token, imageFile: avatarFile })
+           if (res && res.code === 0 && res.data) {
+             this.userBasicInfo.avatar = res.data.avatar
+             this.userStore.setUser({ ...this.currentUser, avatar: res.data.avatar })
+           }
+        }
+        if (nickname && nickname !== (this.userBasicInfo.nickname || this.currentUser.name)) {
+           const res = await updateAvatarAndNickname({ token, nickname })
+           if (res && res.code === 0 && res.data) {
+             this.userBasicInfo.nickname = res.data.nickname
+             this.userStore.setUser({ ...this.currentUser, name: res.data.nickname })
+           }
+        }
+        this.openCenterPrompt('更新成功')
+        this.editProfileModalVisible = false
+      } catch (e) {
+        console.error('Update failed:', e)
+        this.openCenterPrompt('更新失败')
+      }
     }
   }
 }
@@ -511,6 +552,29 @@ export default {
   border-radius: 20px;
   font-weight: 500;
 }
+
+.points-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--bg-secondary);
+  color: #fbbf24; /* Gold/Yellow for points */
+  padding: 0.5rem 0.8rem;
+  border-radius: 20px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.points-display:hover {
+  background-color: var(--bg-tertiary);
+  transform: translateY(-1px);
+}
+
+.points-icon {
+  width: 16px;
+  height: 16px;
+}
+
 
 .user-info {
   position: relative;

@@ -221,45 +221,33 @@
           </div>
         </div>
       </div>
-      <div v-if="alipayVisible" class="alipay-overlay" @click.self="closeAlipay">
-        <div class="alipay-modal">
-          <button class="alipay-close" @click="closeAlipay">×</button>
-          <div class="pay-summary" v-if="currentPlan">
-            <div class="summary-line"><span class="label">购买项目：</span><span class="value">{{ currentPlan.name }}</span>
-            </div>
-            <div class="summary-line"><span class="label">价格：</span><span class="value">¥{{ currentPlan.price
-                }}/月</span></div>
-          </div>
-          <div class="pay-title">请选择支付方式</div>
-          <div class="pay-option-card selected">
-            <div class="option-left">
-              <svg class="option-check" width="20" height="20" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" fill="#1890ff" />
-                <polyline points="8 12 11 15 16 9" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"
-                  stroke-linejoin="round" />
-              </svg>
-              <img src="/Alipay.png" alt="支付宝" class="alipay-logo" />
-              <div class="brand-text">
-                <div class="cn">支付宝</div>
-                <div class="en">ALIPAY</div>
-              </div>
-            </div>
-            <img src="/tuijian.png" alt="推荐" class="recommend-badge" />
-          </div>
-          <button class="go-pay" @click="confirmPayment">去支付</button>
-        </div>
-      </div>
+      <PaymentModal 
+        :visible="alipayVisible" 
+        :plan="currentPlan" 
+        :user-info="userInfo" 
+        @close="closeAlipay" 
+        @success="close"
+      />
     </div>
   </div>
 </template>
 
 <script>
+import PaymentModal from './PaymentModal.vue'
+
 export default {
   name: 'MembershipModal',
+  components: {
+    PaymentModal
+  },
   props: {
     visible: {
       type: Boolean,
       default: false
+    },
+    userInfo: {
+      type: Object,
+      default: null
     }
   },
   emits: ['close'],

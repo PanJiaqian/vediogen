@@ -53,6 +53,12 @@ const routes = [
     path: '/inspiration/:id',
     name: 'InspirationDetail',
     component: () => import(/* webpackChunkName: "inspiration-detail" */ '../views/InspirationDetailView.vue')
+  },
+  {
+    path: '/payment/success',
+    name: 'PaymentSuccess',
+    component: () => import(/* webpackChunkName: "payment-success" */ '../views/PaymentSuccessView.vue'),
+    meta: { hideSidebar: true }
   }
 ]
 

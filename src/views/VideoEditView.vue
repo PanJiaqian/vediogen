@@ -403,6 +403,10 @@
               <div class="error-banner">小梦刚刚打瞌睡了，请重新生成试试吧</div>
             </div>
             <audio ref="previewAudio" style="display:none" preload="auto"></audio>
+            <!-- 字幕叠加层 -->
+            <div v-if="subtitleEnabled && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration" class="subtitle-overlay">
+              {{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
+            </div>
           </div>
           <div class="preview-aside">
             <template
@@ -5189,5 +5193,23 @@ input:checked+.slider:before {
   .no-voice-tip {
     color: #666;
   }
+}
+
+.subtitle-overlay {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  /* background: rgba(0, 0, 0, 0.6); */
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 16px;
+  text-align: center;
+  max-width: 80%;
+  pointer-events: none;
+  z-index: 10;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+  white-space: pre-wrap;
 }
 </style>
