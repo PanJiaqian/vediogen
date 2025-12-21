@@ -27,6 +27,7 @@
         </button>
       </div>
       <div class="navbar-right">
+        <div class="points-display" v-if="userStore && userStore.isLoggedIn" @click="showPointsModal = true">✨ {{ pointsBalance || 0 }}</div>
         <button class="navbar-btn premium-btn" @click="showMembershipModal = true">开通会员</button>
         <button class="navbar-btn convert-btn" @click="convertToVideo"
           :disabled="!allImagesReady || isVideo(currentPreviewUrl) || previewImgErrored">一键转视频</button>
@@ -38,6 +39,7 @@
       :token="userStore.token" modelName="qwen3-TTS-Flash" />
     
     <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
+    <PointsModal :visible="showPointsModal" @close="showPointsModal = false" />
 
     <!-- 主要内容区域 -->
     <div class="main-content">
@@ -78,21 +80,21 @@
           </div>
         </div>
 
-        <template
-          v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || (isConverting && isActiveImageMissing && !isVideo(sceneDetail.video_url))">
-          <div class="skeleton-block">
-            <div class="skeleton-line"></div>
-            <div class="skeleton-line"></div>
-            <div class="skeleton-image" style="height:200px;"></div>
-            <div class="skeleton-card"></div>
-            <div class="skeleton-card"></div>
-          </div>
-        </template>
+          <template v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || (isConverting && isActiveImageMissing && !isVideo(sceneDetail.video_url))">
+            <div class="skeleton-block">
+              <div class="skeleton-line"></div>
+              <div class="skeleton-line"></div>
+              <div class="skeleton-image" style="height:200px;"></div>
+              <div class="skeleton-card"></div>
+              <div class="skeleton-card"></div>
+            </div>
+          </template>
         <template v-else>
           <!-- 分镜内容 - 画面模式 -->
           <div class="scene-content" v-if="activeTab === 'image'">
             <!-- 可滚动内容区域 -->
             <div class="scene-scrollable-content">
+              
               <!-- 图片提示词区域 -->
               <div class="prompt-section">
                 <div class="prompt-header">
@@ -159,9 +161,9 @@
               <!-- 图片展示 -->
               <div class="image-container">
                 <div
-                  v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
+                  v-if="isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
                   class="skeleton-image"></div>
-                <video v-else-if="isVideo(sceneDetail.video_url)" ref="sceneVideo"
+                <video v-else-if="isVideo(sceneDetail.video_url) && sceneDetail.video_url && sceneDetail.video_url.trim() !== ''" ref="sceneVideo"
                   :src="isM3u8(sceneDetail.video_url) ? '' : cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
                   preload="metadata" class="scene-image" playsinline muted controls></video>
                 <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url) && !previewImgErrored"
@@ -194,14 +196,28 @@
                   重新生成
                 </button>
               </div>
+              <div class="chat-messages" style="margin-top: 12px;">
+                <div v-for="msg in leftChatMessages" :key="msg.id" class="chat-bubble" :class="msg.side === 'right' ? 'chat-right' : 'chat-left'">
+                  <div v-if="msg.pending" style="display:flex; flex-direction:column; align-items:flex-start;">
+                    <template v-if="!msg.imageUrl">
+                      <div class="skeleton-image" style="width:100%;height:160px;border-radius:12px;"></div>
+                    </template>
+                    <template v-else>
+                      <img :src="cleanUrl(msg.imageUrl)" alt="分镜更新图" style="width:100%;height:auto;border-radius:12px;" decoding="async" />
+                    </template>
+                    <span v-if="msg.text" style="display:block; margin-top:6px; opacity:0.8; font-size:12px;">{{ msg.text }}</span>
+                  </div>
+                  <span v-else>{{ msg.text }}</span>
+                </div>
+              </div>
             </div>
 
-            <!-- 固定的输入框区域 -->
+                <!-- 固定的输入框区域 -->
             <div class="input-section">
               <div class="input-container">
                 <textarea v-model="sceneInput" class="scene-input" placeholder="输入你想要对当前画面修改的内容"></textarea>
                 <div class="input-actions">
-                  <button class="input-action-btn send-btn">
+                  <button class="input-action-btn send-btn" @click="sendSceneInput">
                     ↑
                   </button>
                 </div>
@@ -359,7 +375,7 @@
       <!-- 右侧区域 -->
       <div class="right-panel">
         <!-- 画布编辑和对口型 -->
-        <div v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-block"
+        <div v-if="isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-block"
           style="margin-bottom: 8px;">
           <div class="skeleton-line" style="width: 200px; height: 32px;"></div>
         </div>
@@ -384,16 +400,16 @@
 
         <!-- 视频画面 -->
         <div class="video-preview">
-          <div class="video-container" ref="videoContainer">
-            <div v-if="isVideoConverting || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-image" style="height:100%"></div>
-            <video v-else-if="isVideo(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || scenes[activeSceneIndex]?.video_url || scenes[activeSceneIndex]?.thumbnail)"
+            <div class="video-container" ref="videoContainer">
+              <div v-if="isVideoConverting || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-image" style="height:100%"></div>
+            <video v-else-if="isVideo(sceneDetail.video_url) && sceneDetail.video_url && sceneDetail.video_url.trim() !== ''"
               ref="previewVideo"
-              :src="isM3u8(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || scenes[activeSceneIndex]?.video_url || scenes[activeSceneIndex]?.thumbnail) ? '' : cleanUrl(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || scenes[activeSceneIndex]?.video_url || scenes[activeSceneIndex]?.thumbnail)"
+              :src="isM3u8(sceneDetail.video_url) ? '' : cleanUrl(sceneDetail.video_url)"
               :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
               preload="metadata" playsinline muted
               class="video-image"></video>
-            <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)"
-              :src="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)"
+            <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url)"
+              :src="cleanUrl(sceneDetail.reference_image_url)"
               :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image"
               decoding="async" fetchpriority="high" @error="onPreviewImgError" />
             <div v-else class="skeleton-image"></div>
@@ -403,8 +419,16 @@
               <div class="error-banner">小梦刚刚打瞌睡了，请重新生成试试吧</div>
             </div>
             <audio ref="previewAudio" style="display:none" preload="auto"></audio>
+            <input ref="replaceFileInput" type="file" accept="image/*" style="display:none" @change="onReplaceImageFileSelected" />
+            <button
+              v-if="!isVideo(sceneDetail.video_url) && shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)"
+              class="replace-btn"
+              @click="triggerReplaceImageUpload">
+              <span class="replace-icon">⟲</span>
+              替换
+            </button>
             <!-- 字幕叠加层 -->
-            <div v-if="subtitleEnabled && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen }">
+            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen }">
               {{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
             </div>
           </div>
@@ -419,7 +443,7 @@
               </div>
             </template>
             <template v-else>
-              <div v-if="isVideo(sceneDetail.video_url) && !isPreviewPending" class="thumb-card">
+              <div v-if="isVideo(getActiveSceneVideoUrl()) && !isPreviewPending" class="thumb-card" @click="switchPreviewTo('video')">
                 <div class="thumb-label">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
@@ -428,8 +452,8 @@
                   </svg>
                   <span>视频</span>
                 </div>
-                <video v-if="!isM3u8(sceneDetail.video_url)"
-                  :src="cleanUrl(sceneDetail.video_url)"
+                <video v-if="!isM3u8(getActiveSceneVideoUrl())"
+                  :src="cleanUrl(getActiveSceneVideoUrl())"
                   :poster="cleanUrl(sceneDetail.reference_image_url || '')"
                   class="thumb-image" muted playsinline preload="none" disablepictureinpicture></video>
                 <img v-else
@@ -437,7 +461,7 @@
                   class="thumb-image" alt="缩略图" />
               </div>
               <div v-if="shouldRenderImage(sceneDetail.reference_image_url) && !previewImgErrored && !isPreviewPending"
-                class="thumb-card">
+                class="thumb-card" @click="switchPreviewTo('image')">
                 <div class="thumb-label">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
@@ -673,6 +697,18 @@
 
   <div v-if="toastVisible" class="floating-toast">{{ toastText }}</div>
 
+  <!-- 对口型页面覆盖层 -->
+    <div v-if="showLipSyncView" class="lip-sync-overlay">
+      <LipSyncView @close="toggleLipSyncView" @task-created="onLipSyncTaskCreated"
+        :imageUrl="lipSyncImageUrl || cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
+        :sceneTitle="scenes[activeSceneIndex]?.title || ''"
+        :sceneDescription="(scenes[activeSceneIndex]?.description || ((scenes[activeSceneIndex]?.scene_script?.shot_title || '') + (scenes[activeSceneIndex]?.scene_script?.visual_description ? '：' + scenes[activeSceneIndex]?.scene_script?.visual_description : ''))) || ''"
+        :detection="lipSyncDetection"
+        :videoId="lipSyncVideoId"
+        :shotId="lipSyncShotId"
+        :workId="lipSyncWorkId" />
+    </div>
+
   <div v-if="successModalVisible" class="success-modal-overlay" @click="closeSuccessModal">
     <div class="success-modal" @click.stop>
       <div class="success-title">{{ successTitle || '任务创建成功' }}</div>
@@ -683,17 +719,46 @@
     </div>
   </div>
 
-  
+  <div v-if="showReplaceCropModal" class="crop-modal-overlay" @click.self="cancelReplaceCrop">
+    <div class="crop-modal" @click.stop>
+      <div class="crop-modal-header">裁剪图片</div>
+      <div class="crop-modal-body" @mousemove="onReplaceMouseMove" @mouseup="onReplaceMouseUp">
+        <div class="crop-preview" ref="replaceCropPreview">
+          <img :src="replaceSelectedImageUrl" class="crop-image" ref="replaceCropImage" @load="onReplaceCropImageLoad" />
+          <div v-if="replaceDisplayRect" class="crop-select" :style="replaceCropSelectBoxStyle" @mousedown.prevent="onReplaceSelectMouseDown">
+            <div class="crop-handle handle-nw" @mousedown.stop.prevent="onReplaceHandleMouseDown('nw', $event)"></div>
+            <div class="crop-handle handle-ne" @mousedown.stop.prevent="onReplaceHandleMouseDown('ne', $event)"></div>
+            <div class="crop-handle handle-sw" @mousedown.stop.prevent="onReplaceHandleMouseDown('sw', $event)"></div>
+            <div class="crop-handle handle-se" @mousedown.stop.prevent="onReplaceHandleMouseDown('se', $event)"></div>
+          </div>
+        </div>
+      </div>
+      <div class="crop-modal-footer">
+        <div class="ratio-buttons">
+          <button :class="['ratio-btn', {active: replaceCropRatio==='9:16'}]" @click="replaceCropRatio='9:16'">9:16</button>
+          <button :class="['ratio-btn', {active: replaceCropRatio==='16:9'}]" @click="replaceCropRatio='16:9'">16:9</button>
+          <button :class="['ratio-btn', {active: replaceCropRatio==='3:4'}]" @click="replaceCropRatio='3:4'">3:4</button>
+          <button :class="['ratio-btn', {active: replaceCropRatio==='4:3'}]" @click="replaceCropRatio='4:3'">4:3</button>
+        </div>
+        <div class="crop-actions">
+          <button class="crop-cancel" @click="cancelReplaceCrop">取消</button>
+          <button class="crop-apply" @click="applyReplaceCrop">应用</button>
+        </div>
+      </div>
+    </div>
+  </div>
+ 
 </template>
 
 <script>
 import ToneSelector from '@/components/ToneSelector.vue'
 import MembershipModal from '@/components/MembershipModal.vue'
+import PointsModal from '@/components/PointsModal.vue'
 import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -702,12 +767,14 @@ export default {
   components: {
     ToneSelector,
     MembershipModal,
+    PointsModal,
     LipSyncView,
     CanvasEditView,
     CropStoryboardModal
   },
   data() {
     return {
+      showPointsModal: false,
       projectTitle: '',
       activeTab: 'image',
       sceneInput: '',
@@ -782,8 +849,30 @@ export default {
       , lipSyncImageUrl: ''
       , lipSyncDetection: null
       , lipSyncVideoId: ''
-      , lipSyncShotId: '',
+      , lipSyncShotId: ''
+      , lipSyncWorkId: '',
       isFullscreen: false
+      , leftChatMessages: []
+      , subtitleEnabledPrev: true
+      , pointsBalance: 0
+      , showReplaceCropModal: false
+      , replaceCropRatio: ''
+      , replaceSelectedImageFile: null
+      , replaceSelectedImageUrl: null
+      , replaceDisplayRect: null
+      , replaceCropSelX: 0
+      , replaceCropSelY: 0
+      , replaceCropSelW: 0
+      , replaceCropSelH: 0
+      , replaceIsDraggingSel: false
+      , replaceIsResizingSel: false
+      , replaceResizeDir: ''
+      , replaceDragStartX: 0
+      , replaceDragStartY: 0
+      , replaceDragStartSelX: 0
+      , replaceDragStartSelY: 0
+      , replaceDragStartW: 0
+      , replaceDragStartH: 0
     }
   },
   beforeUnmount() {
@@ -927,6 +1016,15 @@ export default {
     this.$nextTick(() => { this.tryAttachHls() })
     this.$nextTick(() => { this.initLeftPanelScript() })
     this.$nextTick(() => { this.prefetchFirstSceneAudioIfMissing() })
+    Promise.resolve().then(async () => {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        if (token) {
+          const status = await getUserBasicStatus(token)
+          this.pointsBalance = (status && status.code === 0 && status.data && Number(status.data.pointsBalance)) || 0
+        }
+      } catch (e) { /* no-op */ }
+    })
   },
   computed: {
     userStore() {
@@ -1003,6 +1101,15 @@ export default {
       const hasApi = this.shouldRenderImage(apiImg)
       const hasThumb = this.shouldRenderImage(thumb)
       return !hasApi && !hasThumb
+    },
+    replaceCropSelectBoxStyle() {
+      const rect = this.replaceDisplayRect
+      if (!rect) return {}
+      const x = Math.round(this.replaceCropSelX || 0)
+      const y = Math.round(this.replaceCropSelY || 0)
+      const w = Math.max(0, Math.round(this.replaceCropSelW || 0))
+      const h = Math.max(0, Math.round(this.replaceCropSelH || 0))
+      return { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px', position: 'absolute' }
     }
   },
   watch: {
@@ -1054,6 +1161,370 @@ export default {
     }
   },
   methods: {
+    getActiveSceneVideoUrl() {
+      const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+      const clip = sc && Array.isArray(sc.clips) && sc.clips[0] ? this.cleanUrl(sc.clips[0].url || '') : ''
+      const v1 = this.cleanUrl((this.sceneDetail && this.sceneDetail.video_url) || '')
+      const v2 = this.cleanUrl((sc && sc.video_url) || '')
+      return v1 || clip || v2 || ''
+    },
+    switchPreviewTo(mode) {
+      const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+      if (mode === 'video') {
+        const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
+        const vurl = this.cleanUrl((sc && sc.video_url) || (first && first.url) || '')
+        this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: vurl })
+        this.$nextTick(() => { this.tryAttachHls && this.tryAttachHls() })
+      } else {
+        const img = this.cleanUrl((this.sceneDetail && this.sceneDetail.reference_image_url) || (sc && sc.thumbnail) || '')
+        this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: '', reference_image_url: img })
+        this.previewImgErrored = false
+      }
+    },
+    triggerReplaceImageUpload() {
+      const el = this.$refs.replaceFileInput
+      if (el) el.click()
+    },
+    onReplaceImageFileSelected(e) {
+      const file = e && e.target && e.target.files && e.target.files[0]
+      if (!file) return
+      if (!(file.type && file.type.startsWith('image/'))) {
+        this.toastText = '仅支持图片文件'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+        return
+      }
+      const objectUrl = URL.createObjectURL(file)
+      this.replaceSelectedImageFile = file
+      this.replaceSelectedImageUrl = objectUrl
+      this.showReplaceCropModal = true
+    },
+    onReplaceCropImageLoad() {
+      this.computeReplaceDisplayRect()
+      this.initReplaceSelection()
+    },
+    computeReplaceDisplayRect() {
+      const imgEl = this.$refs.replaceCropImage
+      const previewEl = this.$refs.replaceCropPreview
+      if (!imgEl || !previewEl) return
+      const contW = previewEl.clientWidth
+      const contH = previewEl.clientHeight
+      const nW = imgEl.naturalWidth || imgEl.width
+      const nH = imgEl.naturalHeight || imgEl.height
+      const imgRatio = nW / nH
+      const contRatio = contW / contH
+      let dispW, dispH
+      if (contRatio > imgRatio) {
+        dispH = contH
+        dispW = Math.round(dispH * imgRatio)
+      } else {
+        dispW = contW
+        dispH = Math.round(dispW / imgRatio)
+      }
+      const left = Math.round((contW - dispW) / 2)
+      const top = Math.round((contH - dispH) / 2)
+      this.replaceDisplayRect = { left, top, width: dispW, height: dispH }
+    },
+    initReplaceSelection() {
+      const r = String(this.replaceCropRatio || '').trim()
+      if (!this.replaceDisplayRect) return
+      const W = this.replaceDisplayRect.width
+      const H = this.replaceDisplayRect.height
+      let w, h
+      if (!r || r === 'free') {
+        const size = Math.round(Math.min(W, H) * 0.8)
+        w = size
+        h = size
+      } else {
+        const parts = r.split(':')
+        const rw = parseFloat(parts[0]) || 1
+        const rh = parseFloat(parts[1]) || 1
+        const ratio = rw / rh
+        if (W / H > ratio) {
+          h = H
+          w = Math.round(h * ratio)
+        } else {
+          w = W
+          h = Math.round(w / ratio)
+        }
+      }
+      const x = Math.round(this.replaceDisplayRect.left + (W - w) / 2)
+      const y = Math.round(this.replaceDisplayRect.top + (H - h) / 2)
+      this.replaceCropSelW = w
+      this.replaceCropSelH = h
+      this.replaceCropSelX = x
+      this.replaceCropSelY = y
+    },
+    onReplaceSelectMouseDown(e) {
+      this.replaceIsDraggingSel = true
+      this.replaceDragStartX = e.clientX
+      this.replaceDragStartY = e.clientY
+      this.replaceDragStartSelX = this.replaceCropSelX
+      this.replaceDragStartSelY = this.replaceCropSelY
+    },
+    onReplaceHandleMouseDown(dir, e) {
+      this.replaceIsResizingSel = true
+      this.replaceResizeDir = String(dir || '')
+      this.replaceDragStartX = e.clientX
+      this.replaceDragStartY = e.clientY
+      this.replaceDragStartSelX = this.replaceCropSelX
+      this.replaceDragStartSelY = this.replaceCropSelY
+      this.replaceDragStartW = this.replaceCropSelW
+      this.replaceDragStartH = this.replaceCropSelH
+    },
+    onReplaceMouseMove(e) {
+      if (!this.replaceDisplayRect) return
+      if (this.replaceIsResizingSel) {
+        this.resizeReplaceSelection(e)
+        return
+      }
+      if (!this.replaceIsDraggingSel) return
+      const dx = e.clientX - this.replaceDragStartX
+      const dy = e.clientY - this.replaceDragStartY
+      let nx = this.replaceDragStartSelX + dx
+      let ny = this.replaceDragStartSelY + dy
+      const minX = this.replaceDisplayRect.left
+      const minY = this.replaceDisplayRect.top
+      const maxX = this.replaceDisplayRect.left + this.replaceDisplayRect.width - this.replaceCropSelW
+      const maxY = this.replaceDisplayRect.top + this.replaceDisplayRect.height - this.replaceCropSelH
+      if (nx < minX) nx = minX
+      if (ny < minY) ny = minY
+      if (nx > maxX) nx = maxX
+      if (ny > maxY) ny = maxY
+      this.replaceCropSelX = nx
+      this.replaceCropSelY = ny
+    },
+    onReplaceMouseUp() {
+      this.replaceIsDraggingSel = false
+      this.replaceIsResizingSel = false
+    },
+    resizeReplaceSelection(e) {
+      const rStr = String(this.replaceCropRatio || '').trim()
+      if (!this.replaceDisplayRect || !rStr || rStr === 'free') return
+      const parts = rStr.split(':')
+      const rw = parseFloat(parts[0]) || 1
+      const rh = parseFloat(parts[1]) || 1
+      const ratio = rw / rh
+      const dx = e.clientX - this.replaceDragStartX
+      const dy = e.clientY - this.replaceDragStartY
+      const minX = this.replaceDisplayRect.left
+      const minY = this.replaceDisplayRect.top
+      const maxXEdge = this.replaceDisplayRect.left + this.replaceDisplayRect.width
+      const maxYEdge = this.replaceDisplayRect.top + this.replaceDisplayRect.height
+      let w = this.replaceDragStartW
+      let h = this.replaceDragStartH
+      let x = this.replaceDragStartSelX
+      let y = this.replaceDragStartSelY
+      const minW = 20
+      const minH = Math.round(minW / ratio)
+      if (this.replaceResizeDir === 'se') {
+        w = this.replaceDragStartW + dx
+        if (w < minW) w = minW
+        h = Math.round(w / ratio)
+        const maxWByRight = maxXEdge - this.replaceDragStartSelX
+        const maxHByBottom = maxYEdge - this.replaceDragStartSelY
+        const maxWByBottom = Math.floor(maxHByBottom * ratio)
+        const maxWAllowed = Math.min(maxWByRight, maxWByBottom)
+        if (w > maxWAllowed) { w = maxWAllowed; h = Math.round(w / ratio) }
+        x = this.replaceDragStartSelX
+        y = this.replaceDragStartSelY
+      } else if (this.replaceResizeDir === 'sw') {
+        w = this.replaceDragStartW - dx
+        if (w < minW) w = minW
+        h = Math.round(w / ratio)
+        const anchorX = this.replaceDragStartSelX + this.replaceDragStartW
+        const maxWByLeft = anchorX - minX
+        const maxHByBottom = maxYEdge - this.replaceDragStartSelY
+        const maxWByBottom = Math.floor(maxHByBottom * ratio)
+        const maxWAllowed = Math.min(maxWByLeft, maxWByBottom)
+        if (w > maxWAllowed) { w = maxWAllowed; h = Math.round(w / ratio) }
+        x = anchorX - w
+        y = this.replaceDragStartSelY
+      } else if (this.replaceResizeDir === 'ne') {
+        w = this.replaceDragStartW + dx
+        if (w < minW) w = minW
+        h = Math.round(w / ratio)
+        const anchorY = this.replaceDragStartSelY + this.replaceDragStartH
+        const maxWByRight = maxXEdge - this.replaceDragStartSelX
+        const maxHByTop = anchorY - minY
+        const maxWByTop = Math.floor(maxHByTop * ratio)
+        const maxWAllowed = Math.min(maxWByRight, maxWByTop)
+        if (w > maxWAllowed) { w = maxWAllowed; h = Math.round(w / ratio) }
+        x = this.replaceDragStartSelX
+        y = anchorY - h
+      } else if (this.replaceResizeDir === 'nw') {
+        w = this.replaceDragStartW - dx
+        if (w < minW) w = minW
+        h = Math.round(w / ratio)
+        const anchorX = this.replaceDragStartSelX + this.replaceDragStartW
+        const anchorY = this.replaceDragStartSelY + this.replaceDragStartH
+        const maxWByLeft = anchorX - minX
+        const maxHByTop = anchorY - minY
+        const maxWByTop = Math.floor(maxHByTop * ratio)
+        const maxWAllowed = Math.min(maxWByLeft, maxWByTop)
+        if (w > maxWAllowed) { w = maxWAllowed; h = Math.round(w / ratio) }
+        x = anchorX - w
+        y = anchorY - h
+      }
+      if (x < minX) x = minX
+      if (y < minY) y = minY
+      if (x + w > maxXEdge) x = maxXEdge - w
+      if (y + h > maxYEdge) y = maxYEdge - h
+      this.replaceCropSelX = Math.round(x)
+      this.replaceCropSelY = Math.round(y)
+      this.replaceCropSelW = Math.round(w)
+      this.replaceCropSelH = Math.round(h)
+    },
+    cancelReplaceCrop() {
+      this.showReplaceCropModal = false
+      this.replaceSelectedImageFile = null
+      this.replaceSelectedImageUrl = null
+      this.replaceCropRatio = ''
+    },
+    async applyReplaceCrop() {
+      try {
+        const file = this.replaceSelectedImageFile
+        const url = this.replaceSelectedImageUrl
+        if (!file || !url) { this.cancelReplaceCrop(); return }
+        const cropped = await this.cropReplaceToRatio(url, this.replaceCropRatio)
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        const scene = this.scenes[this.activeSceneIndex] || {}
+        const sceneNumber = String(scene.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
+        const resp = await replaceStoryboardImage({ videoId, sceneNumber, file: cropped, token })
+        let obj = null
+        try { obj = typeof resp === 'string' ? JSON.parse(resp) : resp } catch (e) { obj = null }
+        const ok = !!(obj && (obj.code === 0 || obj.success))
+        if (ok) {
+          const data = obj && obj.data ? obj.data : {}
+          const remote = this.cleanUrl(data.reference_image_url || data.image_url || data.url || '')
+          let next = remote
+          if (!next) {
+            next = URL.createObjectURL(cropped)
+          }
+          const sceneRef = this.scenes[this.activeSceneIndex]
+          if (sceneRef) sceneRef.thumbnail = next
+          this.sceneDetail = Object.assign({}, this.sceneDetail, { reference_image_url: next })
+          try {
+            const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
+            let detail = null
+            try { detail = JSON.parse(text) } catch { detail = null }
+            const d = detail && detail.data ? detail.data : null
+            if (d) {
+              const refImg = this.cleanUrl(d.reference_image_url || next || '')
+              const vurl = this.cleanUrl(d.video_url || '')
+              const audioUrl = this.cleanUrl(d.audio_url || '')
+              const finalVid = vurl ? vurl : ''
+              this.sceneDetail = Object.assign({}, this.sceneDetail, { reference_image_url: refImg, video_url: finalVid, audio_url: audioUrl })
+            }
+          } catch (e) { void 0 }
+          this.toastText = '替换成功'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        } else {
+          const msg = (obj && (obj.message || obj.msg)) ? String(obj.message || obj.msg) : '替换失败，请重试'
+          this.toastText = msg
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2500)
+        }
+      } catch (e) {
+        this.toastText = '替换失败，请稍后重试'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2500)
+      } finally {
+        this.showReplaceCropModal = false
+      }
+    },
+    cropReplaceToRatio(objectUrl, ratioName) {
+      return new Promise((resolve, reject) => {
+        const img = new Image()
+        img.onload = () => {
+          try {
+            const nW = img.naturalWidth || img.width
+            const nH = img.naturalHeight || img.height
+            let targetW = nW
+            let targetH = nH
+            if (ratioName && ratioName !== 'free') {
+              const parts = ratioName.split(':')
+              const rw = parseFloat(parts[0]) || 1
+              const rh = parseFloat(parts[1]) || 1
+              const ratio = rw / rh
+              const imgRatio = nW / nH
+              let cropW, cropH
+              let startX, startY
+              if (this.replaceDisplayRect && this.replaceCropSelW && this.replaceCropSelH) {
+                const scaleX = nW / this.replaceDisplayRect.width
+                const scaleY = nH / this.replaceDisplayRect.height
+                const selRelX = this.replaceCropSelX - this.replaceDisplayRect.left
+                const selRelY = this.replaceCropSelY - this.replaceDisplayRect.top
+                cropW = Math.round(this.replaceCropSelW * scaleX)
+                cropH = Math.round(this.replaceCropSelH * scaleY)
+                startX = Math.round(selRelX * scaleX)
+                startY = Math.round(selRelY * scaleY)
+              } else {
+                if (imgRatio > ratio) {
+                  cropH = nH
+                  cropW = Math.round(cropH * ratio)
+                } else {
+                  cropW = nW
+                  cropH = Math.round(cropW / ratio)
+                }
+                startX = Math.floor((nW - cropW) / 2)
+                startY = Math.floor((nH - cropH) / 2)
+              }
+              if (startX < 0) startX = 0
+              if (startY < 0) startY = 0
+              if (startX + cropW > nW) cropW = nW - startX
+              if (startY + cropH > nH) cropH = nH - startY
+              targetW = cropW
+              targetH = cropH
+              const canvas = document.createElement('canvas')
+              canvas.width = targetW
+              canvas.height = targetH
+              const ctx = canvas.getContext('2d')
+              ctx.drawImage(img, startX, startY, cropW, cropH, 0, 0, targetW, targetH)
+              canvas.toBlob(blob => {
+                if (!blob) { reject(new Error('toBlob失败')); return }
+                resolve(new File([blob], 'replace.png', { type: 'image/png' }))
+              }, 'image/png', 0.92)
+              return
+            }
+            let cropW = nW
+            let cropH = nH
+            let startX = 0
+            let startY = 0
+            if (this.replaceDisplayRect && this.replaceCropSelW && this.replaceCropSelH) {
+              const scaleX = nW / this.replaceDisplayRect.width
+              const scaleY = nH / this.replaceDisplayRect.height
+              const selRelX = (this.replaceCropSelX - this.replaceDisplayRect.left)
+              const selRelY = (this.replaceCropSelY - this.replaceDisplayRect.top)
+              cropW = Math.round(this.replaceCropSelW * scaleX)
+              cropH = Math.round(this.replaceCropSelH * scaleY)
+              startX = Math.round(selRelX * scaleX)
+              startY = Math.round(selRelY * scaleY)
+              if (startX < 0) startX = 0
+              if (startY < 0) startY = 0
+              if (startX + cropW > nW) cropW = nW - startX
+              if (startY + cropH > nH) cropH = nH - startY
+              targetW = cropW
+              targetH = cropH
+            }
+            const canvas = document.createElement('canvas')
+            canvas.width = targetW
+            canvas.height = targetH
+            const ctx = canvas.getContext('2d')
+            ctx.drawImage(img, startX, startY, cropW, cropH, 0, 0, targetW, targetH)
+            canvas.toBlob(blob => {
+              if (!blob) { reject(new Error('toBlob失败')); return }
+              resolve(new File([blob], 'replace.png', { type: 'image/png' }))
+            }, 'image/png', 0.92)
+          } catch (err) { reject(err) }
+        }
+        img.onerror = () => reject(new Error('图片加载失败'))
+        img.src = objectUrl
+      })
+    },
     startEditTitle() {
       this.editingTitle = this.projectTitle
       this.isEditingTitle = true
@@ -1806,13 +2277,10 @@ export default {
       const imgApi = this.cleanUrl(this.sceneDetail.reference_image_url || '')
       let vidApi = this.cleanUrl(this.sceneDetail.video_url || '')
       if (!vidApi) {
-        const arr = Array.isArray(this.scenes) ? this.scenes : []
-        for (let i = 0; i < arr.length; i++) {
-          const sc = arr[i] || {}
-          const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
-          const vurl = this.cleanUrl((first && first.url) || sc.video_url || '')
-          if (vurl && this.isVideo(vurl)) { vidApi = vurl; break }
-        }
+        const active = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+        const first = (active && Array.isArray(active.clips) && active.clips[0]) || null
+        const vurl = this.cleanUrl((first && first.url) || (active && active.video_url) || '')
+        if (vurl && this.isVideo(vurl)) { vidApi = vurl }
       }
       if (imgApi || vidApi) {
         this.sceneDetail = { reference_image_url: imgApi, video_url: vidApi }
@@ -2734,6 +3202,23 @@ export default {
       const token = (this.userStore && this.userStore.token) || ''
       const modelName = 'wan2.2-i2v-flash'
       try {
+        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ } return }
+        let balance = 0
+        try {
+          const status = await getUserBasicStatus(token)
+          balance = (status && status.code === 0 && status.data && Number(status.data.pointsBalance)) || 0
+        } catch (e) { balance = 0 }
+        let estimate = null
+        try {
+          estimate = await getBillingEstimate({ videoId, genType: 'video', modelName, token })
+        } catch (e) { estimate = null }
+        const total = estimate && typeof estimate === 'object' ? Number(estimate.total_price || estimate.data && estimate.data.total_price || 0) : 0
+        if (Number.isFinite(total) && total > 0 && balance < total) {
+          try { window.dispatchEvent(new CustomEvent('open-insufficient-points')) } catch (e) { /* no-op */ }
+          return
+        }
+      } catch (e) { /* no-op */ }
+      try {
         this.pollImagesActive = false
         if (this.pollImagesAbortResolve) { try { this.pollImagesAbortResolve() } catch (e) { /* no-op */ } this.pollImagesAbortResolve = null }
         if (this.pollImagesTimer) { try { clearTimeout(this.pollImagesTimer) } catch (e) { /* no-op */ } this.pollImagesTimer = null }
@@ -3269,7 +3754,118 @@ export default {
         this.isEditingPrompt = false
         this.editingPromptText = ''
         console.log('提示词已保存:', this.editingPromptText)
+        try {
+          const projectId = this.$route.params.id
+          const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+          const token = (this.userStore && this.userStore.token) || ''
+          const sc = this.scenes[this.activeSceneIndex] || {}
+          const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
+          const prompt = String(sc.description || '').trim()
+          const type = 'image'
+          const modelname = 'doubao-seedream-4-0-250828'
+          if (token && videoId && shotId && prompt) {
+            this.toastText = '已提交修改，生成中...'
+            this.toastVisible = true
+            setTimeout(() => { this.toastVisible = false }, 2000)
+            this._updateSceneCtrl = new AbortController()
+            updateSceneStream({
+              videoId, shotId, prompt, type, modelname, token,
+              signal: this._updateSceneCtrl.signal,
+              onEvent: (obj) => {
+                const ev = obj && obj.event
+                if (ev === 'node_finished' || ev === 'workflow_finished' || ev === 'succeeded') {
+                  this.updateLeftPreviewFromImagesDetail()
+                  this.toastText = '生成成功'
+                  this.toastVisible = true
+                  setTimeout(() => { this.toastVisible = false }, 2000)
+                }
+              }
+            }).catch(() => { /* no-op */ })
+          }
+        } catch (e) { /* no-op */ }
       }
+    },
+    async sendSceneInput() {
+      try {
+        const text = String(this.sceneInput || '').trim()
+        if (!text) return
+        const msgIdUser = Date.now()
+        this.leftChatMessages.push({ id: msgIdUser, text, side: 'right' })
+        this.sceneInput = ''
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        const sc = this.scenes[this.activeSceneIndex] || {}
+        const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
+        const type = 'image'
+        const modelname = 'doubao-seedream-4-0-250828'
+        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ } return }
+        const k = this.getSceneKey(sc, this.activeSceneIndex)
+        if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
+        this.updatingKeySet.add(k)
+        this.subtitleEnabledPrev = this.subtitleEnabled
+        this.subtitleEnabled = false
+        const msgIdPending = Date.now() + 1
+        this.leftChatMessages.push({ id: msgIdPending, text: '', side: 'left', pending: true })
+        this._updateSceneCtrl = new AbortController()
+        updateSceneStream({
+          videoId, shotId, prompt: text, type, modelname, token,
+          signal: this._updateSceneCtrl.signal,
+          onEvent: (obj) => {
+            const ev = obj && obj.event
+            const tp = obj && obj.type
+            const idx = this.leftChatMessages.findIndex(m => m.id === msgIdPending)
+            if (tp === 'connected') {
+              const msg = (obj && obj.message) ? String(obj.message).trim() : '分镜修改连接开始'
+              if (idx >= 0) this.leftChatMessages[idx] = { ...this.leftChatMessages[idx], text: msg, pending: true }
+              return
+            }
+            if (tp === 'scene_updated') {
+              const raw = String(obj && obj.reference_image_url || '').trim()
+              const cleaned = raw.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
+              const imageUrl = this.cleanUrl(cleaned)
+              const script = (obj && obj.scene_script) || {}
+              const title = String(script.shot_title || '').trim()
+              const visual = String(script.visual_description || '').trim()
+              const summary = (title && visual) ? (title + '：' + visual) : (title || visual || String(obj && obj.message || '分镜修改结果已更新').trim())
+              const aidx = this.activeSceneIndex
+              const target = this.scenes[aidx] || {}
+              if (imageUrl) {
+                target.thumbnail = imageUrl
+              }
+              if (script && Object.keys(script).length) {
+                const prev = Object.assign({}, target.scene_script || {})
+                const next = { ...prev, ...script }
+                if (this.$set) this.$set(target, 'scene_script', next); else target.scene_script = next
+                const parts = []
+                if (next.shot_title) parts.push(next.shot_title)
+                if (next.visual_description) parts.push(next.visual_description)
+                target.description = parts.join('：')
+              }
+              if (idx >= 0) this.leftChatMessages[idx] = { ...this.leftChatMessages[idx], text: summary, imageUrl: imageUrl, pending: true }
+              return
+            }
+            if (tp === 'finished' || ev === 'node_finished' || ev === 'workflow_finished' || ev === 'succeeded') {
+              if (idx >= 0) this.leftChatMessages[idx] = { ...this.leftChatMessages[idx], text: '生成完成', pending: false }
+              const setB = this.updatingKeySet instanceof Set ? this.updatingKeySet : null
+              if (setB) { setB.delete(k); this.updatingKeySet = new Set(setB) }
+              this.subtitleEnabled = this.subtitleEnabledPrev
+              this.updateLeftPreviewFromImagesDetail()
+              return
+            }
+            if (idx >= 0) {
+              const t = typeof obj === 'string' ? obj : JSON.stringify(obj || {})
+              this.leftChatMessages[idx] = { ...this.leftChatMessages[idx], text: t, pending: true }
+            }
+          }
+        }).catch(() => {
+          const idx = this.leftChatMessages.findIndex(m => m.id === msgIdPending)
+          if (idx >= 0) this.leftChatMessages[idx] = { ...this.leftChatMessages[idx], text: '生成失败', pending: false }
+          const setB = this.updatingKeySet instanceof Set ? this.updatingKeySet : null
+          if (setB) { setB.delete(k); this.updatingKeySet = new Set(setB) }
+          this.subtitleEnabled = this.subtitleEnabledPrev
+        })
+      } catch (e) { /* no-op */ }
     },
     cancelPromptEdit() {
       this.isEditingPrompt = false
@@ -3298,6 +3894,9 @@ export default {
     // 对口型页面相关方法
     async toggleLipSyncView() {
       try {
+        // 立即展示对口型页面（不等待接口返回）
+        if (this.showLipSyncView) { this.showLipSyncView = false; return }
+        this.showLipSyncView = true
         const sc = this.scenes[this.activeSceneIndex] || {}
         let url = this.cleanUrl(this.sceneDetail.reference_image_url || sc.thumbnail || '')
         if (!url) {
@@ -3311,34 +3910,32 @@ export default {
           }
           url = this.cleanUrl((info && info.reference_image_url) || '')
         }
-        
+        this.lipSyncImageUrl = url
+
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
         const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
-        const sceneTitle = sc.title || ''
-        const sceneDescription = (sc.description || ((sc.scene_script?.shot_title || '') + (sc.scene_script?.visual_description ? '：' + sc.scene_script?.visual_description : ''))) || ''
+        this.lipSyncVideoId = String(videoId || '')
+        this.lipSyncShotId = shotId
+        this.lipSyncWorkId = ''
 
-        this.$router.push({
-          name: 'DigitalVideo',
-          query: {
-            mode: 'scene_lipsync',
-            returnTo: 'VideoEdit',
-            projectId,
-            sceneIndex: this.activeSceneIndex,
-            videoId,
-            shotId,
-            imageUrl: url,
-            sceneTitle,
-            sceneDescription
-          }
-        })
-      } catch (e) {
-        console.error('跳转对口型页面失败:', e)
-      }
+        if (videoId && shotId && token) {
+          Promise.resolve().then(async () => {
+            try {
+              const detResp = await objectDetectionByScene({ videoId, shotId, token })
+              const obj = typeof detResp === 'string' ? (() => { try { return JSON.parse(detResp) } catch { return null } })() : detResp
+              this.lipSyncDetection = obj || null
+            } catch (e) { this.lipSyncDetection = null }
+          })
+        }
+      } catch (e) { console.error(e) }
+      console.log('切换对口型页面显示状态:', this.showLipSyncView)
     },
     async onLipSyncTaskCreated(taskId) {
       try { if (this.digitalVideoQueryInterval) { clearInterval(this.digitalVideoQueryInterval); this.digitalVideoQueryInterval = null } } catch (e) { void 0 }
       if (!taskId) return
+      this.showLipSyncView = false
       
       // Setup skeleton state
       this.isVideoGenerating = true
@@ -4206,6 +4803,23 @@ export default {
   content-visibility: auto;
 }
 
+.replace-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 16px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  cursor: pointer;
+}
+.replace-icon { font-size: 14px; }
+
 .video-image {
   max-width: 100%;
   max-height: 100%;
@@ -4428,6 +5042,90 @@ export default {
   z-index: 3000;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
+
+/* 替换图片裁剪弹窗样式（与数字人保持一致） */
+.crop-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+.crop-modal {
+  width: 90%;
+  max-width: 800px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.2);
+  overflow: hidden;
+}
+.crop-modal-header {
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-secondary);
+}
+.crop-modal-body {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  height: 60vh;
+}
+.crop-preview {
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--border-secondary);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+.crop-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
+}
+.crop-select {
+  position: absolute;
+  border: 2px solid var(--primary-color);
+  background: rgba(0, 0, 0, 0.15);
+  cursor: move;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.2) inset;
+}
+.crop-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--primary-color);
+  border-radius: 50%;
+}
+.handle-nw { left: -6px; top: -6px; cursor: nwse-resize; }
+.handle-ne { right: -6px; top: -6px; cursor: nesw-resize; }
+.handle-sw { left: -6px; bottom: -6px; cursor: nesw-resize; }
+.handle-se { right: -6px; bottom: -6px; cursor: nwse-resize; }
+.crop-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 16px;
+}
+.ratio-buttons { display: flex; gap: 8px; }
+.ratio-btn {
+  padding: 6px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 16px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+.ratio-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+.crop-actions { display: flex; gap: 10px; }
+.crop-cancel { padding: 6px 12px; border: 1px solid var(--border-secondary); border-radius: 8px; background: var(--bg-primary); color: var(--text-primary); }
+.crop-apply { padding: 6px 12px; border: none; border-radius: 8px; background: var(--primary-color); color: #fff; }
 
 /* 时间轴区域 */
 .timeline-section {
@@ -5330,5 +6028,79 @@ input:checked + .slider {
 
 input:checked + .slider:before {
   transform: translateX(16px);
+}
+/* 对口型页面覆盖层样式 */
+.lip-sync-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-tertiary);
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+}
+
+.skeleton-block {
+  padding: 10px 12px;
+}
+
+.skeleton-line {
+  height: 12px;
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 37%, var(--bg-tertiary) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.skeleton-paragraph {
+  height: 80px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 37%, var(--bg-tertiary) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+.skeleton-image {
+  width: 100%;
+  height: 160px;
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 37%, var(--bg-tertiary) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.skeleton-card {
+  height: 60px;
+  border-radius: 8px;
+  margin-top: 8px;
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-quaternary) 37%, var(--bg-tertiary) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+.points-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--bg-secondary);
+  color: #fbbf24; /* Gold/Yellow for points */
+  padding: 0.5rem 0.8rem;
+  border-radius: 20px;
+  font-weight: 600;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.points-display:hover {
+  background-color: var(--bg-tertiary);
+  transform: translateY(-1px);
 }
 </style>

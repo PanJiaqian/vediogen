@@ -49,6 +49,9 @@
 </template>
 
 <script>
+import { initiateAlipayPayment, getPaymentOrderStatus } from '../api'
+import { useUserStore } from '../stores/user'
+
 export default {
   name: 'PaymentModal',
   props: {
@@ -66,14 +69,84 @@ export default {
     }
   },
   emits: ['close'],
+  data() {
+    return {
+      pollTimer: null,
+      pollStart: 0
+    }
+  },
   methods: {
     close() {
       this.$emit('close')
     },
-    confirmPayment() {
-      this.$router.push('/payment/success')
-      this.$emit('success')
-      this.close()
+    async confirmPayment() {
+      if (!this.plan || !this.plan.orderNo) {
+        console.error('No order number found')
+        return
+      }
+      
+      try {
+        const userStore = useUserStore()
+        const res = await initiateAlipayPayment({
+          token: userStore.token,
+          orderNo: this.plan.orderNo
+        })
+        
+        if (res.code === 0 && res.data && res.data.html) {
+           const div = document.createElement('div');
+           div.innerHTML = res.data.html;
+           document.body.appendChild(div);
+           
+           const form = div.querySelector('form');
+           if (form) {
+             form.submit();
+           }
+           this.startPollingStatus()
+        } else {
+          this.handlePayFail(res && res.message ? String(res.message) : '发起支付失败')
+        }
+      } catch (error) {
+        this.handlePayFail('网络错误，请稍后重试')
+      }
+    },
+    async pollOnce() {
+      const userStore = useUserStore()
+      try {
+        const r = await getPaymentOrderStatus({ token: userStore.token, orderNo: this.plan.orderNo })
+        const status = r && r.data && (r.data.status || r.data.orderStatus)
+        if (String(status).toUpperCase() === 'PAID' || String(status).toUpperCase() === 'SUCCESS' || String(status).toUpperCase() === 'TRADE_SUCCESS') {
+          this.stopPollingStatus()
+          this.$router.push('/payment/success')
+          this.$emit('success')
+          this.close()
+        } else if (String(status).toUpperCase() === 'FAILED' || String(status).toUpperCase() === 'CLOSED') {
+          this.stopPollingStatus()
+          this.handlePayFail('支付失败，请重试')
+        }
+      } catch (e) { void 0 }
+    },
+    startPollingStatus() {
+      this.pollStart = Date.now()
+      this.stopPollingStatus()
+      this.pollTimer = setInterval(() => {
+        const elapsed = Date.now() - this.pollStart
+        if (elapsed > 120000) {
+          this.stopPollingStatus()
+          this.handlePayFail('支付失败，请重试')
+          return
+        }
+        this.pollOnce()
+      }, 3000)
+    },
+    stopPollingStatus() {
+      if (this.pollTimer) {
+        clearInterval(this.pollTimer)
+        this.pollTimer = null
+      }
+    },
+    handlePayFail(msg) {
+      this.$router.push('/')
+      try { window.dispatchEvent(new CustomEvent('open-center-prompt', { detail: { text: String(msg || '支付失败，请重试') } })) } catch (e) { void 0 }
     },
   }
 }

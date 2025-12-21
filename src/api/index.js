@@ -541,6 +541,145 @@ export async function exportWorksVideo({ videoId, token }) {
   }
 }
 
+// POST 创建订单-会员订阅
+export async function createSubscriptionOrder({ token, amount, membershipLevel }) {
+  const myHeaders = buildAuthHeaders(token)
+  const formdata = new FormData()
+  formdata.append("orderType", "SUBSCRIPTION")
+  formdata.append("amount", amount)
+  formdata.append("membershipLevel", membershipLevel)
+
+  const requestOptions = {
+    method: 'POST',
+    headers: myHeaders,
+    body: formdata,
+    redirect: 'follow'
+  }
+
+  const res = await fetch(`${BASE_URL}/api/payment/orders`, requestOptions)
+  return res.json()
+}
+
+// POST 创建订单-积分充值
+export async function createRechargeOrder({ token, amount, rechargePoints }) {
+  const myHeaders = buildAuthHeaders(token)
+  const formdata = new FormData()
+  formdata.append("orderType", "RECHARGE")
+  formdata.append("amount", amount)
+  formdata.append("rechargePoints", rechargePoints)
+
+  const requestOptions = {
+    method: 'POST',
+    headers: myHeaders,
+    body: formdata,
+    redirect: 'follow'
+  }
+
+  const res = await fetch(`${BASE_URL}/api/payment/orders`, requestOptions)
+  return res.json()
+}
+
+// GET 发起支付-订阅订单(ALIPAY)
+export async function initiateAlipayPayment({ token, orderNo }) {
+  const myHeaders = buildAuthHeaders(token)
+  const requestOptions = {
+    method: 'GET',
+    headers: myHeaders,
+    redirect: 'follow'
+  }
+
+  const res = await fetch(`${BASE_URL}/api/payment/pay?orderNo=${orderNo}&channel=ALIPAY`, requestOptions)
+  return res.json()
+}
+
+// GET 查询订单支付状态
+export async function getPaymentOrderStatus({ token, orderNo }) {
+  const myHeaders = buildAuthHeaders(token)
+  const requestOptions = {
+    method: 'GET',
+    headers: myHeaders,
+    redirect: 'follow'
+  }
+  const res = await fetch(`${BASE_URL}/api/payment/orders/status?orderNo=${encodeURIComponent(orderNo)}`, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
+// POST 支付宝回调-失败用例(验签不通过)
+export async function alipayNotifyFailure({ app_id, orderNo_sub }) {
+  const myHeaders = new Headers();
+  myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
+
+  const urlencoded = new URLSearchParams();
+  urlencoded.append("notify_time", "2025-12-16 12:00:00");
+  urlencoded.append("notify_type", "trade_status_sync");
+  urlencoded.append("notify_id", "fake-notify-id-001");
+  urlencoded.append("app_id", app_id);
+  urlencoded.append("charset", "UTF-8");
+  urlencoded.append("version", "1.0");
+  urlencoded.append("sign_type", "RSA2");
+  urlencoded.append("sign", "invalid-sign");
+  urlencoded.append("out_trade_no", orderNo_sub);
+  urlencoded.append("subject", "会员订阅");
+  urlencoded.append("trade_no", "2025121600000000");
+  urlencoded.append("trade_status", "TRADE_SUCCESS");
+  urlencoded.append("buyer_id", "2088102122524333");
+  urlencoded.append("seller_id", "2088102122524334");
+  urlencoded.append("total_amount", "9.90");
+  urlencoded.append("receipt_amount", "9.90");
+  urlencoded.append("gmt_create", "2025-12-16 11:59:00");
+  urlencoded.append("gmt_payment", "2025-12-16 12:00:00");
+
+  const requestOptions = {
+    method: 'POST',
+    headers: myHeaders,
+    body: urlencoded,
+    redirect: 'follow'
+  };
+
+  const res = await fetch(`${BASE_URL}/api/payment/alipay/notify`, requestOptions)
+  return res.text()
+}
+
+// POST 支付宝回调-成功用例(需真实签名)
+export async function alipayNotifySuccess({ app_id, sign, orderNo_sub, trade_no }) {
+   const myHeaders = new Headers();
+   myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
+
+   const urlencoded = new URLSearchParams();
+   urlencoded.append("notify_time", "2025-12-16 12:00:00");
+   urlencoded.append("notify_type", "trade_status_sync");
+   urlencoded.append("notify_id", "valid-notify-id-001");
+   urlencoded.append("app_id", app_id);
+   urlencoded.append("charset", "UTF-8");
+   urlencoded.append("version", "1.0");
+   urlencoded.append("sign_type", "RSA2");
+   urlencoded.append("sign", sign);
+   urlencoded.append("out_trade_no", orderNo_sub);
+   urlencoded.append("subject", "会员订阅");
+   urlencoded.append("trade_no", trade_no);
+   urlencoded.append("trade_status", "TRADE_SUCCESS");
+   urlencoded.append("buyer_id", "2088102122524333");
+   urlencoded.append("seller_id", "2088102122524334");
+   urlencoded.append("total_amount", "9.90");
+   urlencoded.append("receipt_amount", "9.90");
+   urlencoded.append("gmt_create", "2025-12-16 11:59:00");
+   urlencoded.append("gmt_payment", "2025-12-16 12:00:00");
+
+   const requestOptions = {
+    method: 'POST',
+    headers: myHeaders,
+    body: urlencoded,
+    redirect: 'follow'
+  };
+  
+  const res = await fetch(`${BASE_URL}/api/payment/alipay/notify`, requestOptions)
+  return res.text()
+}
+
 export async function exportWorksVideoDownload({ videoId, token }) {
   const url = `${BASE_URL}/detail/works/video/export/download?videoId=${encodeURIComponent(videoId)}`
   const headers = buildAuthHeaders(token)
@@ -558,6 +697,24 @@ export async function exportWorksVideoDownload({ videoId, token }) {
   return { blob, headers: res.headers }
 }
 
+export async function getBillingEstimate({ videoId, genType, modelName, token }) {
+  const url = `${BASE_URL}/api/billing/estimate?videoId=${encodeURIComponent(videoId)}&genType=${encodeURIComponent(genType)}&modelName=${encodeURIComponent(modelName)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
 export async function aliTtsSubmit({ text, languageType, voice, token }) {
   const url = `${BASE_URL}/api/ali-tts/submit?text=${encodeURIComponent(text)}&languageType=${encodeURIComponent(languageType)}&voice=${encodeURIComponent(voice)}`
   const requestOptions = {
@@ -573,6 +730,66 @@ export async function aliTtsSubmit({ text, languageType, voice, token }) {
     return await res.json()
   } catch (e) {
     return await res.text()
+  }
+}
+
+export async function updateSceneStream({ videoId, shotId, prompt, type, modelname, token, onEvent, signal }) {
+  const url = `${BASE_URL}/api/update-scene`
+  const headers = buildSSEHeaders(token)
+  const formdata = new FormData()
+  if (videoId !== undefined && videoId !== null) formdata.append('videoId', String(videoId).trim())
+  if (shotId !== undefined && shotId !== null) formdata.append('shotId', String(shotId).trim())
+  if (prompt !== undefined && prompt !== null) formdata.append('prompt', String(prompt).trim())
+  if (type !== undefined && type !== null) formdata.append('type', String(type).trim())
+  if (modelname !== undefined && modelname !== null) formdata.append('modelname', String(modelname).trim())
+  const requestOptions = { method: 'POST', headers, body: formdata, redirect: 'follow', signal }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  const reader = res.body && res.body.getReader ? res.body.getReader() : null
+  if (!reader) {
+    if (signal && signal.aborted) return
+    const text = await res.text()
+    if (typeof onEvent === 'function') {
+      const chunks = text.split(/\n\n+/)
+      for (const chunk of chunks) {
+        const m = chunk.match(/data:(.*)/s)
+        if (m && m[1]) {
+          try {
+            const obj = JSON.parse(m[1].trim())
+            onEvent(obj)
+          } catch (err) { /* no-op */ }
+        }
+      }
+    }
+    return
+  }
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  for (; ;) {
+    if (signal && signal.aborted) break
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const parts = buffer.split(/\n\n+/)
+    buffer = parts.pop() || ''
+    for (const part of parts) {
+      const m = part.match(/data:(.*)/s)
+      if (m && m[1]) {
+        try {
+          const obj = JSON.parse(m[1].trim())
+          if (typeof onEvent === 'function') onEvent(obj)
+        } catch (err) { /* no-op */ }
+      }
+    }
+  }
+  const m = buffer.match(/data:(.*)/s)
+  if (m && m[1]) {
+    try {
+      const obj = JSON.parse(m[1].trim())
+      if (typeof onEvent === 'function') onEvent(obj)
+    } catch (err) { /* no-op */ }
   }
 }
 
@@ -737,15 +954,22 @@ export async function objectDetectionByWork({ conversationId, workId, token }) {
 }
 
 // 数字人作品：对口型生成视频（POST）
-export async function digitalhumanGenByWork({ conversationId, workId, audioUrl, maskUrls, maskUrlsAlt = 'source', token }) {
+export async function digitalhumanGenByWork({ conversationId, workId, audio, audioUrl, maskUrls, maskUrlsAlt = 'source', token }) {
   const url = `${BASE_URL}/api/video/digitalhumanGenByWork`
   const headers = buildAuthHeaders(token)
   const formData = new FormData()
   formData.append('conversationId', String(conversationId).trim())
   formData.append('workId', String(workId).trim())
-  formData.append('audioUrl', String(audioUrl || '').trim())
-  if (maskUrls) formData.append('maskUrls', String(maskUrls).trim())
-  if (maskUrlsAlt) formData.append('maskUrlsAlt', String(maskUrlsAlt).trim())
+  if (audio) {
+    formData.append('audio', audio)
+  } else if (audioUrl) {
+    formData.append('audioUrl', String(audioUrl || '').trim())
+  }
+  if (maskUrls) {
+    formData.append('maskUrls', String(maskUrls).trim())
+  } else if (maskUrlsAlt) {
+    formData.append('maskUrlsAlt', String(maskUrlsAlt).trim())
+  }
   const requestOptions = { method: 'POST', headers, body: formData, redirect: 'follow' }
   const res = await fetch(url, requestOptions)
   if (res.status === 401) {
@@ -773,13 +997,17 @@ export async function objectDetectionByScene({ videoId, shotId, token }) {
   }
 }
 
-export async function digitalhumanGenByScene({ videoId, shotId, audioUrl, maskUrls, token }) {
+export async function digitalhumanGenByScene({ videoId, shotId, audio, audioUrl, maskUrls, token }) {
   const url = `${BASE_URL}/api/video/digitalhumanGenByScene`
   const headers = buildAuthHeaders(token)
   const formdata = new FormData()
   if (videoId !== undefined && videoId !== null) formdata.append('videoId', String(videoId).trim())
   if (shotId !== undefined && shotId !== null) formdata.append('shotId', String(shotId).trim())
-  if (audioUrl) formdata.append('audioUrl', String(audioUrl).trim())
+  if (audio) {
+    formdata.append('audio', audio)
+  } else if (audioUrl) {
+    formdata.append('audioUrl', String(audioUrl).trim())
+  }
   if (maskUrls) formdata.append('maskUrls', String(maskUrls).trim())
   const requestOptions = { method: 'POST', headers, body: formdata, redirect: 'follow' }
   const res = await fetch(url, requestOptions)
@@ -905,6 +1133,30 @@ export async function clipStoryboardVideo({ videoId, sceneNumber, start_frame, e
   }
 }
 
+export async function replaceStoryboardImage({ videoId, sceneNumber, file, token }) {
+  const url = `${BASE_URL}/detail/storyboard/image/replace`
+  const headers = buildAuthHeaders(token)
+  const formdata = new FormData()
+  formdata.append('videoId', String(videoId))
+  formdata.append('sceneNumber', String(sceneNumber))
+  formdata.append('file', file)
+  const requestOptions = {
+    method: 'POST',
+    headers,
+    body: formdata,
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
 export async function deleteConversation({ conversationId, token }) {
   const url = `${BASE_URL}/detail/conversation/delete?conversationId=${encodeURIComponent(conversationId)}`
   const requestOptions = {
@@ -940,6 +1192,7 @@ export default {
   , copyStoryboardVideo
   , reorderStoryboardScenes
   , clipStoryboardVideo
+  , replaceStoryboardImage
   , deleteConversation
   , exportWorksVideo
   , exportWorksVideoDownload
@@ -952,4 +1205,6 @@ export default {
   , objectDetectionByWork
   , digitalhumanGenByWork
   , uploadStoryboardVoiceoverAudio
+  , getBillingEstimate
+  , updateSceneStream
 }

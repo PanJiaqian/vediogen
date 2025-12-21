@@ -234,6 +234,8 @@
 
 <script>
 import PaymentModal from './PaymentModal.vue'
+import { createSubscriptionOrder } from '../api'
+import { useUserStore } from '../stores/user'
 
 export default {
   name: 'MembershipModal',
@@ -262,10 +264,36 @@ export default {
     close() {
       this.$emit('close')
     },
-    openAlipay(plan) {
+    async openAlipay(plan) {
       this.currentPlan = plan || null
       this.paymentChecked = false
-      this.alipayVisible = true
+      
+      try {
+        const userStore = useUserStore()
+        const levelMap = {
+          '标准会员': 'VIP',
+          '高级会员': 'SVIP'
+        }
+        const membershipLevel = levelMap[plan.name] || 'VIP'
+        
+        const res = await createSubscriptionOrder({
+          token: userStore.token,
+          amount: plan.price,
+          membershipLevel
+        })
+        
+        if (res.code === 0) {
+          this.currentPlan = {
+            ...this.currentPlan,
+            orderNo: res.data.orderNo
+          }
+          this.alipayVisible = true
+        } else {
+          console.error('Failed to create order:', res.message)
+        }
+      } catch (error) {
+        console.error('Error creating order:', error)
+      }
     },
     closeAlipay() {
       this.alipayVisible = false

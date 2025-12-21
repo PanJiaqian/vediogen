@@ -265,7 +265,7 @@
 </template>
 
 <script>
-import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo, getWorksVideoStatus, queryStoryboardVideoStatus, getStoryboardImagesDetail, scriptGenStream } from '@/api'
+import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo, getWorksVideoStatus, queryStoryboardVideoStatus, getStoryboardImagesDetail, scriptGenStream, getBillingEstimate, getUserBasicStatus } from '@/api'
 import { getMyWorksList, getVideoVersionsByConversation, getConversationMessages } from '@/api/index.js'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
@@ -695,6 +695,25 @@ export default {
         try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
         return
       }
+      try {
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const genType = 'image'
+        const modelName = 'doubao-seedream-4-0-250828'
+        let balance = 0
+        try {
+          const status = await getUserBasicStatus(token)
+          balance = (status && status.code === 0 && status.data && Number(status.data.pointsBalance)) || 0
+        } catch (e) { balance = 0 }
+        let estimate = null
+        try {
+          estimate = await getBillingEstimate({ videoId, genType, modelName, token })
+        } catch (e) { estimate = null }
+        const total = estimate && typeof estimate === 'object' ? Number(estimate.total_price || estimate.data && estimate.data.total_price || 0) : 0
+        if (Number.isFinite(total) && total > 0 && balance < total) {
+          try { window.dispatchEvent(new CustomEvent('open-insufficient-points')) } catch (e) { /* no-op */ }
+          return
+        }
+      } catch (e) { /* no-op */ }
       try { localStorage.setItem(`project:aspectRatio:${projectId}`, String((this.project && this.project.aspectRatio) || '16:9')) } catch (e) { void 0 }
       this.$router.push(`/generation-steps/${projectId}`)
     },

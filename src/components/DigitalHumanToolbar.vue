@@ -99,7 +99,7 @@
 
       <!-- 上传配音模式 -->
       <div v-if="activeTab === 'upload'" class="tab-content upload-content">
-        <div class="upload-area" @click="$refs.fileInput.click()">
+        <div v-if="!voiceAudioUrl" class="upload-area" @click="$refs.fileInput.click()">
           <div class="upload-placeholder">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-linecap="round" stroke-linejoin="round"/>
@@ -107,11 +107,35 @@
             <p class="upload-text">点击 or 将文件拖拽到这里上传</p>
             <p class="upload-hint">支持 MP3、WAV 格式，时长 0.3s - 60s</p>
           </div>
-          <input type="file" accept=".mp3,.wav" style="display:none" ref="fileInput">
+          <input type="file" accept=".mp3,.wav" style="display:none" ref="fileInput" @change="onUploadFileSelected">
         </div>
         
-        <div class="upload-note">
+        <div v-if="!voiceAudioUrl" class="upload-note">
           <span class="info-icon">ⓘ</span> 上传配音暂不支持生成字幕
+        </div>
+
+        <div v-if="voiceAudioUrl" class="uploaded-audio-card">
+          <button class="audio-icon-btn" @click.stop="toggleUploadAudioPlay">
+            <svg v-if="!uploadPlaying" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16" rx="1" />
+              <rect x="14" y="4" width="4" height="16" rx="1" />
+            </svg>
+          </button>
+          <div class="audio-main">
+            <div class="audio-title">{{ uploadAudioName }}</div>
+            <input class="audio-slider" type="range" min="0" :max="Math.max(1, Math.floor(uploadAudioDuration || 1))" :value="Math.floor(uploadCurrentTime || 0)" @input="seekUploadAudio">
+          </div>
+          <div class="audio-actions">
+            <span class="audio-time">{{ formatSec(uploadCurrentTime) }}/{{ formatSec(uploadAudioDuration) }}</span>
+            <button class="delete-audio-btn" @click.stop="removeUploadedAudio">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18M8 6v14m8-14v14M10 6l1-2h2l1 2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- 声音音量（已注释） -->
@@ -201,7 +225,13 @@ export default {
       showToneSelector: false,
       activeTab: 'text', // text | upload
       uploadVolume: 100,
-      supportedLanguages: []
+      supportedLanguages: [],
+      uploadAudioEl: null,
+      uploadAudioFile: null,
+      uploadAudioName: '',
+      uploadAudioDuration: 0,
+      uploadCurrentTime: 0,
+      uploadPlaying: false
     }
   },
   computed: {
@@ -304,7 +334,8 @@ export default {
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void e } return }
         const imgFile = this.imageFile || null
-        const audioUrl = this.voiceAudioUrl || null
+        const audioFile = this.uploadAudioFile || null
+        const audioUrl = audioFile ? '' : (this.voiceAudioUrl || null)
         const det = this.detection || null
         let masks = ''
         try {
@@ -321,11 +352,12 @@ export default {
         const wid = this.workId || ''
         const conversationId = (this.$route && this.$route.query && this.$route.query.conversationId) || '286'
         if (wid) {
-          resp = await digitalhumanGenByWork({ conversationId, workId: wid, audioUrl, maskUrls: masks, maskUrlsAlt: 'source', token })
+          const maskArgs = masks ? { maskUrls: masks } : { maskUrlsAlt: 'source' }
+          resp = await digitalhumanGenByWork(Object.assign({ conversationId, workId: wid, token }, (audioFile ? { audio: audioFile } : { audioUrl }), maskArgs))
         } else if (vid && sid) {
-          resp = await digitalhumanGenByScene({ videoId: vid, shotId: sid, audioUrl, maskUrls: masks, token })
+          resp = await digitalhumanGenByScene(Object.assign({ videoId: vid, shotId: sid, token }, (audioFile ? { audio: audioFile } : { audioUrl }), (masks ? { maskUrls: masks } : {})))
         } else {
-          resp = await digitalhumanGen({ imageFile: imgFile, audioUrl, maskUrls: masks, token })
+          resp = await digitalhumanGen(Object.assign({ imageFile: imgFile, token }, (audioFile ? { audio: audioFile } : { audioUrl }), (masks ? { maskUrls: masks } : {})))
         }
         const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
         if (obj && obj.success === false) {
@@ -340,9 +372,9 @@ export default {
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 1500)
         if (wid) {
-          this.$emit('task-created', taskId)
+          this.$emit('task-created', taskId, this.voiceAudioUrl)
         } else if (vid && sid) {
-          this.$emit('task-created', taskId)
+          this.$emit('task-created', taskId, this.voiceAudioUrl)
         } else {
           this.$router.push({ name: 'DigitalVideo', params: { taskId } })
         }
@@ -354,6 +386,61 @@ export default {
         if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { void e } this.voicePollTimer = null }
       } catch (e) { void e }
       this.isPlaying = false
+    }
+    , onUploadFileSelected(e) {
+      try {
+        const f = e && e.target && e.target.files && e.target.files[0]
+        if (!f) return
+        if (this.uploadAudioEl) { try { this.uploadAudioEl.pause() } catch (err) { /* no-op */ } this.uploadAudioEl = null }
+        this.uploadAudioFile = f
+        const url = URL.createObjectURL(f)
+        this.voiceAudioUrl = url
+        this.uploadAudioName = String(f.name || '音频')
+        const el = new Audio(url)
+        el.addEventListener('loadedmetadata', () => { this.uploadAudioDuration = Number(el.duration) || 0 })
+        el.addEventListener('timeupdate', () => { this.uploadCurrentTime = Number(el.currentTime) || 0 })
+        el.addEventListener('ended', () => { this.uploadPlaying = false })
+        this.uploadAudioEl = el
+        this.uploadPlaying = false
+      } catch (err) { /* no-op */ }
+    }
+    , toggleUploadAudioPlay() {
+      const el = this.uploadAudioEl
+      if (!el) return
+      if (this.uploadPlaying) {
+        try { el.pause() } catch (e) { /* no-op */ }
+        this.uploadPlaying = false
+      } else {
+        try { el.currentTime = Math.max(0, this.uploadCurrentTime || 0) } catch (e) { /* no-op */ }
+        const p = el.play()
+        if (p && p.then) p.then(() => { this.uploadPlaying = true }).catch(() => { this.uploadPlaying = false })
+        else this.uploadPlaying = true
+      }
+    }
+    , seekUploadAudio(e) {
+      try {
+        const v = Number(e && e.target && e.target.value) || 0
+        this.uploadCurrentTime = Math.max(0, Math.min(v, Number(this.uploadAudioDuration) || v))
+        const el = this.uploadAudioEl
+        if (el) { try { el.currentTime = this.uploadCurrentTime } catch (err) { /* no-op */ } }
+      } catch (err) { /* no-op */ }
+    }
+    , removeUploadedAudio() {
+      try { if (this.uploadAudioEl) { try { this.uploadAudioEl.pause() } catch (e) { /* no-op */ } this.uploadAudioEl = null } } catch (e) { /* no-op */ }
+      try { if (this.voiceAudioUrl && /^blob:/.test(this.voiceAudioUrl)) URL.revokeObjectURL(this.voiceAudioUrl) } catch (e) { /* no-op */ }
+      this.uploadAudioFile = null
+      this.voiceAudioUrl = ''
+      this.uploadAudioName = ''
+      this.uploadAudioDuration = 0
+      this.uploadCurrentTime = 0
+      this.uploadPlaying = false
+      try { if (this.$refs && this.$refs.fileInput) this.$refs.fileInput.value = '' } catch (e) { /* no-op */ }
+    }
+    , formatSec(seconds) {
+      const s = Math.max(0, Math.floor(Number(seconds) || 0))
+      const mm = String(Math.floor(s / 60)).padStart(2, '0')
+      const ss = String(s % 60).padStart(2, '0')
+      return `${mm}:${ss}`
     }
   }
 }
@@ -460,6 +547,36 @@ export default {
   font-style: normal;
   color: var(--text-hint, #999);
 }
+
+/* 上传音频预览卡片 */
+.uploaded-audio-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 12px;
+}
+.audio-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.audio-main { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.audio-title { font-size: 14px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audio-slider { width: 100%; accent-color: var(--primary-color); }
+.audio-actions { display: flex; align-items: center; gap: 8px; }
+.audio-time { font-size: 12px; color: var(--text-secondary); }
+.delete-audio-btn { border: none; background: transparent; color: var(--text-secondary); cursor: pointer; padding: 4px; }
 
 .tab-navigation {
   display: flex;
@@ -895,4 +1012,32 @@ export default {
     color: #666;
   }
 }
+.uploaded-audio-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 12px;
+}
+.audio-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.audio-main { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.audio-title { font-size: 14px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.audio-slider { width: 100%; accent-color: var(--primary-color); }
+.audio-actions { display: flex; align-items: center; gap: 8px; }
+.audio-time { font-size: 12px; color: var(--text-secondary); }
+.delete-audio-btn { border: none; background: transparent; color: var(--text-secondary); cursor: pointer; padding: 4px; }
 </style>

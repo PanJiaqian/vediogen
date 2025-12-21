@@ -144,7 +144,10 @@
     <div v-if="centerPromptVisible" class="center-prompt-overlay" @click="closeCenterPrompt">
       <div class="center-prompt" @click.stop>
         <div class="prompt-text">{{ centerPromptText }}</div>
-        <button class="prompt-close-btn" @click="closeCenterPrompt">确定</button>
+        <div style="display:flex; gap:8px; justify-content:center;">
+          <button class="prompt-close-btn" @click="closeCenterPrompt">确定</button>
+          <button v-if="centerPromptAction === 'recharge'" class="prompt-close-btn" @click="openPointsRecharge">充值</button>
+        </div>
       </div>
     </div>
   </header>
@@ -172,6 +175,7 @@ export default {
       showUserMenu: false,
       centerPromptVisible: false,
       centerPromptText: '',
+      centerPromptAction: '',
       isDark: false,
       showMembershipModal: false,
       showPointsModal: false,
@@ -198,6 +202,16 @@ export default {
     // 监听全局事件以弹出登录弹窗
     window.addEventListener('open-login-modal', this.showLoginModal)
     window.addEventListener('auth-401', this.handleAuth401)
+    window.addEventListener('open-points-modal', this.openPointsRecharge)
+    this._onInsufficientPoints = () => { this.centerPromptText = '积分不足，请充值'; this.centerPromptAction = 'recharge'; this.centerPromptVisible = true }
+    window.addEventListener('open-insufficient-points', this._onInsufficientPoints)
+    this._onCenterPrompt = (e) => {
+      const d = (e && e.detail) || {}
+      this.centerPromptText = String(d.text || '提示')
+      this.centerPromptAction = String(d.action || '')
+      this.centerPromptVisible = true
+    }
+    window.addEventListener('open-center-prompt', this._onCenterPrompt)
     const saved = localStorage.getItem('darkMode')
     if (saved === 'true' || saved === '1') {
       document.documentElement.setAttribute('data-theme', 'dark')
@@ -216,6 +230,9 @@ export default {
     document.removeEventListener('click', this.handleClickOutside)
     window.removeEventListener('open-login-modal', this.showLoginModal)
     window.removeEventListener('auth-401', this.handleAuth401)
+    window.removeEventListener('open-points-modal', this.openPointsRecharge)
+    if (this._onInsufficientPoints) window.removeEventListener('open-insufficient-points', this._onInsufficientPoints)
+    if (this._onCenterPrompt) window.removeEventListener('open-center-prompt', this._onCenterPrompt)
   },
   methods: {
     // 显示登录弹窗
@@ -437,6 +454,7 @@ export default {
     },
     closeCenterPrompt() {
       this.centerPromptVisible = false
+      this.centerPromptAction = ''
     },
     goHome() {
       this.$router.push('/')
@@ -468,6 +486,12 @@ export default {
         console.error('Update failed:', e)
         this.openCenterPrompt('更新失败')
       }
+    }
+    ,
+    openPointsRecharge() {
+      this.showPointsModal = true
+      this.centerPromptVisible = false
+      this.centerPromptAction = ''
     }
   }
 }

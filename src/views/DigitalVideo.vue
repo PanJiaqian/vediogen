@@ -176,9 +176,9 @@
                   </svg>
                   <div class="upload-text">从本地上传图片吧</div>
                 </div>
-                <video v-else-if="isVideo(sceneDetail.video_url)" ref="sceneVideo"
+              <video v-else-if="isVideo(sceneDetail.video_url)" ref="sceneVideo"
                   :src="cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
-                  preload="metadata" class="scene-image" playsinline muted controls></video>
+                  preload="metadata" class="scene-image" playsinline controls></video>
                 <img v-else-if="sceneDetail.reference_image_url && !previewImgErrored"
                   :src="cleanUrl(sceneDetail.reference_image_url)" alt="分镜图片" class="scene-image" decoding="async"
                   fetchpriority="high" />
@@ -227,8 +227,8 @@
                   <span>转视频</span>
                 </button> -->
                 <div class="input-footer-right">
-                  <span class="input-hint">消耗</span>
-                  <span class="input-count">1</span>
+                  <!-- <span class="input-hint">消耗</span>
+                  <span class="input-count">1</span> -->
                   <button class="input-arrow">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                       <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2" />
@@ -417,7 +417,7 @@
                 <div class="upload-text">从本地上传图片吧</div>
               </div>
               <video v-if="isVideo(sceneDetail.video_url)" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)"
-                :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" playsinline muted loop
+                :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" playsinline loop
                 class="video-image"></video>
               <img v-else-if="sceneDetail.reference_image_url && !isPreviewPending"
                 :src="cleanUrl(sceneDetail.reference_image_url)"
@@ -1333,6 +1333,18 @@ export default {
         this.$nextTick(() => { this.tryAttachHls() })
       } catch (e) { void 0 }
     },
+    maybeLoadDigitalHumanForScene(idx) {
+      try {
+        const sc = Array.isArray(this.scenes) ? this.scenes[idx] : null
+        const wid = String((sc && (sc.work_id || sc.workid || sc.id)) || '').trim()
+        const conversationId = this.$route && this.$route.query && this.$route.query.conversationId
+        if (!wid || !conversationId) return
+        if (!(this.loadedWorkIdSet instanceof Set)) this.loadedWorkIdSet = new Set()
+        if (this.loadedWorkIdSet.has(wid)) return
+        this.loadedWorkIdSet.add(wid)
+        this.loadDigitalHumanSingle(String(conversationId), wid)
+      } catch (e) { void 0 }
+    },
     startEditTitle() {
       this.editingTitle = this.projectTitle
       this.isEditingTitle = true
@@ -1569,42 +1581,63 @@ export default {
         const audioEl = this.$refs.previewAudio
         if (audioEl && audioEl.src && this.isPlaying) {
           try {
+            if (el && !isNaN(el.currentTime)) {
+              audioEl.currentTime = el.currentTime
+            }
             const p = audioEl.play()
-            if (p && p.catch) p.catch(() => {})
+            if (p && p.catch) p.catch(() => {
+              // 如果音频播放失败，尝试取消视频静音以确保有声音
+              try { if (el) el.muted = false } catch (e) { void 0 }
+            })
+            const onAudioCanPlay = () => {
+              try {
+                audioEl.removeEventListener('canplay', onAudioCanPlay)
+                const p2 = audioEl.play()
+                if (p2 && p2.catch) p2.catch(() => {
+                  try { if (el) el.muted = false } catch (e) { void 0 }
+                })
+              } catch (err) { /* no-op */ }
+            }
+            try { audioEl.addEventListener('canplay', onAudioCanPlay, { once: true }) } catch (err) { /* no-op */ }
           } catch (e) { void 0 }
         }
 
-        if (!el) return
+        // 即使没有视频元素（如纯图片分镜），也要保证音频播放，不提前返回
+        // if (!el) return
         if (!this.isPlaying) return
-        try { el.muted = true } catch (e) { void 0 }
-        try { el.playsInline = true } catch (e) { void 0 }
-        const src = this.cleanUrl(this.sceneDetail && this.sceneDetail.video_url || '')
-        const isHls = this.isM3u8(src)
-        const safePlay = () => {
-          try {
-            if (!this.isPlaying) return
-            const p = el.play()
-            if (p && p.catch) {
-              p.catch(err => { if (!(err && err.name === 'AbortError')) console.warn('预览播放失败:', err) })
+
+        if (el) {
+          const hasExternalAudio = !!(audioEl && audioEl.src)
+          try { el.muted = hasExternalAudio ? true : false } catch (e) { void 0 }
+          try { el.playsInline = true } catch (e) { void 0 }
+          const src = this.cleanUrl(this.sceneDetail && this.sceneDetail.video_url || '')
+          const isHls = this.isM3u8(src)
+          const safePlay = () => {
+            try {
+              if (!this.isPlaying) return
+              const p = el.play()
+              if (p && p.catch) {
+                p.catch(err => { if (!(err && err.name === 'AbortError')) console.warn('预览播放失败:', err) })
+              }
+            } catch (e) {
+              console.warn('预览播放失败:', e)
             }
-          } catch (e) {
-            console.warn('预览播放失败:', e)
           }
-        }
-        if (isHls) {
-          if (this._hlsPreview && this._hlsPreviewUrl === src) {
-            if (el.readyState >= 2) { requestAnimationFrame(safePlay) } else { const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }; try { el.addEventListener('canplay', onCanPlay, { once: true }) } catch (e) { void 0 } }
+          if (isHls) {
+            if (this._hlsPreview && this._hlsPreviewUrl === src) {
+              if (el.readyState >= 2) { requestAnimationFrame(safePlay) } else { const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }; try { el.addEventListener('canplay', onCanPlay, { once: true }) } catch (e) { void 0 } }
+              return
+            }
+            try { this.attachHls(el, src).then(() => { if (el.readyState >= 2) { requestAnimationFrame(safePlay) } else { const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }; el.addEventListener('canplay', onCanPlay, { once: true }) } }) } catch (e) { void 0 }
             return
           }
-          try { this.attachHls(el, src).then(() => { if (el.readyState >= 2) { requestAnimationFrame(safePlay) } else { const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }; el.addEventListener('canplay', onCanPlay, { once: true }) } }) } catch (e) { void 0 }
-          return
-        }
-        if (el.readyState >= 2 && (el.currentSrc || el.src)) {
-          safePlay()
-        } else {
-          const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }
-          try { el.addEventListener('canplay', onCanPlay, { once: true }) } catch (e) { void 0 }
-          try { el.load() } catch (e) { void 0 }
+          if (el.readyState >= 2 && (el.currentSrc || el.src)) {
+            safePlay()
+          } else {
+            const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }
+            try { el.addEventListener('canplay', onCanPlay, { once: true }) } catch (e) { void 0 }
+            try { el.load() } catch (e) { void 0 }
+          }
         }
       } catch (e) {
         console.warn('预览播放失败:', e)
@@ -1626,6 +1659,7 @@ export default {
               if (audioEl.paused) {
                 const p = audioEl.play()
                 if (p && p.catch) p.catch(() => {})
+                try { audioEl.addEventListener('canplay', () => { try { const p2 = audioEl.play(); if (p2 && p2.catch) p2.catch(() => {}) } catch (err) { /* no-op */ } }, { once: true }) } catch (err) { /* no-op */ }
               }
             } catch (e) { void 0 }
           }
@@ -2764,7 +2798,7 @@ export default {
         })
       }
     },
-    async onLipSyncTaskCreated(taskId) {
+    async onLipSyncTaskCreated(taskId, audioUrl) {
       if (this.isSceneLipSyncMode && taskId) {
         const q = this.$route.query
         this.$router.push({ name: 'DigitalVideo', params: {}, query: { taskId } })
@@ -2777,6 +2811,17 @@ export default {
       const idx = this.activeSceneIndex
       const sc = this.scenes[idx] || {}
       const key = this.getSceneKey(sc, idx)
+
+      // 立即更新音频（如果有）以便预览
+      if (audioUrl) {
+        const aUrl = this.cleanUrl(audioUrl)
+        if (sc) {
+           if (this.$set) this.$set(sc, 'audio_url', aUrl); else sc.audio_url = aUrl
+        }
+        this.sceneDetail = Object.assign({}, this.sceneDetail, { audio_url: aUrl })
+        this.$nextTick(() => { this.syncPreviewPlayback() })
+      }
+
       if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
       this.pendingVideoSet.add(key)
       this.pendingVideoSet = new Set(this.pendingVideoSet)
@@ -2805,9 +2850,21 @@ export default {
           if (s === 'failed') {
             // 失败：移除骨架并恢复失败前的渲染类型
             finish(false)
-            const wasVideo = !!(sc && (sc.hasVideo || this.isVideo(this.cleanUrl(sc && sc.video_url || ''))))
-            if (!wasVideo) {
+            // 检查当前是否有有效的视频URL，如果没有，则强制重置为图片模式，避免 hasVideo 状态不一致
+            const currentVideoUrl = this.cleanUrl(sc && sc.video_url || '')
+            if (!currentVideoUrl) {
               const img = this.cleanUrl((sc && sc.thumbnail) || ((sc && sc.clips && sc.clips[0] && sc.clips[0].url) || ''))
+              // 确保 sc 对象也被更新，避免状态不一致
+              if (sc) {
+                if (this.$set) {
+                  this.$set(sc, 'video_url', '')
+                  this.$set(sc, 'hasVideo', false)
+                } else {
+                  sc.video_url = ''
+                  sc.hasVideo = false
+                }
+                // 保留 audio_url (可能用户刚上传的)
+              }
               this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: '', reference_image_url: img })
               this.$nextTick(() => { this.syncPreviewPlayback() })
             }
@@ -3297,7 +3354,7 @@ export default {
     startPlayback() {
       if (!Array.isArray(this.scenes) || this.scenes.length === 0) return
       this.isPlaying = true
-      this.syncPreviewPlayback()
+
       const durations = this.scenes.map(sc => Math.round(this.getSceneSeconds(sc) * 1000))
       const totalMs = durations.reduce((s, v) => s + v, 0)
       let priorMs = Math.max(0, Math.min(totalMs, (Number(this.playbackPosition) || 0) / 100 * totalMs))
@@ -3306,51 +3363,73 @@ export default {
         this.playbackPosition = 0
         this.activeSceneIndex = 0
       }
-      // 准备并立即启动音频（用户手势触发）
+
+      // 计算起始场景索引和累积时间
+      let acc0 = 0
+      let idx0 = 0
+      for (let i = 0; i < durations.length; i++) {
+        const next = acc0 + durations[i]
+        if (priorMs < next) { idx0 = i; break }
+        acc0 = next
+        idx0 = i
+      }
+
+      // 确保 activeSceneIndex 正确，以便 syncPreviewPlayback 使用正确的场景
+      if (this.activeSceneIndex !== idx0) {
+        this.activeSceneIndex = idx0
+      }
+      this.maybeLoadDigitalHumanForScene(idx0)
+
+      // 立即设置并播放音频（同步操作，确保用户手势生效）
       try {
         const audioEl = this.$refs.previewAudio
         if (audioEl) {
-          let acc0 = 0
-          let idx0 = 0
-          for (let i = 0; i < durations.length; i++) {
-            const next = acc0 + durations[i]
-            if (priorMs < next) { idx0 = i; break }
-            acc0 = next
-            idx0 = i
-          }
           const sc0 = this.scenes[idx0] || {}
-          const a0Scene = this.cleanUrl(sc0.audio_url || '')
-          const a0Detail = this.cleanUrl((this.sceneDetail && this.sceneDetail.audio_url) || '')
-          const a0 = a0Scene || a0Detail
+          const a0 = this.cleanUrl(sc0.audio_url || (this.sceneDetail && this.sceneDetail.audio_url) || '')
           if (a0) {
             if (audioEl.src !== a0) {
               audioEl.src = a0
               try { audioEl.load() } catch (e) { void 0 }
             }
-          }
-          const t0 = Math.max(0, (priorMs - acc0) / 1000)
-          try { audioEl.currentTime = t0 } catch (e) { void 0 }
-          if (a0 || audioEl.src) {
-            try { const p = audioEl.play(); if (p && p.catch) p.catch(() => {}) } catch (e) { void 0 }
+            const t0 = Math.max(0, (priorMs - acc0) / 1000)
+            try { audioEl.currentTime = t0 } catch (e) { void 0 }
+            try { audioEl.muted = false; audioEl.volume = 1 } catch (e) { void 0 }
+            
+            const readyPlay = () => { 
+              try { 
+                const p = audioEl.play()
+                if (p && p.catch) p.catch(() => {}) 
+              } catch (e) { void 0 } 
+            }
+
+            if (audioEl.readyState >= 2) {
+              readyPlay()
+            } else {
+              const onCanPlay = () => { 
+                try { audioEl.removeEventListener('canplay', onCanPlay) } catch(e) { void 0 }
+                readyPlay() 
+              }
+              try { audioEl.addEventListener('canplay', onCanPlay, { once: true }) } catch (e) { void 0 }
+              // 备用：如果 canplay 不触发（已加载完毕?），尝试直接播放
+              setTimeout(readyPlay, 200)
+            }
           }
         }
-      } catch (e) { void 0 }
+      } catch (e) { console.warn('Audio start error:', e) }
+
+      this.syncPreviewPlayback()
+      
       const start = performance.now() - priorMs
       if (this._playbackInterval) clearInterval(this._playbackInterval)
       if (this._rafId) cancelAnimationFrame(this._rafId)
+      
       const el = this.$refs.previewVideo
       if (el && this.isVideo(this.currentPreviewUrl)) {
+        // 如果视频源正确，尝试播放；否则由 tick 循环处理
+        // 注意：syncPreviewPlayback 可能会改变 currentPreviewUrl，所以这里只在 URL 匹配时尝试
         this.playVideoSafely(el)
-      } else {
-        // 如果当前不是视频，尝试播放音频
-        const audioEl = this.$refs.previewAudio
-        if (audioEl && audioEl.src) {
-          try {
-            const p = audioEl.play()
-            if (p && p.catch) p.catch(() => {})
-          } catch (e) { void 0 }
-        }
       }
+
       const tick = (now) => {
         if (!this.isPlaying) return
         const elapsed = now - start
@@ -3376,6 +3455,7 @@ export default {
           } else {
             this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: vCand })
           }
+          this.maybeLoadDigitalHumanForScene(idx)
         }
         
         // Audio sync
@@ -3512,49 +3592,48 @@ export default {
     // 对口型页面相关方法
     async toggleLipSyncView() {
       try {
-        if (!this.showLipSyncView) {
-          const sc = this.scenes[this.activeSceneIndex] || {}
-          let url = this.cleanUrl(this.sceneDetail.reference_image_url || sc.thumbnail || '')
-          if (!url) {
-            const map = (this.imagesDetailMap instanceof Map) ? this.imagesDetailMap : null
-            const key = String(sc.scene_number || '').trim()
-            let info = null
-            if (map && key) info = map.get(key) || null
-            if (!info && map) {
-              const oi = Number(sc.order_index)
-              if (Number.isFinite(oi) && oi > 0) info = map.get(`oi:${oi}`) || null
-            }
-            url = this.cleanUrl((info && info.reference_image_url) || '')
+        // 立即展示对口型页面
+        if (this.showLipSyncView) { this.showLipSyncView = false; return }
+        this.showLipSyncView = true
+        const sc = this.scenes[this.activeSceneIndex] || {}
+        let url = this.cleanUrl(this.sceneDetail.reference_image_url || sc.thumbnail || '')
+        if (!url) {
+          const map = (this.imagesDetailMap instanceof Map) ? this.imagesDetailMap : null
+          const key = String(sc.scene_number || '').trim()
+          let info = null
+          if (map && key) info = map.get(key) || null
+          if (!info && map) {
+            const oi = Number(sc.order_index)
+            if (Number.isFinite(oi) && oi > 0) info = map.get(`oi:${oi}`) || null
           }
-          this.lipSyncImageUrl = url
-          
-          // Digital Human Work Detection
-          if (sc.work_id) {
-             this.lipSyncWorkId = String(sc.work_id || '')
-             this.lipSyncDetection = sc.mask_url ? { maskurl: sc.mask_url } : null
-             Promise.resolve().then(() => this.triggerObjectDetection(sc.work_id)).then(() => {
-               if (sc.mask_url) this.lipSyncDetection = { maskurl: sc.mask_url }
-             }).catch(() => {})
-          } else {
-            // Normal Video Scene Detection
-            const projectId = this.$route.params.id
-            const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-            const token = (this.userStore && this.userStore.token) || ''
-            const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
-            this.lipSyncVideoId = String(videoId || '')
-            this.lipSyncShotId = shotId
-            this.lipSyncWorkId = ''
-            if (videoId && shotId && token) {
+          url = this.cleanUrl((info && info.reference_image_url) || '')
+        }
+        this.lipSyncImageUrl = url
+
+        // 异步触发检测，不阻塞跳转
+        if (sc.work_id) {
+          this.lipSyncWorkId = String(sc.work_id || '')
+          this.lipSyncDetection = sc.mask_url ? { maskurl: sc.mask_url } : null
+          Promise.resolve().then(() => this.triggerObjectDetection(sc.work_id)).catch(() => {})
+        } else {
+          const projectId = this.$route.params.id
+          const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+          const token = (this.userStore && this.userStore.token) || ''
+          const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
+          this.lipSyncVideoId = String(videoId || '')
+          this.lipSyncShotId = shotId
+          this.lipSyncWorkId = ''
+          if (videoId && shotId && token) {
+            Promise.resolve().then(async () => {
               try {
                 const detResp = await objectDetectionByScene({ videoId, shotId, token })
                 const obj = typeof detResp === 'string' ? (() => { try { return JSON.parse(detResp) } catch { return null } })() : detResp
                 this.lipSyncDetection = obj || null
               } catch (e) { this.lipSyncDetection = null }
-            }
+            })
           }
         }
       } catch (e) { /* no-op */ }
-      this.showLipSyncView = !this.showLipSyncView
       console.log('切换对口型页面显示状态:', this.showLipSyncView)
     },
     closeCropModal() {

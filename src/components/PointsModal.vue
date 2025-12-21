@@ -44,6 +44,8 @@
 
 <script>
 import PaymentModal from './PaymentModal.vue'
+import { createRechargeOrder } from '../api'
+import { useUserStore } from '../stores/user'
 
 export default {
   name: 'PointsModal',
@@ -76,13 +78,29 @@ export default {
     close() {
       this.$emit('close')
     },
-    buyPoints(plan) {
-      this.selectedPlan = {
-        name: plan.points + '积分',
-        price: plan.price,
-        points: plan.points
+    async buyPoints(plan) {
+      try {
+        const userStore = useUserStore()
+        const res = await createRechargeOrder({
+          token: userStore.token,
+          amount: plan.price,
+          rechargePoints: plan.points
+        })
+        
+        if (res.code === 0) {
+          this.selectedPlan = {
+            name: plan.points + '积分',
+            price: plan.price,
+            points: plan.points,
+            orderNo: res.data.orderNo
+          }
+          this.showPayment = true
+        } else {
+          console.error('Failed to create order:', res.message)
+        }
+      } catch (error) {
+        console.error('Error creating order:', error)
       }
-      this.showPayment = true
     }
   }
 }
