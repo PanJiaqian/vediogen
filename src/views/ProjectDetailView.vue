@@ -2040,7 +2040,7 @@ export default {
 .detail-card-image img {
   width: 100%;
   height: 160px;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 
@@ -2179,7 +2179,7 @@ export default {
 .detail-card-image img {
   width: 100%;
   height: 160px;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 

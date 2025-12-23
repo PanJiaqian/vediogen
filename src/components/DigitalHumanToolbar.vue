@@ -1,11 +1,11 @@
 <template>
   <div class="digital-human-toolbar">
     <!-- 添加新角色按钮 -->
-    <div class="add-role-container">
+    <!-- <div class="add-role-container">
       <button class="add-role-btn">
         <span class="plus-icon">+</span> 添加新角色
       </button>
-    </div>
+    </div> -->
 
     <div class="voice-processing-area">
       <div class="tab-navigation">
@@ -163,8 +163,8 @@
 
       <!-- 分辨率选择 -->
           <div class="resolution-options">
-            <button class="resolution-btn">720P</button>
-            <button class="resolution-btn premium">1080P <span class="premium-icon">⭐</span></button>
+            <!-- <button class="resolution-btn">720P</button> -->
+            <!-- <button class="resolution-btn premium">1080P <span class="premium-icon">⭐</span></button> -->
             <button class="generate-video-btn" @click="handleGenerateVideo">生成视频</button>
           </div>
     </div>

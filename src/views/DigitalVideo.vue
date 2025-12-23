@@ -4530,7 +4530,7 @@ export default {
 .playback-section {
   background: var(--bg-primary);
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
   border: 1px solid var(--border-secondary);
 }
 

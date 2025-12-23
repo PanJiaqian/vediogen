@@ -697,6 +697,60 @@ export async function exportWorksVideoDownload({ videoId, token }) {
   return { blob, headers: res.headers }
 }
 
+export async function getOrdersList({ days = 30, token }) {
+  const url = `${BASE_URL}/user/membership/getOrdersList?days=${encodeURIComponent(days)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { /* no-op */ }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
+export async function getInvitationCode({ token }) {
+  const url = `${BASE_URL}/api/invitation/code`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { /* no-op */ }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
+export async function getInvitationStats({ token }) {
+  const url = `${BASE_URL}/api/invitation/stats`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { /* no-op */ }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
 export async function getBillingEstimate({ videoId, genType, modelName, token }) {
   const url = `${BASE_URL}/api/billing/estimate?videoId=${encodeURIComponent(videoId)}&genType=${encodeURIComponent(genType)}&modelName=${encodeURIComponent(modelName)}`
   const requestOptions = {

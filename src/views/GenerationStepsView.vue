@@ -242,12 +242,18 @@ export default {
             signal: this._ssePicCtrl.signal,
             onEvent: (obj) => {
               if (!obj || obj.type === 'connected') return
-              if (obj.Storyboard_picture) {
+              const hasFirstPic = obj.result && obj.result.shots && (obj.result.shots.scene_picture || obj.result.shots.scene_picture_url)
+
+              if (obj.Storyboard_picture || hasFirstPic) {
                 this.isContentComplete = true
                 if (this.generationTimeout) clearTimeout(this.generationTimeout)
                 if (this.timeoutRedirectTimer) clearTimeout(this.timeoutRedirectTimer)
                 this.timeoutPromptVisible = false
-                this.handleStoryboardPicture(obj.Storyboard_picture)
+                if (obj.Storyboard_picture) {
+                  this.handleStoryboardPicture(obj.Storyboard_picture)
+                }
+                const projectId = this.$route.params.id
+                this.$router.replace(`/video-edit/${projectId}`)
               }
             }
           })

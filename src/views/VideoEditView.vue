@@ -30,7 +30,7 @@
         <div class="points-display" v-if="userStore && userStore.isLoggedIn" @click="showPointsModal = true">✨ {{ pointsBalance || 0 }}</div>
         <button class="navbar-btn premium-btn" @click="showMembershipModal = true">开通会员</button>
         <button class="navbar-btn convert-btn" @click="convertToVideo"
-          :disabled="!allImagesReady || isVideo(currentPreviewUrl) || previewImgErrored">一键转视频</button>
+          :disabled="!allImagesReady || allVideosReady || isVideoConverting || previewImgErrored">一键转视频</button>
         <button class="navbar-btn export-btn" @click="exportVideo" :disabled="!allVideosReady">导出视频</button>
       </div>
     </div>
@@ -161,7 +161,7 @@
               <!-- 图片展示 -->
               <div class="image-container">
                 <div
-                  v-if="isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
+                  v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
                   class="skeleton-image"></div>
                 <video v-else-if="isVideo(sceneDetail.video_url) && sceneDetail.video_url && sceneDetail.video_url.trim() !== ''" ref="sceneVideo"
                   :src="isM3u8(sceneDetail.video_url) ? '' : cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
@@ -197,17 +197,78 @@
                 </button>
               </div>
               <div class="chat-messages" style="margin-top: 12px;">
-                <div v-for="msg in leftChatMessages" :key="msg.id" class="chat-bubble" :class="msg.side === 'right' ? 'chat-right' : 'chat-left'">
-                  <div v-if="msg.pending" style="display:flex; flex-direction:column; align-items:flex-start;">
-                    <template v-if="!msg.imageUrl">
-                      <div class="skeleton-image" style="width:100%;height:160px;border-radius:12px;"></div>
-                    </template>
-                    <template v-else>
-                      <img :src="cleanUrl(msg.imageUrl)" alt="分镜更新图" style="width:100%;height:auto;border-radius:12px;" decoding="async" />
-                    </template>
-                    <span v-if="msg.text" style="display:block; margin-top:6px; opacity:0.8; font-size:12px;">{{ msg.text }}</span>
+                <div v-for="msg in leftChatMessages" :key="msg.id" class="chat-message-wrapper" style="margin-bottom: 12px;">
+                  <!-- User Message (Right) -->
+                  <div v-if="msg.side === 'right'" class="chat-bubble chat-right" style="margin-left: auto; max-width: 80%;">
+                    <span>{{ msg.text }}</span>
                   </div>
-                  <span v-else>{{ msg.text }}</span>
+
+                  <!-- Assistant Prompt Box (Left) -->
+                  <div v-else-if="msg.type === 'prompt_box'" class="prompt-box-chat" style="width: 100%;">
+                     <!-- Prompt Section Replica -->
+                     <div class="prompt-section" style="margin-bottom: 0;">
+                        <div class="prompt-header">
+                          <div class="prompt-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                              <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                          </div>
+                          <span class="prompt-title">{{ (msg.data && msg.data.shot_title) || '分镜' }}</span>
+                          <div class="prompt-actions">
+                             <!-- Visual only buttons for identical look -->
+                            <button class="action-btn edit-btn" title="编辑提示词">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" />
+                              </svg>
+                            </button>
+                            <button class="action-btn copy-btn" title="复制提示词">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" />
+                              </svg>
+                            </button>
+                            <button class="action-btn more-btn" title="收缩提示词">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        <div class="prompt-content">
+                          <div style="display:flex;flex-direction:column;gap:4px;">
+                            <div v-if="msg.data && msg.data.visual_description">
+                              <span style="opacity:0.7;"></span>{{ msg.data.visual_description }}
+                            </div>
+                          </div>
+                        </div>
+                     </div>
+                     
+                     <!-- Image Display inside Prompt Box -->
+                     <div class="image-container" style="margin-top: 12px;">
+                        <div v-if="msg.pending && !msg.imageUrl" class="skeleton-image" style="height:200px;"></div>
+                        <img v-else-if="msg.imageUrl" :src="cleanUrl(msg.imageUrl)" alt="分镜更新图" class="scene-image" decoding="async" />
+                        <div v-else-if="msg.text" style="padding: 12px; font-size: 13px; opacity: 0.8; background: var(--bg-tertiary); border-radius: 8px;">
+                           {{ msg.text }}
+                        </div>
+                     </div>
+                  </div>
+
+                  <!-- Default Left Message -->
+                  <div v-else class="chat-bubble chat-left">
+                    <div v-if="msg.pending" style="display:flex; flex-direction:column; align-items:flex-start;">
+                      <template v-if="!msg.imageUrl">
+                        <div class="skeleton-image" style="width:100%;height:160px;border-radius:12px;"></div>
+                      </template>
+                      <template v-else>
+                        <img :src="cleanUrl(msg.imageUrl)" alt="分镜更新图" style="width:100%;height:auto;border-radius:12px;" decoding="async" />
+                      </template>
+                      <span v-if="msg.text" style="display:block; margin-top:6px; opacity:0.8; font-size:12px;">{{ msg.text }}</span>
+                    </div>
+                    <span v-else>{{ msg.text }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -380,7 +441,7 @@
           <div class="skeleton-line" style="width: 200px; height: 32px;"></div>
         </div>
         <div v-else class="edit-controls">
-          <button v-if="isVideo(currentPreviewUrl)" class="control-btn active" @click="toggleCanvasEditMode">
+          <button v-if="isVideo(getActiveSceneVideoUrl())" class="control-btn active" @click="toggleCanvasEditMode">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
               <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
@@ -401,7 +462,8 @@
         <!-- 视频画面 -->
         <div class="video-preview">
             <div class="video-container" ref="videoContainer">
-              <div v-if="isVideoConverting || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-image" style="height:100%"></div>
+              <!-- 1、视频未完全生成并且没有视频url -->
+              <div v-if="isVideoConverting || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-image" style="height:100%"></div>
             <video v-else-if="isVideo(sceneDetail.video_url) && sceneDetail.video_url && sceneDetail.video_url.trim() !== ''"
               ref="previewVideo"
               :src="isM3u8(sceneDetail.video_url) ? '' : cleanUrl(sceneDetail.video_url)"
@@ -421,20 +483,20 @@
             <audio ref="previewAudio" style="display:none" preload="auto"></audio>
             <input ref="replaceFileInput" type="file" accept="image/*" style="display:none" @change="onReplaceImageFileSelected" />
             <button
-              v-if="!isVideo(sceneDetail.video_url) && shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)"
+              v-if="!isVideo(sceneDetail.video_url) && shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail) && !(isVideoConverting || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex))"
               class="replace-btn"
               @click="triggerReplaceImageUpload">
               <span class="replace-icon">⟲</span>
               替换
             </button>
             <!-- 字幕叠加层 -->
-            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen }">
+            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }">
               {{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
             </div>
           </div>
           <div class="preview-aside">
             <template
-              v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)">
+              v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)">
               <div class="thumb-card">
                 <div class="skeleton-image"></div>
               </div>
@@ -855,6 +917,7 @@ export default {
       , leftChatMessages: []
       , subtitleEnabledPrev: true
       , pointsBalance: 0
+      , aspectRatio: '16:9'
       , showReplaceCropModal: false
       , replaceCropRatio: ''
       , replaceSelectedImageFile: null
@@ -920,6 +983,10 @@ export default {
     let initialLoading = false
     try { initialLoading = localStorage.getItem(`video-edit:loading:${projectId}`) === '1' } catch (e) { initialLoading = false }
     if (initialLoading) this.isConverting = true
+    try {
+      const aspect = localStorage.getItem(`project:aspectRatio:${projectId}`)
+      if (aspect) this.aspectRatio = aspect
+    } catch (e) { void 0 }
     
     try {
       const mode = localStorage.getItem(`video-edit:entryMode:${projectId}`)
@@ -1013,9 +1080,7 @@ export default {
     // 禁止进入页面自动调用分镜详情接口：不再进行当前分镜/预取调用
     if (!this._entryIsGenerate) { this.pollImagesActive = true; this.pollStoryboardImagesDetail() }
     this.precacheSceneThumbnails()
-    this.$nextTick(() => { this.tryAttachHls() })
-    this.$nextTick(() => { this.initLeftPanelScript() })
-    this.$nextTick(() => { this.prefetchFirstSceneAudioIfMissing() })
+    // this.$nextTick(() => { this.tryAttachHls() })
     Promise.resolve().then(async () => {
       try {
         const token = (this.userStore && this.userStore.token) || ''
@@ -1025,17 +1090,46 @@ export default {
         }
       } catch (e) { /* no-op */ }
     })
+    Promise.resolve().then(async () => {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return
+        const text = await getStoryboardSceneDetail({ videoId, sceneNumber: 'shot_1_1', token })
+        let json
+        try { json = JSON.parse(text) } catch { json = null }
+        const data = json && json.data ? json.data : null
+        if (data) {
+          const refImg = this.cleanUrl(data.reference_image_url || '')
+          const vurl = this.cleanUrl(data.fallback_mp4 || '')
+          const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
+          const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
+          const audioUrl = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
+          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || vurl, audio_url: audioUrl }
+          this.syncPreviewPlayback()
+        }
+      } catch (e) { void 0 }
+    })
   },
   computed: {
     userStore() {
       return useUserStore()
     },
     currentPreviewUrl() {
-      const fromApi = this.cleanUrl(this.sceneDetail.video_url || this.sceneDetail.reference_image_url || '')
-      if (fromApi) return fromApi
+      const v = this.cleanUrl(this.sceneDetail.video_url || '')
+      const img = this.cleanUrl(this.sceneDetail.reference_image_url || '')
+      const vLower = v.toLowerCase()
+      if (vLower === 'replaceimage') return img || ''
+      if (v) return v
+      if (img) return img
       const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
-      const fallback = this.cleanUrl((sc && Array.isArray(sc.clips) && sc.clips[0] && sc.clips[0].url) || (sc && sc.video_url) || (sc && sc.thumbnail) || '')
-      return fallback
+      const clip = this.cleanUrl((sc && Array.isArray(sc.clips) && sc.clips[0] && sc.clips[0].url) || '')
+      const sv = this.cleanUrl((sc && sc.video_url) || '')
+      const si = this.cleanUrl((sc && sc.thumbnail) || '')
+      if (sv) return sv
+      if (clip) return clip
+      return si || ''
     },
     // 动态时间显示：当前播放时间和总时长
     currentTimeText() {
@@ -1124,7 +1218,7 @@ export default {
         this.sceneDetail = { reference_image_url: ref, video_url: vid, audio_url: audio }
         this.syncPreviewPlayback()
       } catch (e) { void 0 }
-      this.$nextTick(() => { this.tryAttachHls() })
+      // this.$nextTick(() => { this.tryAttachHls() })
     },
     'sceneDetail.reference_image_url'(val) {
       this.previewImgErrored = false
@@ -1139,7 +1233,7 @@ export default {
         this.pausePreview()
       }
       try { this._previewLoadSrc = '' } catch (e) { void 0 }
-      this.$nextTick(() => { this.tryAttachHls() })
+      // this.$nextTick(() => { this.tryAttachHls() })
       this.$nextTick(() => { this.updateActiveSceneDurationFromVideo() })
     },
     isConverting(val) {
@@ -1158,6 +1252,11 @@ export default {
           }
         })
       }
+    },
+    replaceCropRatio(val) {
+      if (val && val !== 'free') {
+        this.$nextTick(() => { this.initReplaceSelection() })
+      }
     }
   },
   methods: {
@@ -1165,8 +1264,10 @@ export default {
       const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
       const clip = sc && Array.isArray(sc.clips) && sc.clips[0] ? this.cleanUrl(sc.clips[0].url || '') : ''
       const v1 = this.cleanUrl((this.sceneDetail && this.sceneDetail.video_url) || '')
+      const v1Lower = v1.toLowerCase()
+      const primary = v1Lower === 'replaceimage' ? '' : v1
       const v2 = this.cleanUrl((sc && sc.video_url) || '')
-      return v1 || clip || v2 || ''
+      return primary || clip || v2 || ''
     },
     switchPreviewTo(mode) {
       const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
@@ -1413,7 +1514,7 @@ export default {
             const d = detail && detail.data ? detail.data : null
             if (d) {
               const refImg = this.cleanUrl(d.reference_image_url || next || '')
-              const vurl = this.cleanUrl(d.video_url || '')
+              const vurl = this.cleanUrl(d.fallback_mp4 || '')
               const audioUrl = this.cleanUrl(d.audio_url || '')
               const finalVid = vurl ? vurl : ''
               this.sceneDetail = Object.assign({}, this.sceneDetail, { reference_image_url: refImg, video_url: finalVid, audio_url: audioUrl })
@@ -1563,91 +1664,20 @@ export default {
       this.isEditingTitle = false
     },
     async ensureHlsLib() {
-      try { if (window && window.Hls) return window.Hls } catch (e) { void 0 }
-      try { if (Hls) return Hls } catch (e) { void 0 }
-      return await new Promise((resolve, reject) => {
-        try {
-          const s = document.createElement('script')
-          s.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest'
-          s.onload = () => { try { resolve(window.Hls) } catch (e) { resolve(null) } }
-          s.onerror = () => resolve(null)
-          document.head.appendChild(s)
-        } catch (e) { resolve(null) }
-      })
+      /* HLS相关逻辑已停用 */
+      return null
     },
     isM3u8(u) {
       const s = this.cleanUrl(u)
       return /\.m3u8(\?|#|$)/i.test(s)
     },
     async attachHls(videoEl, src) {
-      if (!videoEl) return null
-      const url = this.cleanUrl(src || '')
-      if (!url || !this.isM3u8(url)) return null
-      try {
-        const HlsLib = await this.ensureHlsLib()
-        if (HlsLib && HlsLib.isSupported && HlsLib.isSupported()) {
-          let config = { autoStartLoad: false, lowLatencyMode: false, maxBufferLength: 10, backBufferLength: 0 }
-          if (HlsLib.DefaultConfig && HlsLib.DefaultConfig.loader) {
-            class VODLoader extends HlsLib.DefaultConfig.loader {
-              constructor(cfg) {
-                super(cfg)
-                const originalLoad = this.load.bind(this)
-                this.load = (context, cfg, callbacks) => {
-                  if (context.type === 'manifest' || context.type === 'level') {
-                    const onSuccess = callbacks.onSuccess
-                    callbacks.onSuccess = (response, stats, ctx) => {
-                      if (response.data && typeof response.data === 'string' && !response.data.includes('#EXT-X-ENDLIST')) {
-                        response.data += '\n#EXT-X-ENDLIST'
-                      }
-                      onSuccess(response, stats, ctx)
-                    }
-                  }
-                  originalLoad(context, cfg, callbacks)
-                }
-              }
-            }
-            config.loader = VODLoader
-          }
-          const hls = new HlsLib(config)
-          hls.loadSource(url)
-          hls.attachMedia(videoEl)
-          try {
-            const onPlay = () => { try { hls.startLoad() } catch (e) { void 0 } }
-            const onPause = () => { try { hls.stopLoad() } catch (e) { void 0 } }
-            const onEnded = () => { try { hls.stopLoad() } catch (e) { void 0 } }
-            videoEl.addEventListener('play', onPlay)
-            videoEl.addEventListener('pause', onPause)
-            videoEl.addEventListener('ended', onEnded)
-          } catch (e) { void 0 }
-          return hls
-        }
-        // 如果 Hls.js 不支持，回退为直接设置 src（可能是 Safari）
-        try { videoEl.src = url } catch (e) { void 0 }
-        return null
-      } catch (e) { void 0 }
+      /* HLS相关逻辑已停用 */
       return null
     },
     async tryAttachHls() {
-      const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
-      const src = this.cleanUrl((this.sceneDetail && this.sceneDetail.video_url) || (sc && Array.isArray(sc.clips) && sc.clips[0] && sc.clips[0].url) || (sc && sc.video_url) || '')
-      if (!this.isM3u8(src)) return
-      const pv = this.$refs.previewVideo
-      const sv = this.$refs.sceneVideo
-      if (!pv && !sv) return
-      if (pv) {
-        const need = !(this._hlsPreview && this._hlsPreviewUrl === src)
-        if (need) {
-          try { if (this._hlsPreview && this._hlsPreview.destroy) this._hlsPreview.destroy() } catch (e) { void 0 }
-          try { this._hlsPreview = await this.attachHls(pv, src); this._hlsPreviewUrl = src } catch (e) { void 0 }
-        }
-      }
-      if (sv) {
-        const need = !(this._hlsScene && this._hlsSceneUrl === src)
-        if (need) {
-          try { if (this._hlsScene && this._hlsScene.destroy) this._hlsScene.destroy() } catch (e) { void 0 }
-          try { this._hlsScene = await this.attachHls(sv, src); this._hlsSceneUrl = src } catch (e) { void 0 }
-        }
-      }
+      /* HLS相关逻辑已停用 */
+      return
     },
     initTimelineSync() {
       const tracks = this.$refs.timelineTracks
@@ -1737,13 +1767,14 @@ export default {
     },
     isVideo(u) {
       const s = this.cleanUrl(u)
+      const lower = s.toLowerCase()
       if (!s) return false
       if (this.isGenerateFailed(s)) return false
-      if (this.entryMode === 'crop') return true
+      if (lower === 'replaceimage') return false
       if (/\.(png|jpe?g|gif|webp|bmp)(\?|#|$)/i.test(s)) return false
       if (/^data:image\//i.test(s)) return false
       if (/^data:video\//i.test(s)) return true
-      if (/\.(mp4|webm|mov|m3u8)(\?|#|$)/i.test(s)) return true
+      if (/\.(mp4|webm|mov)(\?|#|$)/i.test(s)) return true
       const vcur = this.cleanUrl((this.sceneDetail && this.sceneDetail.video_url) || '')
       if (vcur && s === vcur) return true
       const active = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
@@ -1764,7 +1795,6 @@ export default {
           if (isFromVideoScene) return true
         } catch (e) { void 0 }
       }
-      const lower = s.toLowerCase()
       if (lower.includes('type=image') || lower.includes('mediatype=image')) return false
       if (lower.includes('type=video') || lower.includes('mediatype=video')) return true
       return false
@@ -1784,8 +1814,8 @@ export default {
     isSceneUpdating(scene, index) {
       const set = this.updatingKeySet instanceof Set ? this.updatingKeySet : null
       if (!set) return false
-      const hasVideo = !!(scene && (scene.hasVideo || this.isVideo(this.cleanUrl((scene && Array.isArray(scene.clips) && scene.clips[0] && scene.clips[0].url) || scene.video_url || ''))))
-      if (hasVideo) return false
+      // const hasVideo = !!(scene && (scene.hasVideo || this.isVideo(this.cleanUrl((scene && Array.isArray(scene.clips) && scene.clips[0] && scene.clips[0].url) || scene.video_url || ''))))
+      // if (hasVideo) return false
       const k = this.getSceneKey(scene, index)
       return set.has(k)
     },
@@ -1854,14 +1884,14 @@ export default {
             console.warn('预览播放失败:', e)
           }
         }
-        if (isHls) {
-          if (this._hlsPreview && this._hlsPreviewUrl === src) {
-            if (el.readyState >= 2) { requestAnimationFrame(safePlay) } else { const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }; try { el.addEventListener('canplay', onCanPlay, { once: true }) } catch (e) { void 0 } }
-            return
-          }
-          try { this.attachHls(el, src).then(() => { if (el.readyState >= 2) { requestAnimationFrame(safePlay) } else { const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }; el.addEventListener('canplay', onCanPlay, { once: true }) } }) } catch (e) { void 0 }
-          return
-        }
+        // if (isHls) {
+        //   if (this._hlsPreview && this._hlsPreviewUrl === src) {
+        //     if (el.readyState >= 2) { requestAnimationFrame(safePlay) } else { const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }; try { el.addEventListener('canplay', onCanPlay, { once: true }) } catch (e) { void 0 } }
+        //     return
+        //   }
+        //   try { this.attachHls(el, src).then(() => { if (el.readyState >= 2) { requestAnimationFrame(safePlay) } else { const onCanPlay = () => { el.removeEventListener('canplay', onCanPlay); safePlay() }; el.addEventListener('canplay', onCanPlay, { once: true }) } }) } catch (e) { void 0 }
+        //   return
+        // }
         if (el.readyState >= 2 && (el.currentSrc || el.src)) {
           safePlay()
         } else {
@@ -2161,11 +2191,11 @@ export default {
       const preferUrl = prefer ? this.cleanUrl(prefer.video_url || prefer.reference_image_url || '') : ''
       const first = (scene && Array.isArray(scene.clips) && scene.clips[0]) || null
       const clipUrl = this.cleanUrl((first && first.url) || (scene && scene.video_url) || '')
-      const urlCandidate = preferUrl || clipUrl
-      const hasVideoClip = !!urlCandidate && this.isVideo(urlCandidate)
+      const primaryVideo = this.isVideo(clipUrl) ? clipUrl : (this.isVideo(preferUrl) ? preferUrl : '')
+      const hasVideoClip = !!primaryVideo
       if (hasVideoClip) {
-        baseUrl = urlCandidate
-        const cached = (this.durationMap instanceof Map && urlCandidate) ? Number(this.durationMap.get(urlCandidate)) || 0 : 0
+        baseUrl = primaryVideo
+        const cached = (this.durationMap instanceof Map && primaryVideo) ? Number(this.durationMap.get(primaryVideo)) || 0 : 0
         duration = Number(first && first.durationMs) || cached || 5000
       } else {
         const active = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
@@ -2175,7 +2205,7 @@ export default {
           baseUrl = activeImage
           duration = Number(first && first.durationMs) || 5000
         } else {
-          baseUrl = preferUrl || this.cleanUrl((scene && scene.thumbnail) || '')
+          baseUrl = this.cleanUrl((scene && scene.thumbnail) || '')
           duration = 5000
         }
       }
@@ -2388,15 +2418,18 @@ export default {
       if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
       this.updatingKeySet.add(k)
       try {
-        const sceneNumber = String(scene.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : '') || `shot_${this.activeSceneIndex + 1}`)
+        const sceneNumber = String(scene.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
         const token = (this.userStore && this.userStore.token) || ''
         const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
         let json
         try { json = JSON.parse(text) } catch { json = null }
         const data = json && json.data ? json.data : null
+        console.log(data)
+        console.log(this.scenes)
         if (data) {
           const refImg = this.cleanUrl(data.reference_image_url || scene.thumbnail || '')
-          const vurl = this.cleanUrl(data.video_url || '')
+          const vurl = this.cleanUrl(data.fallback_mp4 || '')
+          console.log(vurl,1111)
           const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
           const vlocal = vurl ? await this.getLocalUrl(vurl) : ''
           const incomingKey = String(data.scene_number || '').trim()
@@ -2405,8 +2438,10 @@ export default {
 
           if (targetIndex >= 0 && targetIndex < this.scenes.length) {
             const target = this.scenes[targetIndex]
+            console.log(target,333333)
             if (refImg) target.thumbnail = refImg
             target.audio_url = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
+           console.log(target.audio_url,555)
             if (vurl) {
               const first = (target && Array.isArray(target.clips) && target.clips[0]) || null
               const existingVid = this.cleanUrl((target && target.video_url) || (first && first.url) || '')
@@ -2455,9 +2490,16 @@ export default {
           const firstClip = (target && Array.isArray(target.clips) && target.clips[0]) || null
           const clipUrl = this.cleanUrl((firstClip && firstClip.url) || '')
           const targetVid = this.cleanUrl(target && target.video_url || '')
-          const nextVideo = vlocal || vurl || (this.isVideo(targetVid) ? targetVid : (this.isVideo(clipUrl) ? clipUrl : ''))
+          console.log(vlocal)
+          console.log(vurl)
+          console.log(targetVid)
+          console.log(clipUrl)
+     
+          // const nextVideo = vlocal || vurl || (this.isVideo(targetVid) ? targetVid : (this.isVideo(clipUrl) ? clipUrl : ''))
+          const nextVideo = vlocal || vurl || ''
           const sdAudio = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
           this.sceneDetail = { reference_image_url: refLocal, video_url: nextVideo, audio_url: sdAudio }
+          console.log(this.sceneDetail,2222222)
           if (targetIndex === this.activeSceneIndex) this.syncPreviewPlayback()
         } else {
           this.refreshSidebarFromLocal()
@@ -2498,7 +2540,7 @@ export default {
           if (idx >= 0 && idx < this.scenes.length) {
             const sc = this.scenes[idx]
             const refImg = this.cleanUrl(item.reference_image_url || sc.thumbnail || '')
-            const vurl = this.cleanUrl(item.video_url || '')
+            const vurl = this.cleanUrl(item.fallback_mp4 || '')
             if (item.audio_url) {
                if (this.$set) this.$set(sc, 'audio_url', this.cleanUrl(item.audio_url)); else sc.audio_url = this.cleanUrl(item.audio_url)
                if (idx === this.activeSceneIndex) {
@@ -2550,7 +2592,7 @@ export default {
         const activeItem = arr.find(x => String(x.scene_number || '').trim() === activeKey) || null
         if (activeItem) {
           const refImg = this.cleanUrl(activeItem.reference_image_url || active.thumbnail || '')
-          const vurl = this.cleanUrl(activeItem.video_url || '')
+          const vurl = this.cleanUrl(activeItem.fallback_mp4 || '')
           const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
           const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
           this.sceneDetail = { reference_image_url: refLocal, video_url: vLocal }
@@ -2671,7 +2713,8 @@ export default {
           const key = String(item.scene_number || '').trim()
           const oi = Number(item.order_index || item.orderIndex)
           const refImg = this.cleanUrl(item.reference_image_url || '')
-          const vurl = this.cleanUrl(item.video_url || '')
+          let vurl = this.cleanUrl(item.video_url || '')
+          if (!this.isVideo(vurl)) vurl = ''
           if (key) map.set(key, { video_url: vurl, reference_image_url: refImg })
           if (Number.isFinite(oi) && oi > 0) map.set(`oi:${oi}`, { video_url: vurl, reference_image_url: refImg })
         }
@@ -2686,7 +2729,8 @@ export default {
         if (!match) match = list[activeIdx] || null
         if (!match) return
         const refImg = this.cleanUrl(match.reference_image_url || '')
-        const vurl = this.cleanUrl(match.video_url || '')
+        let vurl = this.cleanUrl(match.video_url || '')
+        if (!this.isVideo(vurl)) vurl = ''
         const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
         const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
         this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || vurl }
@@ -2768,7 +2812,7 @@ export default {
           const data = json && json.data ? json.data : null
           if (data) {
             const refImg = this.cleanUrl(data.reference_image_url || sc.thumbnail || '')
-            const vurl = this.cleanUrl(data.video_url || '')
+            const vurl = this.cleanUrl(data.fallback_mp4 || '')
             const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
             const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
             const incomingKey = String(data.scene_number || '').trim()
@@ -2810,7 +2854,7 @@ export default {
                 const firstClip = (target && Array.isArray(target.clips) && target.clips[0]) || null
                 const clipUrl = this.cleanUrl((firstClip && firstClip.url) || '')
                 const targetVid = this.cleanUrl(target && target.video_url || '')
-                const nextVideo = vLocal || vurl || (this.isVideo(targetVid) ? targetVid : (this.isVideo(clipUrl) ? clipUrl : ''))
+                const nextVideo = vLocal || vurl || ''
                 this.sceneDetail = { reference_image_url: refLocal, video_url: nextVideo }
               }
             }
@@ -2854,7 +2898,7 @@ export default {
         const data = json && json.data ? json.data : null
         if (data) {
           const refImg = this.cleanUrl(data.reference_image_url || sc.thumbnail || '')
-          const vurl = this.cleanUrl(data.video_url || '')
+          const vurl = this.cleanUrl(data.fallback_mp4 || '')
           const incomingKey = String(data.scene_number || '').trim()
           const targetIndex = i
           const duration = Number(data.duration) ? Number(data.duration) * 1000 : undefined
@@ -2889,7 +2933,7 @@ export default {
           if (i === this.activeSceneIndex) {
             const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
             const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
-            this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || vurl || this.sceneDetail.video_url }
+            this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || vurl || '' }
           }
         }
         try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
@@ -3806,7 +3850,24 @@ export default {
         this.subtitleEnabledPrev = this.subtitleEnabled
         this.subtitleEnabled = false
         const msgIdPending = Date.now() + 1
-        this.leftChatMessages.push({ id: msgIdPending, text: '', side: 'left', pending: true })
+        
+        // Capture current scene script data for the prompt box
+        const currentScript = sc.scene_script || {}
+        const promptData = {
+          shot_title: currentScript.shot_title || '',
+          visual_description: currentScript.visual_description || '',
+          // Add other fields if necessary
+        }
+        
+        this.leftChatMessages.push({ 
+          id: msgIdPending, 
+          text: '', 
+          side: 'left', 
+          pending: true,
+          type: 'prompt_box',
+          data: promptData
+        })
+        
         this._updateSceneCtrl = new AbortController()
         updateSceneStream({
           videoId, shotId, prompt: text, type, modelname, token,
@@ -3817,6 +3878,7 @@ export default {
             const idx = this.leftChatMessages.findIndex(m => m.id === msgIdPending)
             if (tp === 'connected') {
               const msg = (obj && obj.message) ? String(obj.message).trim() : '分镜修改连接开始'
+              // Keep type prompt_box
               if (idx >= 0) this.leftChatMessages[idx] = { ...this.leftChatMessages[idx], text: msg, pending: true }
               return
             }
@@ -3842,7 +3904,18 @@ export default {
                 if (next.visual_description) parts.push(next.visual_description)
                 target.description = parts.join('：')
               }
-              if (idx >= 0) this.leftChatMessages[idx] = { ...this.leftChatMessages[idx], text: summary, imageUrl: imageUrl, pending: true }
+              if (idx >= 0) {
+                 // Update the message with new image and script data if needed
+                 // User requested "original image prompt content unchanged", so we might NOT update msg.data.visual_description
+                 // But we MUST update imageUrl
+                 this.leftChatMessages[idx] = { 
+                   ...this.leftChatMessages[idx], 
+                   text: summary, 
+                   imageUrl: imageUrl, 
+                   pending: true,
+                   // data: { ...this.leftChatMessages[idx].data, ...script } // Uncomment if we want to update text
+                 }
+              }
               return
             }
             if (tp === 'finished' || ev === 'node_finished' || ev === 'workflow_finished' || ev === 'succeeded') {
@@ -4026,22 +4099,22 @@ export default {
         let obj = null
         try { obj = typeof resp === 'string' ? JSON.parse(resp) : resp } catch (e) { obj = null }
         const data = obj && obj.data ? obj.data : null
-        if (obj && obj.code === 0 && data && data.video_url) {
-          const remote = this.cleanUrl(data.video_url || data.fallback_mp4 || '')
+        if (obj && obj.code === 0 && data) {
+          const remote = this.cleanUrl(data.fallback_mp4 || '')
           const url = await this.getLocalUrl(remote)
           const durMs = Number(data.duration) ? Math.round(Number(data.duration) * 1000) : Math.max(1, Number(sel.endMs || 0) - Number(sel.startMs || 0)) || 5000
           if (Array.isArray(scene.clips) && scene.clips.length) {
-            scene.clips[0] = { url: remote, durationMs: durMs }
+            scene.clips[0] = { url: remote || this.cleanUrl(scene.thumbnail || ''), durationMs: durMs }
           } else {
             scene.clips = [{ url: remote || this.cleanUrl(scene.thumbnail || ''), durationMs: durMs }]
           }
-          scene.hasVideo = true
-          scene.video_url = remote
+          scene.hasVideo = !!remote
+          scene.video_url = remote || ''
           if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
-          this.durationMap.set(remote, durMs)
-          if (url) this.durationMap.set(url, durMs)
+          if (remote) this.durationMap.set(remote, durMs)
+          if (remote && url) this.durationMap.set(url, durMs)
           const thumbLocal = scene.thumbnail ? await this.getLocalUrl(this.cleanUrl(scene.thumbnail || '')) : ''
-          this.sceneDetail = { reference_image_url: thumbLocal, video_url: url }
+          this.sceneDetail = { reference_image_url: thumbLocal, video_url: url || '' }
           this.updateTimeMarkers()
           try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
           this.toastText = '裁剪成功'
@@ -4758,7 +4831,7 @@ export default {
 }
 
 .control-btn {
-  padding: 8px 16px;
+  padding: 6px 12px;
   border: 1px solid var(--border-primary);
   border-radius: 6px;
   background: var(--bg-primary);
@@ -4914,7 +4987,7 @@ export default {
 .playback-section {
   background: var(--bg-primary);
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px;
   border: 1px solid var(--border-secondary);
 }
 
@@ -5225,7 +5298,7 @@ input:checked+.slider:before {
   overflow-y: hidden;
   scrollbar-width: thin;
   scrollbar-color: var(--border-primary) var(--bg-tertiary);
-  padding: 8px 0;
+  padding: 4px 0;
   content-visibility: auto;
 }
 
@@ -5290,7 +5363,7 @@ input:checked+.slider:before {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 6px 10px;
   background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-secondary);
   font-size: 12px;
@@ -5342,17 +5415,17 @@ input:checked+.slider:before {
   flex-wrap: nowrap;
   /* 单行显示，水平滚动 */
   gap: 0;
-  padding: 8px 0;
-  min-height: 60px;
+  padding: 6px 0;
+  min-height: 40px;
   background: var(--bg-primary);
 }
 
 .bgm-track .track-clips {
-  min-height: 40px;
+  min-height: 28px;
 }
 
 .bgm-clip {
-  height: 24px;
+  height: 20px;
   width: 100%;
   background: repeating-linear-gradient(45deg, #e0f2fe, #e0f2fe 10px, #bfdbfe 10px, #bfdbfe 20px);
   border-radius: 4px;
@@ -5368,7 +5441,7 @@ input:checked+.slider:before {
 
 .scene-clip {
   width: auto;
-  height: 28px;
+  height: 22px;
   background: var(--border-secondary);
   border-radius: 0;
   overflow: hidden;
@@ -5978,6 +6051,10 @@ input:checked+.slider:before {
   z-index: 10;
   text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
   white-space: pre-wrap;
+}
+
+.subtitle-overlay.portrait-mode {
+  max-width: 92%;
 }
 
 .subtitle-overlay.fullscreen-mode {

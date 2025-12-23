@@ -16,6 +16,7 @@
             <span class="points-val">✨ {{ userBasicInfo.pointsBalance || 0 }}</span>
           </div>
           <div class="header-item membership-btn" @click="showMembershipModal = true">开通会员</div>
+          <div class="header-item invite-btn" @click="showInviteModal = true">邀请有礼</div>
           <div class="header-item theme-toggle" @click="toggleTheme" :aria-label="isDark ? '切换为浅色' : '切换为深色'">
             <svg v-if="!isDark" class="header-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 17a5 5 0 100-10 5 5 0 000 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round"
@@ -102,7 +103,7 @@
                 <div class="menu-actions">
                   <div class="action-btn">订阅管理</div>
                   <div class="action-divider">|</div>
-                  <div class="action-btn">订单记录</div>
+                  <div class="action-btn" @click="showOrderRecordsModal = true">订单记录</div>
                 </div>
               </div>
 
@@ -139,6 +140,9 @@
 
     <PointsModal :visible="showPointsModal" :user-info="{ ...currentUser, ...userBasicInfo }" @close="showPointsModal = false" />
     <UserProfileEditModal :visible="editProfileModalVisible" :userInfo="{ ...currentUser, ...userBasicInfo }" @close="editProfileModalVisible = false" @save="handleProfileUpdate" />
+    <InviteModal :visible="showInviteModal" @close="showInviteModal = false" :token="userStore.token" />
+    <OrderRecordsModal :visible="showOrderRecordsModal" @close="showOrderRecordsModal = false" />
+
 
 
     <div v-if="centerPromptVisible" class="center-prompt-overlay" @click="closeCenterPrompt">
@@ -158,6 +162,8 @@ import LoginModal from './LoginModal.vue'
 import MembershipModal from '@/components/MembershipModal.vue'
 import PointsModal from '@/components/PointsModal.vue'
 import UserProfileEditModal from '@/components/UserProfileEditModal.vue'
+import InviteModal from '@/components/InviteModal.vue'
+import OrderRecordsModal from '@/components/OrderRecordsModal.vue'
 import { useUserStore } from '@/stores/user'
 import { getUserBasicStatus, updateAvatarAndNickname } from '@/api'
 
@@ -167,7 +173,9 @@ export default {
     LoginModal,
     MembershipModal,
     PointsModal,
-    UserProfileEditModal
+    UserProfileEditModal,
+    InviteModal,
+    OrderRecordsModal
   },
   data() {
     return {
@@ -179,6 +187,8 @@ export default {
       isDark: false,
       showMembershipModal: false,
       showPointsModal: false,
+      showInviteModal: false,
+      showOrderRecordsModal: false,
       editProfileModalVisible: false,
       userBasicInfo: {},
       isEditingName: false,
@@ -571,6 +581,13 @@ export default {
 
 .membership-btn {
   background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 500;
+}
+.invite-btn {
+  background-color: var(--bg-secondary);
   color: var(--text-primary);
   padding: 0.5rem 1rem;
   border-radius: 20px;
