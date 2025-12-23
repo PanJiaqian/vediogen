@@ -53,6 +53,10 @@
             </div>
             <span v-if="errors.emailCode" class="error-text">{{ errors.emailCode }}</span>
           </div>
+          <div v-if="!isForgot && loginType === 'email' && !isLogin" class="form-group">
+            <label class="form-label">邀请码（选填）</label>
+            <input v-model="formData.invitationCode" type="text" class="form-input" placeholder="请输入邀请码（选填）" />
+          </div>
 
           <div v-if="!isForgot" class="form-group">
             <label class="form-label">密码</label>
@@ -258,7 +262,8 @@ export default {
         password: '',
         confirmPassword: '',
         captcha: '',
-        emailCode: ''
+        emailCode: '',
+        invitationCode: ''
       },
       errors: {},
       promptVisible: false,
@@ -312,7 +317,8 @@ export default {
           email: this.formData.email || '',
           password: this.formData.password || '',
           confirmPassword: this.formData.confirmPassword || '',
-          emailCode: this.formData.emailCode || ''
+          emailCode: this.formData.emailCode || '',
+          invitationCode: this.formData.invitationCode || ''
         }
         localStorage.setItem('login:register_draft', JSON.stringify(draft))
       } catch (e) { /* no-op */ }
@@ -326,6 +332,7 @@ export default {
         this.formData.password = d.password || ''
         this.formData.confirmPassword = d.confirmPassword || ''
         this.formData.emailCode = d.emailCode || ''
+        this.formData.invitationCode = d.invitationCode || ''
       } catch (e) { /* no-op */ }
     },
     closeModal() {
@@ -497,7 +504,8 @@ export default {
           const result = await emailRegister({
             email: this.formData.email,
             password: this.formData.password,
-            checkCode: this.formData.emailCode
+            checkCode: this.formData.emailCode,
+            invitationCode: this.formData.invitationCode
           })
           const data = JSON.parse(result)
 

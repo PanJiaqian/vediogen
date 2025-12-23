@@ -28,9 +28,9 @@
       </div>
       <div class="navbar-right">
         <div class="points-display" v-if="userStore && userStore.isLoggedIn" @click="showPointsModal = true">✨ {{ pointsBalance || 0 }}</div>
-        <button class="navbar-btn premium-btn" @click="showMembershipModal = true">开通会员</button>
-        <button class="navbar-btn convert-btn" @click="convertToVideo"
-          :disabled="!allImagesReady || allVideosReady || isVideoConverting || previewImgErrored">一键转视频</button>
+        <button class="navbar-btn premium-btn" v-if="!isVip" @click="showMembershipModal = true">开通会员</button>
+        <button class="navbar-btn convert-btn" @click="openConvertConfirmModal"
+          :disabled="worksVideoReady || !allImagesReady">一键转视频</button>
         <button class="navbar-btn export-btn" @click="exportVideo" :disabled="!allVideosReady">导出视频</button>
       </div>
     </div>
@@ -40,6 +40,46 @@
     
     <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
     <PointsModal :visible="showPointsModal" @close="showPointsModal = false" />
+
+    <!-- 转视频积分确认弹窗 -->
+    <div v-if="convertConfirmVisible" class="convert-modal-overlay" @click="closeConvertConfirmModal">
+      <div class="convert-modal" @click.stop>
+        <div class="convert-modal-header">转视频任务明细</div>
+        <div class="convert-modal-body">
+          <div class="convert-scenes-stack">
+            <div class="stack-icon"></div>
+            <div class="stack-count">X {{ convertScenesCount }}</div>
+          </div>
+          <div class="convert-detail">
+            <!-- <div class="convert-row">
+              <div class="convert-label">选用模型</div>
+              <select class="convert-select" v-model="selectedConvertModelName" @change="reestimateConvertBilling">
+                <option value="wan2.2-i2v-flash">智能选择（720P）</option>
+              </select>
+            </div> -->
+            <div class="convert-row">
+              <div class="convert-label">视频时长</div>
+              <select class="convert-select" v-model="selectedDurationMode" disabled>
+                <option value="voice-crop">根据配音长度选择（裁剪）</option>
+              </select>
+            </div>
+            <div class="convert-row">
+              <div class="convert-label">分镜数量</div>
+              <div class="convert-value">{{ convertScenesCount }}</div>
+            </div>
+            <div class="convert-row">
+              <div class="convert-label">积分消耗</div>
+              <div class="convert-value">{{ convertEstimateTotal }}</div>
+            </div>
+            <div class="convert-tip" v-if="!canConfirmConvert">积分不足，请充值</div>
+          </div>
+        </div>
+        <div class="convert-modal-footer">
+          <button class="convert-cancel-btn" @click="closeConvertConfirmModal">取消</button>
+          <button class="convert-confirm-btn" :disabled="!canConfirmConvert" @click="confirmConvert">确认</button>
+        </div>
+      </div>
+    </div>
 
     <!-- 主要内容区域 -->
     <div class="main-content">
@@ -141,9 +181,9 @@
                       <div style="display:flex;flex-direction:column;gap:4px;">
                         <div v-if="scenes[activeSceneIndex].scene_script.visual_description">
                           <span style="opacity:0.7;"></span>{{ scenes[activeSceneIndex].scene_script.visual_description}}
-                        </div>
-                      </div>
-                    </template>
+    </div>
+  </div>
+</template>
                     <!-- <p v-else>{{ scenes[activeSceneIndex]?.description || '暂无描述' }}</p> -->
                   </div>
                   <!-- 编辑模式 -->
@@ -820,7 +860,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -917,6 +957,13 @@ export default {
       , leftChatMessages: []
       , subtitleEnabledPrev: true
       , pointsBalance: 0
+      , worksVideoReady: false
+      , convertConfirmVisible: false
+      , convertEstimateTotal: 0
+      , convertScenesCount: 0
+      , canConfirmConvert: false
+      , selectedConvertModelName: 'wan2.2-i2v-flash'
+      , selectedDurationMode: 'voice-crop'
       , aspectRatio: '16:9'
       , showReplaceCropModal: false
       , replaceCropRatio: ''
@@ -1111,10 +1158,26 @@ export default {
         }
       } catch (e) { void 0 }
     })
+    Promise.resolve().then(async () => {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return
+        const text = await getWorksVideoStatus({ videoId, token })
+        let obj = null
+        try { obj = JSON.parse(text) } catch (e) { obj = null }
+        const data = obj && obj.data ? obj.data : obj
+        this.worksVideoReady = !!(data && data.video === true)
+      } catch (e) { void 0 }
+    })
   },
   computed: {
     userStore() {
       return useUserStore()
+    },
+    isVip() {
+      return this.userStore && this.userStore.userInfo && this.userStore.userInfo.vipStatus === 'ACTIVE'
     },
     currentPreviewUrl() {
       const v = this.cleanUrl(this.sceneDetail.video_url || '')
@@ -3368,6 +3431,48 @@ export default {
         this.isVideoConverting = false
       }
     },
+    async openConvertConfirmModal() {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 } return }
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const modelName = this.selectedConvertModelName
+        let estimate = null
+        try { estimate = await getBillingEstimate({ videoId, genType: 'video', modelName, token }) } catch (e) { estimate = null }
+        const total = estimate && typeof estimate === 'object' ? Number(estimate.total_price || (estimate.data && estimate.data.total_price) || 0) : 0
+        this.convertEstimateTotal = Number.isFinite(total) ? total : 0
+        try {
+          const status = await getUserBasicStatus(token)
+          this.pointsBalance = (status && status.code === 0 && status.data && Number(status.data.pointsBalance)) || 0
+        } catch (e) { this.pointsBalance = 0 }
+        this.convertScenesCount = Array.isArray(this.scenes) ? this.scenes.length : 0
+        this.canConfirmConvert = this.pointsBalance >= this.convertEstimateTotal
+        this.convertConfirmVisible = true
+      } catch (e) { void 0 }
+    },
+    async reestimateConvertBilling() {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const modelName = this.selectedConvertModelName
+        let estimate = null
+        try { estimate = await getBillingEstimate({ videoId, genType: 'video', modelName, token }) } catch (e) { estimate = null }
+        const total = estimate && typeof estimate === 'object' ? Number(estimate.total_price || (estimate.data && estimate.data.total_price) || 0) : 0
+        this.convertEstimateTotal = Number.isFinite(total) ? total : 0
+        this.canConfirmConvert = this.pointsBalance >= this.convertEstimateTotal
+      } catch (e) { void 0 }
+    },
+    closeConvertConfirmModal() {
+      this.convertConfirmVisible = false
+    },
+    confirmConvert() {
+      if (!this.canConfirmConvert) return
+      this.convertConfirmVisible = false
+      this.convertToVideo()
+    },
     async exportVideo() {
       try {
         const projectId = this.$route.params.id
@@ -5209,6 +5314,109 @@ export default {
   --timeline-track-gap: 0px;
 }
 
+/* 转视频积分确认弹窗样式 */
+.convert-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3200;
+}
+.convert-modal {
+  width: 90%;
+  max-width: 460px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.2);
+  overflow: hidden;
+}
+.convert-modal-header {
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-secondary);
+}
+.convert-modal-body {
+  padding: 16px;
+}
+.convert-scenes-stack {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.convert-scenes-stack .stack-icon {
+  width: 60px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  box-shadow: var(--shadow-sm);
+}
+.convert-scenes-stack .stack-count {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.convert-detail {
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  padding: 12px;
+}
+.convert-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+.convert-label {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.convert-select {
+  width: 220px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.convert-value {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.convert-tip {
+  margin-top: 8px;
+  color: #ef4444;
+  font-size: 13px;
+}
+.convert-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 16px;
+}
+.convert-cancel-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+.convert-confirm-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary-color);
+  color: #fff;
+}
+.convert-confirm-btn:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
 .timeline-header {
   display: flex;
   justify-content: space-between;

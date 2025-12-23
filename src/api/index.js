@@ -1086,10 +1086,12 @@ export async function emailLogin({ email, password }) {
   return res.text()
 }
 
-// 邮箱注册
-export async function emailRegister({ email, password, checkCode }) {
+// 邮箱注册（支持可选邀请码）
+export async function emailRegister({ email, password, checkCode, invitationCode }) {
   const url = `${BASE_URL}/user/emailregister`
-  const body = JSON.stringify({ email, password, checkCode })
+  const payload = { email, password, checkCode }
+  if (invitationCode) payload.invitationCode = invitationCode
+  const body = JSON.stringify(payload)
   const requestOptions = {
     method: 'POST',
     body,

@@ -15,7 +15,7 @@
           <div class="header-item points-display" @click="showPointsModal = true" v-if="isLoggedIn">
             <span class="points-val">✨ {{ userBasicInfo.pointsBalance || 0 }}</span>
           </div>
-          <div class="header-item membership-btn" @click="showMembershipModal = true">开通会员</div>
+          <div class="header-item membership-btn" v-if="!isVip" @click="showMembershipModal = true">开通会员</div>
           <div class="header-item invite-btn" @click="showInviteModal = true">邀请有礼</div>
           <div class="header-item theme-toggle" @click="toggleTheme" :aria-label="isDark ? '切换为浅色' : '切换为深色'">
             <svg v-if="!isDark" class="header-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -204,6 +204,11 @@ export default {
     },
     currentUser() {
       return this.userStore.userInfo
+    },
+    isVip() {
+      const a = this.userBasicInfo && this.userBasicInfo.vipStatus
+      const b = this.userStore && this.userStore.userInfo && this.userStore.userInfo.vipStatus
+      return a === 'ACTIVE' || b === 'ACTIVE'
     }
   },
   mounted() {
@@ -312,7 +317,8 @@ export default {
           this.userStore.setUser({
             ...this.currentUser,
             name: res.data.nickname || this.currentUser.name,
-            avatar: res.data.avatar || this.currentUser.avatar
+            avatar: res.data.avatar || this.currentUser.avatar,
+            vipStatus: res.data.vipStatus || this.currentUser.vipStatus
           })
         }
       } catch (e) {

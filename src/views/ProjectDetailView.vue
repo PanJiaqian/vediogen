@@ -235,7 +235,8 @@
           <!-- <button class="action-btn save-script">保存剧本</button>
           <button class="action-btn add-scene">添加场景</button> -->
           <button class="action-btn generate-video" @click="handleViewOrGenerate"
-            :disabled="!canViewStoryboard && !allImagesReady">{{ canViewStoryboard ? '查看分镜' : '生成分镜' }}</button>
+            :disabled="!canViewStoryboard && (!allImagesReady || pointsBalance < billingEstimate)">{{ canViewStoryboard ? '查看分镜' : '生成分镜' }}</button>
+          <span v-if="!canViewStoryboard && billingEstimate > 0" class="cost-tip">预计消耗：{{ billingEstimate }}</span>
         </div>
       </div>
 
@@ -312,7 +313,10 @@ export default {
       toastVisible: false,
       toastText: '',
       sceneImgErrorMap: {},
-      characterImgErrorMap: {}
+      characterImgErrorMap: {},
+      pointsBalance: 0,
+      billingEstimate: 0,
+      estimateInitialized: false
     }
   },
   computed: {
@@ -695,25 +699,6 @@ export default {
         try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
         return
       }
-      try {
-        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-        const genType = 'image'
-        const modelName = 'doubao-seedream-4-0-250828'
-        let balance = 0
-        try {
-          const status = await getUserBasicStatus(token)
-          balance = (status && status.code === 0 && status.data && Number(status.data.pointsBalance)) || 0
-        } catch (e) { balance = 0 }
-        let estimate = null
-        try {
-          estimate = await getBillingEstimate({ videoId, genType, modelName, token })
-        } catch (e) { estimate = null }
-        const total = estimate && typeof estimate === 'object' ? Number(estimate.total_price || estimate.data && estimate.data.total_price || 0) : 0
-        if (Number.isFinite(total) && total > 0 && balance < total) {
-          try { window.dispatchEvent(new CustomEvent('open-insufficient-points')) } catch (e) { /* no-op */ }
-          return
-        }
-      } catch (e) { /* no-op */ }
       try { localStorage.setItem(`project:aspectRatio:${projectId}`, String((this.project && this.project.aspectRatio) || '16:9')) } catch (e) { void 0 }
       this.$router.push(`/generation-steps/${projectId}`)
     },
@@ -1240,6 +1225,35 @@ export default {
       if (highlights.length) {
         this.project.highlights = highlights
       }
+      try {
+        const allDone = !!this.summaryDone && !!this.peopleDone && !!this.sceneDone && !!this.storyboardDone
+        const hasAny = !!this.generated.scriptSummary || (Array.isArray(this.generated.people) && this.generated.people.length) || (Array.isArray(this.generated.scenes) && this.generated.scenes.length) || (Array.isArray(this.generated.storyboard) && this.generated.storyboard.length)
+        if (hasAny && allDone && !this.estimateInitialized) {
+          this.updateEstimateAndPoints()
+        }
+      } catch (e) { /* no-op */ }
+    }
+    ,
+    async updateEstimateAndPoints() {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return
+        const projectId = this.$route.params.id
+        const videoId = this.videoId || localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        try {
+          const status = await getUserBasicStatus(token)
+          this.pointsBalance = (status && status.code === 0 && status.data && Number(status.data.pointsBalance)) || 0
+        } catch (e) { this.pointsBalance = 0 }
+        let estimate = null
+        try {
+          estimate = await getBillingEstimate({ videoId, genType: 'image', modelName: 'doubao-seedream-4-0-250828', token })
+        } catch (e) { estimate = null }
+        const total = estimate && typeof estimate === 'object'
+          ? Number(estimate.total_price || (estimate.data && estimate.data.total_price) || 0)
+          : 0
+        this.billingEstimate = Number.isFinite(total) ? total : 0
+        this.estimateInitialized = true
+      } catch (e) { /* no-op */ }
     }
   },
   async mounted() {
@@ -1283,6 +1297,13 @@ export default {
     } catch (e) {
       console.warn('读取生成内容失败:', e)
     }
+    try {
+      const token = (this.userStore && this.userStore.token) || ''
+      if (token) {
+        const status = await getUserBasicStatus(token)
+        this.pointsBalance = (status && status.code === 0 && status.data && Number(status.data.pointsBalance)) || 0
+      }
+    } catch (e) { /* no-op */ }
   }
   , beforeUnmount() {
     try { if (this._sseGenCtrl && this._sseGenCtrl.abort) this._sseGenCtrl.abort() } catch (e) { void e }

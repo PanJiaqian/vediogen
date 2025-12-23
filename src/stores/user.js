@@ -44,7 +44,8 @@ export const useUserStore = defineStore('user', {
         name: user?.name ?? this.userInfo.name,
         email: user?.email ?? this.userInfo.email,
         phone: user?.phone ?? this.userInfo.phone,
-        avatar: user?.avatar ?? this.userInfo.avatar
+        avatar: user?.avatar ?? this.userInfo.avatar,
+        vipStatus: user?.vipStatus ?? this.userInfo.vipStatus
       }
       this.userInfo = merged
       this.isLoggedIn = true
