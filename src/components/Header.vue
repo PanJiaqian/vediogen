@@ -101,7 +101,7 @@
                   </div> -->
                 </div>
                 <div class="menu-actions">
-                  <div class="action-btn">订阅管理</div>
+                  <!-- <div class="action-btn">订阅管理</div> -->
                   <div class="action-divider">|</div>
                   <div class="action-btn" @click="showOrderRecordsModal = true">订单记录</div>
                 </div>

@@ -518,7 +518,7 @@
             <div
               v-if="!isVideo(sceneDetail.video_url) && (previewImgErrored || isGenerateFailed(sceneDetail.reference_image_url))"
               class="video-overlay">
-              <div class="error-banner">小梦刚刚打瞌睡了，请重新生成试试吧</div>
+              <div class="error-banner">生成失败</div>
             </div>
             <audio ref="previewAudio" style="display:none" preload="auto"></audio>
             <input ref="replaceFileInput" type="file" accept="image/*" style="display:none" @change="onReplaceImageFileSelected" />
@@ -1883,6 +1883,7 @@ export default {
       return set.has(k)
     },
     isVideoPendingScene(scene, index) {
+      if (scene && scene.video_url === null) return true
       if (!this.isVideoGenerating) return false
       const set = this.pendingVideoSet instanceof Set ? this.pendingVideoSet : null
       if (!set) return false
@@ -4149,6 +4150,7 @@ export default {
             finish(false)
             this.toastText = '生成失败'
             this.toastVisible = true
+            this.previewImgErrored = true
             setTimeout(() => { this.toastVisible = false }, 2000)
           } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
             const videoUrl = this.cleanUrl(String(vid || ''))

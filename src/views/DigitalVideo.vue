@@ -32,7 +32,7 @@
         </div>
       </div>
       <div class="navbar-right">
-        <button class="navbar-btn premium-btn" @click="showMembershipModal = true">开通会员</button>
+        <button v-if="!isVip" class="navbar-btn premium-btn" @click="showMembershipModal = true">开通会员</button>
         <button class="navbar-btn convert-btn" @click="convertToVideo" :disabled="true">一键转视频</button>
         <!-- <button class="navbar-btn export-btn" @click="exportVideo" :disabled="true">导出视频</button> -->
       </div>
@@ -83,7 +83,7 @@
         </div>
 
         <template
-          v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || (isConverting && isActiveImageMissing && !sceneDetail.video_url)">
+          v-if="isVideoGenerating || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || (isConverting && isActiveImageMissing && !sceneDetail.video_url)">
           <div class="skeleton-block">
             <div class="skeleton-line"></div>
             <div class="skeleton-line"></div>
@@ -163,7 +163,7 @@
               <!-- 图片展示 -->
               <div class="image-container">
                 <div
-                  v-if="(isActiveSceneCropping || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])"
+                  v-if="(isVideoGenerating || isActiveSceneCropping || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])"
                   class="skeleton-image"></div>
                 <div v-else-if="isBlankScene(scenes[activeSceneIndex])" class="blank-scene-display"
                   @click="triggerUpload(activeSceneIndex)">
@@ -376,7 +376,7 @@
       <!-- 右侧区域 -->
       <div class="right-panel">
         <!-- 画布编辑和对口型 -->
-        <div v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-block"
+        <div v-if="isVideoGenerating || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-block"
           style="margin-bottom: 8px;">
           <div class="skeleton-line" style="width: 200px; height: 32px;"></div>
         </div>
@@ -403,7 +403,7 @@
           <div class="video-preview">
             <div class="video-container" ref="videoContainer">
               <div
-              v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])"
+              v-if="(isVideoGenerating || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])"
               class="skeleton-image"></div>
               <template v-else>
               <div v-if="isBlankScene(scenes[activeSceneIndex])" class="blank-scene-display" @click="triggerUpload(activeSceneIndex)">
@@ -426,14 +426,14 @@
               <div
                 v-if="!sceneDetail.video_url && previewImgErrored"
                 class="video-overlay">
-                <div class="error-banner">小梦刚刚打瞌睡了，请重新生成试试吧</div>
+                <div class="error-banner">生成失败</div>
               </div>
               </template>
               <audio ref="previewAudio" style="display:none" preload="auto"></audio>
             </div>
           <div class="preview-aside">
             <template
-              v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])">
+              v-if="(isVideoGenerating || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])">
               <div class="thumb-card">
                 <div class="skeleton-image"></div>
               </div>
@@ -502,7 +502,7 @@
 
           <!-- 时间轴区域 -->
           <div class="timeline-section" ref="timelineSection">
-            <template v-if="isVideoConverting">
+            <template v-if="isVideoConverting || isVideoGenerating">
               <div class="timeline-header">
                 <span class="timeline-label">
                   <div class="skeleton-line" style="width:80px;height:12px;"></div>
@@ -756,7 +756,7 @@ import MembershipModal from '@/components/MembershipModal.vue'
 import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
-import Hls from 'hls.js'
+// import Hls from 'hls.js'
 import { getScriptDetailByVideo, regenerateImage, queryRegenerateImage, copyStoryboardVideo, reorderStoryboardScenes, clipStoryboardVideo, updateVideoTitle, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, getDigitalHumanWorksByConversation, getDigitalHumanWorkSingle, objectDetectionByScene, uploadDigitalHumanWorkImage, objectDetectionByWork, digitalhumanGenByWork } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
@@ -941,6 +941,7 @@ export default {
             this.isVideoGenerating = false
             this.toastText = '生成失败'
             this.toastVisible = true
+            this.previewImgErrored = true
             setTimeout(() => { this.toastVisible = false }, 2000)
           } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
             const videoUrl = this.cleanUrl(String(vid || ''))
@@ -1074,6 +1075,9 @@ export default {
     userStore() {
       return useUserStore()
     },
+    isVip() {
+      return this.userStore && this.userStore.userInfo && this.userStore.userInfo.vipStatus === 'ACTIVE'
+    },
     aspectStyle() {
       const r = String(this.cropRatio || '').trim()
       if (!r || r === 'free') return {}
@@ -1181,6 +1185,7 @@ export default {
             this.isVideoGenerating = false
             this.toastText = '生成失败'
             this.toastVisible = true
+            this.previewImgErrored = true
             setTimeout(() => { this.toastVisible = false }, 2000)
           } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
             const videoUrl = this.cleanUrl(String(vid || ''))
@@ -1278,28 +1283,136 @@ export default {
         const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
         if (!list.length) return
         const scenes = []
+        let anyPending = false
         for (let i = 0; i < list.length; i++) {
           const it = list[i] || {}
-          const v = this.cleanUrl(String(it.generated_video_url || ''))
+          const rawVid = (it && it.generated_video_url)
+          const isExplicitNull = rawVid === null
+          const isNoVideo = String(rawVid || '').toLowerCase() === 'novideo'
+          const vClean = this.cleanUrl(String(rawVid || ''))
           const img = this.cleanUrl(String(it.image_url || ''))
           const aud = this.cleanUrl(String(it.audio_url || ''))
           const wid = String((it.work_id || it.workid || it.id || it.workId || '')).trim()
-          const clip = v || img
+          let videoUrl = ''
+          let hasVideo = false
+          let clipUrl = ''
+          if (isExplicitNull) {
+            videoUrl = null
+            hasVideo = false
+            clipUrl = img
+            anyPending = true
+          } else if (isNoVideo) {
+            videoUrl = ''
+            hasVideo = false
+            clipUrl = img
+          } else if (vClean) {
+            videoUrl = vClean
+            hasVideo = true
+            clipUrl = vClean
+          } else {
+            videoUrl = ''
+            hasVideo = false
+            clipUrl = img
+          }
           let durMs = 5000
-          if (v) { try { durMs = await this.measureVideoDurationMs(v) } catch (e) { durMs = 5000 } }
-        scenes.push({ id: i + 1, title: '分镜' + (i + 1), description: '数字人视频', thumbnail: img || clip, clips: [{ url: clip, durationMs: durMs }], video_url: v, hasVideo: !!v, order_index: i + 1, audio_url: aud, work_id: wid })
-          try { if (!(this.durationMap instanceof Map)) this.durationMap = new Map(); if (clip) this.durationMap.set(clip, durMs); if (v && clip !== v) this.durationMap.set(v, durMs) } catch (e) { void 0 }
+          if (hasVideo && videoUrl) { try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 } }
+          const scene = { id: i + 1, title: '分镜' + (i + 1), description: '数字人视频', thumbnail: img || clipUrl, clips: [{ url: clipUrl, durationMs: durMs }], video_url: videoUrl, hasVideo, order_index: i + 1, audio_url: aud, work_id: wid }
+          scenes.push(scene)
+          try {
+            if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+            if (clipUrl) this.durationMap.set(clipUrl, durMs)
+            if (hasVideo && videoUrl && clipUrl !== videoUrl) this.durationMap.set(videoUrl, durMs)
+          } catch (e) { /* no-op */ }
         }
         this.scenes = scenes
         this.activeSceneIndex = 0
         const first = scenes[0] || {}
-        this.sceneDetail = { reference_image_url: this.cleanUrl(String(first.thumbnail || '')), video_url: this.cleanUrl(String(first.video_url || '')), audio_url: this.cleanUrl(String(first.audio_url || '')) }
+        this.sceneDetail = { reference_image_url: this.cleanUrl(String(first.thumbnail || '')), video_url: first.video_url === null ? '' : this.cleanUrl(String(first.video_url || '')), audio_url: this.cleanUrl(String(first.audio_url || '')) }
         this.updateTimeMarkers()
         this.ensurePreviewFromScenes()
-        this.$nextTick(() => { this.tryAttachHls() })
         const wid0 = String(first.work_id || first.workid || first.id || '').trim()
         if (wid0) { try { await this.loadDigitalHumanSingle(String(conversationId), wid0) } catch (e) { void 0 } }
+        if (anyPending) {
+          if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
+          for (let i = 0; i < scenes.length; i++) {
+            const sc = scenes[i]
+            if (sc && sc.video_url === null) this.pendingVideoSet.add(this.getSceneKey(sc, i))
+          }
+          this.isVideoGenerating = true
+          this.startPollingDigitalHumanWorks(String(conversationId))
+        }
       } catch (e) { void 0 }
+    },
+    startPollingDigitalHumanWorks(conversationId) {
+      try {
+        if (this._digitalHumanWorksPollInterval) { clearInterval(this._digitalHumanWorksPollInterval); this._digitalHumanWorksPollInterval = null }
+      } catch (e) { /* no-op */ }
+      let remaining = 60
+      const tick = async () => {
+        try {
+          if (!Array.isArray(this.scenes) || this.scenes.length === 0) return
+          const token = (this.userStore && this.userStore.token) || ''
+          for (let i = 0; i < this.scenes.length; i++) {
+            const sc = this.scenes[i]
+            if (!sc || sc.video_url !== null) continue
+            const wid = String((sc.work_id || sc.workid || sc.id || '')).trim()
+            if (!wid) continue
+            const text = await getDigitalHumanWorkSingle({ conversationId, workId: wid, token })
+            let resp = null
+            try { resp = JSON.parse(text) } catch (e) { resp = null }
+            const d = resp && resp.code === 0 && resp.data ? resp.data : null
+            if (!d) continue
+            const rawVid = d.generated_video_url
+            const isNoVideo = String(rawVid || '').toLowerCase() === 'novideo'
+            const v = this.cleanUrl(String(rawVid || ''))
+            const img = this.cleanUrl(String(d.image_url || ''))
+            const aud = this.cleanUrl(String(d.audio_url || ''))
+            let hasVideo = false
+            let videoUrl = ''
+            let clipUrl = ''
+            if (rawVid === null) {
+              // still pending
+            } else if (isNoVideo) {
+              videoUrl = ''
+              hasVideo = false
+              clipUrl = img
+            } else if (v) {
+              videoUrl = v
+              hasVideo = true
+              clipUrl = v
+            } else {
+              videoUrl = ''
+              hasVideo = false
+              clipUrl = img
+            }
+            if (rawVid !== null) {
+              sc.thumbnail = img || sc.thumbnail || clipUrl
+              sc.video_url = videoUrl
+              sc.hasVideo = !!hasVideo
+              sc.audio_url = aud
+              sc.clips = [{ url: clipUrl || img, durationMs: hasVideo && videoUrl ? await this.measureVideoDurationMs(videoUrl).catch(() => 5000) : 5000 }]
+              const k = this.getSceneKey(sc, i)
+              if (this.pendingVideoSet instanceof Set) { this.pendingVideoSet.delete(k); this.pendingVideoSet = new Set(this.pendingVideoSet) }
+              if (this.activeSceneIndex === i) {
+                this.sceneDetail = { reference_image_url: img || clipUrl || '', video_url: videoUrl, audio_url: aud }
+                this.updateTimeMarkers()
+                this.ensurePreviewFromScenes && this.ensurePreviewFromScenes()
+              }
+            }
+          }
+          const pendingEmpty = this.pendingVideoSet instanceof Set ? this.pendingVideoSet.size === 0 : true
+          if (pendingEmpty) {
+            this.isVideoGenerating = false
+            if (this._digitalHumanWorksPollInterval) { clearInterval(this._digitalHumanWorksPollInterval); this._digitalHumanWorksPollInterval = null }
+          }
+        } catch (e) { /* no-op */ }
+        remaining -= 1
+        if (remaining <= 0) {
+          try { if (this._digitalHumanWorksPollInterval) { clearInterval(this._digitalHumanWorksPollInterval); this._digitalHumanWorksPollInterval = null } } catch (e) { /* no-op */ }
+        }
+      }
+      tick()
+      this._digitalHumanWorksPollInterval = setInterval(tick, 5000)
     },
     async loadDigitalHumanSingle(conversationId, workId) {
       try {
@@ -1309,20 +1422,22 @@ export default {
         try { resp = JSON.parse(text) } catch (e) { resp = null }
         const d = resp && resp.code === 0 && resp.data ? resp.data : null
         if (!d) return
-        const v = this.cleanUrl(String(d.generated_video_url || ''))
+        const rawVid = d.generated_video_url
+        const isNoVideo = String(rawVid || '').toLowerCase() === 'novideo'
+        const v = isNoVideo ? '' : this.cleanUrl(String(rawVid || ''))
         const img = this.cleanUrl(String(d.image_url || ''))
         const aud = this.cleanUrl(String(d.audio_url || ''))
-        const clip = v || img
+        const clip = v ? v : img
         let durMs = 5000
         if (v) { try { durMs = await this.measureVideoDurationMs(v) } catch (e) { durMs = 5000 } }
-        this.sceneDetail = { reference_image_url: img || clip, video_url: v, audio_url: aud }
+        this.sceneDetail = { reference_image_url: img || clip, video_url: rawVid === null ? null : v, audio_url: aud }
         if (!Array.isArray(this.scenes) || this.scenes.length === 0) {
-          this.scenes = [{ id: 1, title: '分镜1', description: '数字人视频', thumbnail: img || clip, clips: [{ url: clip, durationMs: durMs }], video_url: clip, hasVideo: !!v, order_index: 1, audio_url: aud }]
+          this.scenes = [{ id: 1, title: '分镜1', description: '数字人视频', thumbnail: img || clip, clips: [{ url: clip, durationMs: durMs }], video_url: rawVid === null ? null : v, hasVideo: !!v, order_index: 1, audio_url: aud }]
         } else {
           const idx = this.activeSceneIndex
           const sc = this.scenes[idx] || {}
           sc.thumbnail = img || sc.thumbnail || clip
-          sc.video_url = v
+          sc.video_url = rawVid === null ? null : v
           sc.hasVideo = !!v
           sc.audio_url = aud
           sc.clips = [{ url: clip, durationMs: durMs }]
@@ -1383,51 +1498,16 @@ export default {
       this.isEditingTitle = false
     },
     async ensureHlsLib() {
-      try { if (window && window.Hls) return window.Hls } catch (e) { void 0 }
-      try { if (Hls) return Hls } catch (e) { void 0 }
-      return await new Promise((resolve, reject) => {
-        try {
-          const s = document.createElement('script')
-          s.src = 'https://cdn.jsdelivr.net/npm/hls.js@latest'
-          s.onload = () => { try { resolve(window.Hls) } catch (e) { resolve(null) } }
-          s.onerror = () => resolve(null)
-          document.head.appendChild(s)
-        } catch (e) { resolve(null) }
-      })
+      return null
     },
     isM3u8(u) {
-      const s = this.cleanUrl(u)
-      return /\.m3u8(\?|#|$)/i.test(s)
+      return false
     },
     async attachHls(videoEl, src) {
-      if (!videoEl) return null
-      const url = this.cleanUrl(src || '')
-      if (!url || !this.isM3u8(url)) return null
-      try {
-        if (videoEl.canPlayType && videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-          try { videoEl.src = url } catch (e) { void 0 }
-          return null
-        }
-        const HlsLib = await this.ensureHlsLib()
-        if (HlsLib && HlsLib.isSupported && HlsLib.isSupported()) {
-          const hls = new HlsLib()
-          hls.loadSource(url)
-          hls.attachMedia(videoEl)
-          return hls
-        }
-      } catch (e) { void 0 }
       return null
     },
     async tryAttachHls() {
-      const src = this.cleanUrl(this.sceneDetail && this.sceneDetail.video_url || '')
-      if (!this.isM3u8(src)) return
-      const pv = this.$refs.previewVideo
-      const sv = this.$refs.sceneVideo
-      if (this._hlsPreview && this._hlsPreviewUrl === src && this._hlsScene && this._hlsSceneUrl === src) return
-      try { if (this._hlsPreview && this._hlsPreview.destroy) this._hlsPreview.destroy() } catch (e) { void 0 }
-      try { if (this._hlsScene && this._hlsScene.destroy) this._hlsScene.destroy() } catch (e) { void 0 }
-      try { this._hlsPreview = await this.attachHls(pv, src); this._hlsPreviewUrl = src } catch (e) { void 0 }
-      try { this._hlsScene = await this.attachHls(sv, src); this._hlsSceneUrl = src } catch (e) { void 0 }
+      return
     },
     initTimelineSync() {
       const tracks = this.$refs.timelineTracks
@@ -1518,7 +1598,6 @@ export default {
     isVideo(u) {
       const s = this.cleanUrl(u)
       if (!s) return false
-      if (this.isM3u8(s)) return true
       if (/^data:video\//i.test(s)) return true
       if (/^blob:/i.test(s)) {
         try { return this.durationMap instanceof Map && this.durationMap.has(s) } catch (e) { return true }
@@ -2864,14 +2943,15 @@ export default {
                   sc.hasVideo = false
                 }
                 // 保留 audio_url (可能用户刚上传的)
-              }
-              this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: '', reference_image_url: img })
-              this.$nextTick(() => { this.syncPreviewPlayback() })
             }
-            this.toastText = '生成失败'
-            this.toastVisible = true
-            setTimeout(() => { this.toastVisible = false }, 2000)
-          } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
+            this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: '', reference_image_url: img })
+            this.$nextTick(() => { this.syncPreviewPlayback() })
+          }
+          this.toastText = '生成失败'
+          this.toastVisible = true
+          this.previewImgErrored = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
             const videoUrl = this.cleanUrl(String(vid || ''))
             const imageUrl = this.cleanUrl(String(img || ''))
             const audioUrl = this.cleanUrl(String(aud || ''))

@@ -350,6 +350,7 @@ export default {
         const vid = this.videoId || ''
         const sid = this.shotId || ''
         const wid = this.workId || ''
+        const isSceneLipSync = !!(this.$route && this.$route.query && this.$route.query.mode === 'scene_lipsync')
         const conversationId = (this.$route && this.$route.query && this.$route.query.conversationId) || '286'
         if (wid) {
           const maskArgs = masks ? { maskUrls: masks } : { maskUrlsAlt: 'source' }
@@ -371,9 +372,7 @@ export default {
         this.toastText = '任务创建成功'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 1500)
-        if (wid) {
-          this.$emit('task-created', taskId, this.voiceAudioUrl)
-        } else if (vid && sid) {
+        if (isSceneLipSync || wid || (vid && sid)) {
           this.$emit('task-created', taskId, this.voiceAudioUrl)
         } else {
           this.$router.push({ name: 'DigitalVideo', params: { taskId } })
