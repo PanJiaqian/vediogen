@@ -33,7 +33,17 @@
       </div>
       <div class="navbar-right">
         <button v-if="!isVip" class="navbar-btn premium-btn" @click="showMembershipModal = true">开通会员</button>
-        <button class="navbar-btn convert-btn" @click="convertToVideo" :disabled="true">一键转视频</button>
+        <button class="navbar-btn convert-btn" @click="convertToVideo" :disabled="true">
+          一键转视频
+          <span class="scene-count-chip">
+            <svg class="chip-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="7" width="20" height="10" rx="2"></rect>
+              <circle cx="7" cy="12" r="2"></circle>
+              <circle cx="17" cy="12" r="2"></circle>
+            </svg>
+            <span class="chip-text">{{ Array.isArray(scenes) ? scenes.length : 0 }}</span>
+          </span>
+        </button>
         <!-- <button class="navbar-btn export-btn" @click="exportVideo" :disabled="true">导出视频</button> -->
       </div>
     </div>
@@ -4113,6 +4123,26 @@ export default {
   border-color: var(--primary-color);
   color: var(--primary-active);
   border-radius: 20px;
+}
+
+.scene-count-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 16px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-secondary);
+}
+.scene-count-chip .chip-icon {
+  width: 14px;
+  height: 14px;
+}
+.scene-count-chip .chip-text {
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .export-btn {

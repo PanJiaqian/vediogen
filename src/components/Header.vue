@@ -65,12 +65,19 @@
                   </div>
                   <!-- <div class="user-card-uid" @click="copyUid">复制UID</div> -->
                 </div>
-                <div class="user-card-edit-btn" @click="openEditProfileModal">
+              <div class="user-card-edit-btn" @click="openEditProfileModal">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                   </svg>
                 </div>
+              </div>
+              <div class="bind-status-trigger" @click="openBindStatusModal">
+                <svg class="bind-status-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 1v22"></path>
+                  <path d="M5 5h14v14H5z"></path>
+                </svg>
+                <span class="bind-status-text">多登陆方式状态</span>
               </div>
 
               <div class="vip-card">
@@ -154,6 +161,55 @@
         </div>
       </div>
     </div>
+    <div v-if="showBindStatusModal" class="bind-status-overlay" @click="closeBindStatusModal">
+      <div class="bind-status-modal" @click.stop>
+        <div class="bind-status-header">
+          <div class="bind-status-title">多登陆方式绑定</div>
+          <button class="bind-status-close-icon" @click="closeBindStatusModal">×</button>
+        </div>
+        <div class="bind-summary">
+          <div class="summary-item">
+            <div class="summary-label">手机号</div>
+            <div class="summary-value">{{ bindStatus.PHONE ? maskPhone(bindStatus.PHONE) : '未绑定' }}</div>
+          </div>
+          <div class="summary-item">
+            <div class="summary-label">邮箱</div>
+            <div class="summary-value">{{ bindStatus.EMAIL ? maskEmail(bindStatus.EMAIL) : '未绑定' }}</div>
+          </div>
+        </div>
+        <div class="bind-section">
+          <div class="bind-section-title">绑定手机号</div>
+          <div class="bind-form">
+            <input v-model="phoneBindPhone" type="tel" class="bind-input" placeholder="请输入手机号" />
+            <button class="bind-send-btn" @click="sendBindPhoneCode" :disabled="phoneCodeSending || phoneCodeCountdown > 0 || !/^1[3-9]\d{9}$/.test(String(phoneBindPhone||''))">
+              <span v-if="phoneCodeSending">发送中...</span>
+              <span v-else-if="phoneCodeCountdown > 0">{{ phoneCodeCountdown }}s后重发</span>
+              <span v-else>发送验证码</span>
+            </button>
+          </div>
+          <div class="bind-form">
+            <input v-model="phoneBindCode" type="text" class="bind-input" placeholder="请输入短信验证码" />
+            <button class="bind-confirm-btn" @click="submitBindPhone" :disabled="bindSubmitting">绑定</button>
+          </div>
+        </div>
+        <div class="bind-section">
+          <div class="bind-section-title">绑定邮箱</div>
+          <div class="bind-form">
+            <input v-model="emailBindEmail" type="email" class="bind-input" placeholder="请输入邮箱地址" />
+            <button class="bind-send-btn" @click="sendBindEmailCode" :disabled="emailCodeSending || emailCodeCountdown > 0 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(emailBindEmail||''))">
+              <span v-if="emailCodeSending">发送中...</span>
+              <span v-else-if="emailCodeCountdown > 0">{{ emailCodeCountdown }}s后重发</span>
+              <span v-else>发送验证码</span>
+            </button>
+          </div>
+          <div class="bind-form">
+            <input v-model="emailBindCode" type="text" class="bind-input" placeholder="请输入邮箱验证码" />
+            <button class="bind-confirm-btn" @click="submitBindEmail" :disabled="bindSubmitting">绑定</button>
+          </div>
+        </div>
+      </div>
+      <div v-if="toastVisible" class="floating-toast">{{ toastText }}</div>
+    </div>
   </header>
 </template>
 
@@ -165,7 +221,7 @@ import UserProfileEditModal from '@/components/UserProfileEditModal.vue'
 import InviteModal from '@/components/InviteModal.vue'
 import OrderRecordsModal from '@/components/OrderRecordsModal.vue'
 import { useUserStore } from '@/stores/user'
-import { getUserBasicStatus, updateAvatarAndNickname } from '@/api'
+import { getUserBasicStatus, updateAvatarAndNickname, getBindStatus, bindPhone, bindEmail, sendSmsCodeByPhone, sendCheckCodeByEmail } from '@/api'
 
 export default {
   name: 'AppHeader',
@@ -192,7 +248,22 @@ export default {
       editProfileModalVisible: false,
       userBasicInfo: {},
       isEditingName: false,
-      editingName: ''
+      editingName: '',
+      showBindStatusModal: false,
+      bindStatus: { PHONE: null, EMAIL: null }
+      , phoneBindPhone: ''
+      , phoneBindCode: ''
+      , phoneCodeSending: false
+      , phoneCodeCountdown: 0
+      , phoneCodeTimer: null
+      , emailBindEmail: ''
+      , emailBindCode: ''
+      , emailCodeSending: false
+      , emailCodeCountdown: 0
+      , emailCodeTimer: null
+      , bindSubmitting: false
+      , toastVisible: false
+      , toastText: ''
     }
   },
   computed: {
@@ -248,8 +319,155 @@ export default {
     window.removeEventListener('open-points-modal', this.openPointsRecharge)
     if (this._onInsufficientPoints) window.removeEventListener('open-insufficient-points', this._onInsufficientPoints)
     if (this._onCenterPrompt) window.removeEventListener('open-center-prompt', this._onCenterPrompt)
+    if (this.phoneCodeTimer) { clearInterval(this.phoneCodeTimer); this.phoneCodeTimer = null }
+    if (this.emailCodeTimer) { clearInterval(this.emailCodeTimer); this.emailCodeTimer = null }
   },
   methods: {
+    openBindStatusModal() {
+      this.showUserMenu = false
+      this.showBindStatusModal = true
+      this.fetchBindStatus()
+    },
+    closeBindStatusModal() {
+      this.showBindStatusModal = false
+    },
+    async fetchBindStatus() {
+      try {
+        const token = this.userStore && this.userStore.token
+        if (!token) return
+        const res = await getBindStatus(token)
+        const ok = res && (res.code === 200 || res.code === 0)
+        const data = ok ? (res.data || {}) : {}
+        this.bindStatus = { PHONE: data.PHONE || null, EMAIL: data.EMAIL || null }
+      } catch (e) { /* no-op */ }
+    },
+    async sendBindPhoneCode() {
+      if (this.phoneCodeSending) return
+      const phone = String(this.phoneBindPhone || '').trim()
+      if (!/^1[3-9]\d{9}$/.test(phone)) { this.openCenterPrompt('请输入正确的手机号'); return }
+      this.phoneCodeSending = true
+      try {
+        const resText = await sendSmsCodeByPhone({ phone })
+        let obj = null
+        try { obj = JSON.parse(resText) } catch { obj = null }
+        const ok = obj ? (obj.code === 0 || obj.code === 200) : true
+        if (ok) {
+          this.phoneCodeCountdown = 60
+          if (this.phoneCodeTimer) { clearInterval(this.phoneCodeTimer); this.phoneCodeTimer = null }
+          this.phoneCodeTimer = setInterval(() => {
+            this.phoneCodeCountdown--
+            if (this.phoneCodeCountdown <= 0) { clearInterval(this.phoneCodeTimer); this.phoneCodeTimer = null }
+          }, 1000)
+          this.showToast('验证码已发送')
+        } else {
+          const msg = String((obj && (obj.message || obj.msg)) || '').trim()
+          this.openCenterPrompt(msg || '验证码发送失败')
+        }
+      } catch (e) { this.openCenterPrompt('验证码发送失败') }
+      finally { this.phoneCodeSending = false }
+    },
+    async submitBindPhone() {
+      if (this.bindSubmitting) return
+      const token = this.userStore && this.userStore.token
+      if (!token) { this.showLoginModal(); return }
+      const phone = String(this.phoneBindPhone || '').trim()
+      const code = String(this.phoneBindCode || '').trim()
+      if (!/^1[3-9]\d{9}$/.test(phone)) { this.openCenterPrompt('请输入正确的手机号'); return }
+      if (!/^\d{4,6}$/.test(code)) { this.openCenterPrompt('请输入正确的验证码'); return }
+      this.bindSubmitting = true
+      try {
+        const res = await bindPhone({ token, phone, code })
+        const ok = res && (res.code === 0 || res.code === 200)
+        if (ok) {
+          this.openCenterPrompt('手机号绑定成功')
+          this.showToast('绑定成功')
+          this.phoneBindPhone = ''
+          this.phoneBindCode = ''
+          await this.fetchBindStatus()
+        } else {
+          const msg = String((res && (res.message || res.msg)) || '').trim()
+          this.openCenterPrompt(msg || '绑定失败')
+        }
+      } catch (e) { this.openCenterPrompt('绑定失败') }
+      finally { this.bindSubmitting = false }
+    },
+    async sendBindEmailCode() {
+      if (this.emailCodeSending) return
+      const email = String(this.emailBindEmail || '').trim()
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { this.openCenterPrompt('请输入正确的邮箱'); return }
+      this.emailCodeSending = true
+      try {
+        const resText = await sendCheckCodeByEmail({ email })
+        let obj = null
+        try { obj = JSON.parse(resText) } catch { obj = null }
+        const ok = obj ? (obj.code === 0 || obj.code === 200) : true
+        if (ok) {
+          this.emailCodeCountdown = 60
+          if (this.emailCodeTimer) { clearInterval(this.emailCodeTimer); this.emailCodeTimer = null }
+          this.emailCodeTimer = setInterval(() => {
+            this.emailCodeCountdown--
+            if (this.emailCodeCountdown <= 0) { clearInterval(this.emailCodeTimer); this.emailCodeTimer = null }
+          }, 1000)
+          this.showToast('验证码已发送')
+        } else {
+          const msg = String((obj && (obj.message || obj.msg)) || '').trim()
+          this.openCenterPrompt(msg || '验证码发送失败')
+        }
+      } catch (e) { this.openCenterPrompt('验证码发送失败') }
+      finally { this.emailCodeSending = false }
+    },
+    async submitBindEmail() {
+      if (this.bindSubmitting) return
+      const token = this.userStore && this.userStore.token
+      if (!token) { this.showLoginModal(); return }
+      const email = String(this.emailBindEmail || '').trim()
+      const code = String(this.emailBindCode || '').trim()
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { this.openCenterPrompt('请输入正确的邮箱'); return }
+      if (!/^[A-Za-z0-9]{4,6}$/.test(code)) { this.openCenterPrompt('请输入正确的验证码'); return }
+      this.bindSubmitting = true
+      try {
+        const res = await bindEmail({ token, email, code })
+        const ok = res && (res.code === 0 || res.code === 200)
+        if (ok) {
+          this.openCenterPrompt('邮箱绑定成功')
+          this.showToast('绑定成功')
+          this.emailBindEmail = ''
+          this.emailBindCode = ''
+          await this.fetchBindStatus()
+        } else {
+          const msg = String((res && (res.message || res.msg)) || '').trim()
+          this.openCenterPrompt(msg || '绑定失败')
+        }
+      } catch (e) { this.openCenterPrompt('绑定失败') }
+      finally { this.bindSubmitting = false }
+    },
+    showToast(text) {
+      this.toastText = String(text || '').trim() || '提示'
+      this.toastVisible = true
+      setTimeout(() => { this.toastVisible = false }, 1800)
+    },
+    maskPhone(s) {
+      let v = ''
+      if (typeof s === 'string') v = s.trim()
+      else if (typeof s === 'number') v = String(s)
+      else return '无'
+      if (!v) return '无'
+      const digits = v.replace(/\D+/g, '')
+      if (digits.length < 7) return v
+      return digits.slice(0, 6) + 'xxxx'
+    },
+    maskEmail(s) {
+      let v = ''
+      if (typeof s === 'string') v = s.trim()
+      else if (typeof s === 'number') v = String(s)
+      else return '无'
+      if (!v) return '无'
+      const at = v.indexOf('@')
+      if (at <= 1) return v
+      const head = v.slice(0, Math.min(3, at))
+      const tail = v.slice(at)
+      return head + '***' + tail
+    },
     // 显示登录弹窗
     showLoginModal() {
       this.loginModalVisible = true
@@ -927,6 +1145,143 @@ export default {
 .logout-icon {
   width: 16px;
   height: 16px;
+}
+
+/* 绑定状态入口 */
+.bind-status-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-secondary);
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.bind-status-trigger:hover {
+  background: var(--bg-tertiary);
+  color: var(--primary-color);
+}
+.bind-status-icon {
+  width: 16px;
+  height: 16px;
+}
+.bind-status-text {
+  font-size: 13px;
+}
+
+/* 绑定状态弹窗 */
+.bind-status-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2600;
+}
+.bind-status-modal {
+  background: var(--bg-primary);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  padding: 20px;
+  width: 520px;
+  max-width: calc(100% - 40px);
+}
+.bind-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-secondary);
+}
+.bind-status-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.bind-status-close-icon {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.bind-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-secondary);
+}
+.summary-item {
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  padding: 12px;
+}
+.summary-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.summary-value {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.bind-section {
+  padding: 14px 0;
+}
+.bind-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+.bind-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.bind-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+.bind-send-btn {
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.bind-confirm-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary-color);
+  color: #fff;
+  cursor: pointer;
+}
+.floating-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 80px;
+  transform: translateX(-50%);
+  background: rgba(17, 24, 39, 0.9);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 4000;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 /* 响应式设计 */

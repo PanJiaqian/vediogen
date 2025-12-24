@@ -1127,6 +1127,52 @@ export async function sendCheckCodeByEmail({ email }) {
   return res.text()
 }
 
+// 多方式登录绑定状态（独立服务地址）
+export async function getBindStatus(token) {
+  const url = `${BASE_URL}/user/bindStatus`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
+// 绑定手机号（独立服务地址）
+export async function bindPhone({ token, phone, code }) {
+  const url = `${BASE_URL}/user/bindPhone`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ phone, code })
+  const requestOptions = { method: 'POST', headers, body, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
+// 绑定邮箱（独立服务地址）
+export async function bindEmail({ token, email, code }) {
+  const url = `${BASE_URL}/user/bindEmail`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ email, code })
+  const requestOptions = { method: 'POST', headers, body, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
 // 发送短信验证码（手机号）
 export async function sendSmsCodeByPhone({ phone }) {
   const url = `${BASE_URL}/user/sendSmsCode?phone=${encodeURIComponent(phone)}`

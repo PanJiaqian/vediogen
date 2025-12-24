@@ -616,6 +616,8 @@ export default {
   padding: 15px;
   background-color: var(--bg-primary);
   border-top: 1px solid var(--border-secondary);
+  margin-top: auto;
+  flex-shrink: 0;
 }
 
 /* 添加新角色按钮容器 */
@@ -911,6 +913,8 @@ export default {
 /* 画面描述区域 */
 .scene-description-area {
   background-color: var(--bg-primary);
+  margin-top: auto;
+  flex-shrink: 0;
 }
 
 .description-input {
@@ -954,12 +958,15 @@ export default {
 }
 
 .generate-video-btn {
-  margin-left: auto;
-  padding: 8px 15px;
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2100;
+  padding: 10px 18px;
   background-color: var(--primary-color);
-  color: white;
+  color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 14px;
   cursor: pointer;
 }

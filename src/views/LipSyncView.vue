@@ -33,7 +33,7 @@
 
       <!-- 右侧数字人工具栏区域 -->
       <div class="right-panel">
-        <DigitalHumanToolbar :detection="detection" :imageFile="null" :videoId="videoId" :shotId="shotId" :workId="workId" @task-created="$emit('task-created', $event)" />
+        <DigitalHumanToolbar ref="toolbar" :detection="detection" :imageFile="null" :videoId="videoId" :shotId="shotId" :workId="workId" @task-created="$emit('task-created', $event)" />
       </div>
     </div>
     <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
@@ -173,6 +173,7 @@ export default {
   justify-content: center;
   padding: 40px;
   height: 100%;
+  position: relative;
 }
 
 .scene-preview {
@@ -225,6 +226,7 @@ export default {
   background: var(--bg-primary);
   flex-shrink: 0;
 }
+
 
 /* 响应式设计 */
 @media (max-width: 1400px) {
