@@ -237,7 +237,7 @@
           <button class="action-btn generate-video" @click="handleViewOrGenerate"
             :disabled="!canViewStoryboard && (!allImagesReady || pointsBalance < billingEstimate)">
             <span class="btn-text">{{ canViewStoryboard ? '查看分镜' : '生成分镜' }}</span>
-            <span v-if="!canViewStoryboard && billingEstimate > 0" class="btn-cost"><span class="diamond">◆</span> {{ billingEstimate }}</span>
+            <span v-if="!canViewStoryboard && billingEstimate > 0" class="btn-cost"><span class="diamond">✨</span> {{ billingEstimate }}</span>
           </button>
         </div>
       </div>
@@ -570,6 +570,8 @@ export default {
               const projectId = this.$route.params.id
               try { localStorage.setItem(`project:conversationId:${projectId}`, String(cid)) } catch (e) { /* no-op */ }
               try { localStorage.setItem(`project:videoId:${projectId}`, String(vid)) } catch (e) { /* no-op */ }
+              this.videoId = String(vid)
+              this.updateEstimateAndPoints()
               try { localStorage.setItem(`project:script_gen_finished:${projectId}`, '1') } catch (e) { /* no-op */ }
               const token2 = (this.userStore && this.userStore.token) || ''
               if (token2) {
@@ -1231,9 +1233,9 @@ export default {
       try {
         const allDone = !!this.summaryDone && !!this.peopleDone && !!this.sceneDone && !!this.storyboardDone
         const hasAny = !!this.generated.scriptSummary || (Array.isArray(this.generated.people) && this.generated.people.length) || (Array.isArray(this.generated.scenes) && this.generated.scenes.length) || (Array.isArray(this.generated.storyboard) && this.generated.storyboard.length)
-        if (hasAny && allDone && !this.estimateInitialized) {
-          this.updateEstimateAndPoints()
-        }
+        // if (hasAny && allDone && !this.estimateInitialized) {
+        //   this.updateEstimateAndPoints()
+        // }
       } catch (e) { /* no-op */ }
     }
     ,
@@ -1296,6 +1298,14 @@ export default {
         }
       }
       await this.loadVersionList()
+      // 确保使用当前版本对应的 videoId 进行扣费查询
+      if (this.versions && this.versions.length > 0 && typeof this.selectedVersionIndex === 'number') {
+        const v = this.versions[this.selectedVersionIndex]
+        if (v && v.videoId) {
+          this.videoId = String(v.videoId)
+        }
+      }
+      this.updateEstimateAndPoints()
       await this.loadConversationMessages()
     } catch (e) {
       console.warn('读取生成内容失败:', e)
