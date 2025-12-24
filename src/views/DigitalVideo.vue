@@ -83,7 +83,7 @@
         </div>
 
         <template
-          v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || (isConverting && isActiveImageMissing && !sceneDetail.video_url)">
+          v-if="isVideoGenerating || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || (isConverting && isActiveImageMissing && !sceneDetail.video_url)">
           <div class="skeleton-block">
             <div class="skeleton-line"></div>
             <div class="skeleton-line"></div>
@@ -163,7 +163,7 @@
               <!-- 图片展示 -->
               <div class="image-container">
                 <div
-                  v-if="(isActiveSceneCropping || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])"
+                  v-if="(isVideoGenerating || isActiveSceneCropping || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])"
                   class="skeleton-image"></div>
                 <div v-else-if="isBlankScene(scenes[activeSceneIndex])" class="blank-scene-display"
                   @click="triggerUpload(activeSceneIndex)">
@@ -376,7 +376,7 @@
       <!-- 右侧区域 -->
       <div class="right-panel">
         <!-- 画布编辑和对口型 -->
-        <div v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-block"
+        <div v-if="isVideoGenerating || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)" class="skeleton-block"
           style="margin-bottom: 8px;">
           <div class="skeleton-line" style="width: 200px; height: 32px;"></div>
         </div>
@@ -403,7 +403,7 @@
           <div class="video-preview">
             <div class="video-container" ref="videoContainer">
               <div
-              v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])"
+              v-if="(isVideoGenerating || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])"
               class="skeleton-image"></div>
               <template v-else>
               <div v-if="isBlankScene(scenes[activeSceneIndex])" class="blank-scene-display" @click="triggerUpload(activeSceneIndex)">
@@ -433,7 +433,7 @@
             </div>
           <div class="preview-aside">
             <template
-              v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])">
+              v-if="(isVideoGenerating || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])">
               <div class="thumb-card">
                 <div class="skeleton-image"></div>
               </div>
@@ -502,7 +502,7 @@
 
           <!-- 时间轴区域 -->
           <div class="timeline-section" ref="timelineSection">
-            <template v-if="isVideoConverting">
+            <template v-if="isVideoConverting || isVideoGenerating">
               <div class="timeline-header">
                 <span class="timeline-label">
                   <div class="skeleton-line" style="width:80px;height:12px;"></div>
@@ -1318,6 +1318,7 @@ export default {
             videoUrl = ''
             hasVideo = false
             clipUrl = img
+            anyPending = true
           }
           let durMs = 5000
           if (hasVideo && videoUrl) { try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 } }
@@ -1341,7 +1342,12 @@ export default {
           if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
           for (let i = 0; i < scenes.length; i++) {
             const sc = scenes[i]
-            if (sc && sc.video_url === null) this.pendingVideoSet.add(this.getSceneKey(sc, i))
+            const rawVid = list[i] && list[i].generated_video_url
+            const isNoVideo = String(rawVid || '').toLowerCase() === 'novideo'
+            const vClean = this.cleanUrl(String(rawVid || ''))
+            if (sc && (rawVid === null || (!isNoVideo && !vClean))) {
+              this.pendingVideoSet.add(this.getSceneKey(sc, i))
+            }
           }
           this.isVideoGenerating = true
           this.startPollingDigitalHumanConversation(String(conversationId))
@@ -1450,30 +1456,31 @@ export default {
             const img = this.cleanUrl(String(it.image_url || ''))
             const aud = this.cleanUrl(String(it.audio_url || ''))
             let videoUrl = ''
-            let hasVideo = false
-            let clipUrl = ''
-            if (isExplicitNull) {
-              videoUrl = null
-              hasVideo = false
-              clipUrl = img
-              anyPending = true
-            } else if (isNoVideo) {
-              videoUrl = ''
-              hasVideo = false
-              clipUrl = img
-            } else if (vClean) {
-              videoUrl = vClean
-              hasVideo = true
-              clipUrl = vClean
-            } else {
-              videoUrl = ''
-              hasVideo = false
-              clipUrl = img
-            }
-            let durMs = 5000
-            if (hasVideo && videoUrl) { try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 } }
-            sc.thumbnail = img || sc.thumbnail || clipUrl
-            sc.video_url = videoUrl
+          let hasVideo = false
+          let clipUrl = ''
+          if (isExplicitNull) {
+            videoUrl = null
+            hasVideo = false
+            clipUrl = img
+            anyPending = true
+          } else if (isNoVideo) {
+            videoUrl = ''
+            hasVideo = false
+            clipUrl = img
+          } else if (vClean) {
+            videoUrl = vClean
+            hasVideo = true
+            clipUrl = vClean
+          } else {
+            videoUrl = ''
+            hasVideo = false
+            clipUrl = img
+            anyPending = true
+          }
+          let durMs = 5000
+          if (hasVideo && videoUrl) { try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 } }
+          sc.thumbnail = img || sc.thumbnail || clipUrl
+          sc.video_url = videoUrl
             sc.hasVideo = !!hasVideo
             sc.audio_url = aud
             sc.clips = [{ url: clipUrl || img, durationMs: durMs }]
@@ -1481,13 +1488,13 @@ export default {
               if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
               if (clipUrl) this.durationMap.set(clipUrl, durMs)
               if (hasVideo && videoUrl && clipUrl !== videoUrl) this.durationMap.set(videoUrl, durMs)
-            } catch (e) { /* no-op */ }
-            const k = this.getSceneKey(sc, idx)
-            if (isExplicitNull) {
-              if (this.pendingVideoSet instanceof Set) { this.pendingVideoSet.add(k); this.pendingVideoSet = new Set(this.pendingVideoSet) }
-            } else {
-              if (this.pendingVideoSet instanceof Set) { this.pendingVideoSet.delete(k); this.pendingVideoSet = new Set(this.pendingVideoSet) }
-            }
+          } catch (e) { /* no-op */ }
+          const k = this.getSceneKey(sc, idx)
+          if (isExplicitNull || (!isNoVideo && !vClean)) {
+            if (this.pendingVideoSet instanceof Set) { this.pendingVideoSet.add(k); this.pendingVideoSet = new Set(this.pendingVideoSet) }
+          } else {
+            if (this.pendingVideoSet instanceof Set) { this.pendingVideoSet.delete(k); this.pendingVideoSet = new Set(this.pendingVideoSet) }
+          }
             if (this.activeSceneIndex === idx) {
               const v = videoUrl === null ? '' : videoUrl
               const ref = img || clipUrl || ''
@@ -2967,26 +2974,15 @@ export default {
     },
     async onLipSyncTaskCreated(taskId, audioUrl) {
       if (this.isSceneLipSyncMode && taskId) {
-        const wid = String(this.lipSyncWorkId || '').trim()
-        this.$router.push({ name: 'DigitalVideo', params: {}, query: Object.assign({}, this.$route.query, { taskId, workId: wid }) })
+        const q = this.$route.query
+        this.$router.push({ name: 'DigitalVideo', params: {}, query: { taskId } })
       }
 
       try { if (this.digitalVideoQueryInterval) { clearInterval(this.digitalVideoQueryInterval); this.digitalVideoQueryInterval = null } } catch (e) { void 0 }
       if (!taskId) return
       this.showLipSyncView = false
       this.isVideoGenerating = true
-      let idx = this.activeSceneIndex
-      try {
-        const wid = String(this.lipSyncWorkId || '').trim()
-        if (wid && Array.isArray(this.scenes) && this.scenes.length) {
-          for (let i = 0; i < this.scenes.length; i++) {
-            const sc = this.scenes[i] || {}
-            const swid = String((sc.work_id || sc.workid || sc.id || sc.workId || '')).trim()
-            if (swid === wid) { idx = i; break }
-          }
-          this.activeSceneIndex = idx
-        }
-      } catch (e) { void 0 }
+      const idx = this.activeSceneIndex
       const sc = this.scenes[idx] || {}
       const key = this.getSceneKey(sc, idx)
 
