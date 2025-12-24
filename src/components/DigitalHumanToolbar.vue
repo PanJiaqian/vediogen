@@ -158,8 +158,8 @@
 
     <!-- 下部分：画面描述区域（固定高度） -->
     <div class="scene-description-area">
-      <h3 class="section-title">画面描述 (选填)</h3>
-      <textarea placeholder="输入对画面内容的描述" class="description-input"></textarea>
+      <!-- <h3 class="section-title">画面描述 (选填)</h3>
+      <textarea placeholder="输入对画面内容的描述" class="description-input"></textarea> -->
 
       <!-- 分辨率选择 -->
           <div class="resolution-options">
