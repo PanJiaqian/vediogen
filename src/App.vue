@@ -24,12 +24,17 @@
 <script>
 import Sidebar from '@/components/Sidebar.vue'
 import Header from '@/components/Header.vue'
+import { useUserStore } from '@/stores/user'
 
 export default {
   name: 'App',
   components: {
     Sidebar,
     Header
+  },
+  setup() {
+    const userStore = useUserStore()
+    return { userStore }
   },
   data() {
     return {
@@ -40,6 +45,13 @@ export default {
   computed: {
     hideSidebar() {
       return this.$route?.meta?.hideSidebar === true
+    }
+  },
+  watch: {
+    'userStore.token'(newVal, oldVal) {
+      if (typeof oldVal !== 'undefined' && newVal !== oldVal) {
+        window.location.reload()
+      }
     }
   },
   methods: {

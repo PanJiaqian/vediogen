@@ -235,8 +235,10 @@
           <!-- <button class="action-btn save-script">保存剧本</button>
           <button class="action-btn add-scene">添加场景</button> -->
           <button class="action-btn generate-video" @click="handleViewOrGenerate"
-            :disabled="!canViewStoryboard && (!allImagesReady || pointsBalance < billingEstimate)">{{ canViewStoryboard ? '查看分镜' : '生成分镜' }}</button>
-          <span v-if="!canViewStoryboard && billingEstimate > 0" class="cost-tip">预计消耗：{{ billingEstimate }}</span>
+            :disabled="!canViewStoryboard && (!allImagesReady || pointsBalance < billingEstimate)">
+            <span class="btn-text">{{ canViewStoryboard ? '查看分镜' : '生成分镜' }}</span>
+            <span v-if="!canViewStoryboard && billingEstimate > 0" class="btn-cost"><span class="diamond">◆</span> {{ billingEstimate }}</span>
+          </button>
         </div>
       </div>
 
@@ -371,7 +373,7 @@ export default {
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) return ''
         const projectId = this.$route.params.id
-        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const videoId = this.videoId
         const text = await getMyWorksList(token)
         let obj = null
         try { obj = JSON.parse(text) } catch (e) { obj = null }
@@ -723,7 +725,7 @@ export default {
       // 发送后清空输入框
       this.userInput = ''
       const projectId = this.$route.params.id
-      const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+      const videoId = this.videoId || localStorage.getItem(`project:videoId:${projectId}`) || projectId
       const token = (this.userStore && this.userStore.token) || ''
       if (!token) {
         console.warn('未找到token，无法提交修改请求')
@@ -747,6 +749,7 @@ export default {
               try { localStorage.setItem(`project:conversationId:${projectId}`, String(cid)) } catch (e) { /* no-op */ }
               try { localStorage.setItem(`project:videoId:${projectId}`, String(vid)) } catch (e) { /* no-op */ }
               this.videoId = String(vid)
+              this.updateEstimateAndPoints()
               const token2 = (this.userStore && this.userStore.token) || ''
               if (token2) {
                 (async () => {
@@ -1933,13 +1936,41 @@ export default {
 }
 
 .action-btn.generate-video {
-  background: #f8f9fa;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #fff;
   color: #333;
   border: 1px solid #dee2e6;
+  border-radius: 999px;
+  padding: 8px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .action-btn.generate-video:hover {
-  background: #e9ecef;
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.action-btn.generate-video .btn-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.action-btn.generate-video .diamond {
+  font-size: 12px;
+  color: #333;
+  line-height: 1;
 }
 
 .action-btn:disabled {

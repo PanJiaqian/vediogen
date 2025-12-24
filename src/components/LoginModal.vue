@@ -14,7 +14,7 @@
         <!-- 登录方式切换 -->
         <div class="login-tabs" v-if="!isForgot">
           <button class="tab-btn" :class="{ active: loginType === 'phone' }" @click="loginType = 'phone'">
-            {{ isLogin ? '手机号登录' : '手机号注册' }}
+            {{ isLogin ? '手机号快捷登录' : '手机号注册' }}
           </button>
           <button class="tab-btn" :class="{ active: loginType === 'email' }" @click="loginType = 'email'">
             {{ isLogin ? '邮箱登录' : '邮箱注册' }}
@@ -29,6 +29,20 @@
             <input v-model="formData.phone" type="tel" class="form-input" placeholder="请输入手机号"
               :class="{ error: errors.phone }" />
             <span v-if="errors.phone" class="error-text">{{ errors.phone }}</span>
+          </div>
+          <div v-if="!isForgot && loginType === 'phone'" class="form-group">
+            <label class="form-label">验证码</label>
+            <div class="verification-group">
+              <input v-model="formData.phoneCode" type="text" class="form-input verification-input"
+                placeholder="请输入短信验证码" :class="{ error: errors.phoneCode }" maxlength="6" />
+              <button type="button" class="send-code-btn" @click="sendSmsCode"
+                :disabled="smsCodeSending || smsCodeCountdown > 0 || !formData.phone">
+                <span v-if="smsCodeSending">发送中...</span>
+                <span v-else-if="smsCodeCountdown > 0">{{ smsCodeCountdown }}s后重发</span>
+                <span v-else>发送验证码</span>
+              </button>
+            </div>
+            <span v-if="errors.phoneCode" class="error-text">{{ errors.phoneCode }}</span>
           </div>
 
           <!-- 邮箱登录/注册 -->
@@ -58,7 +72,7 @@
             <input v-model="formData.invitationCode" type="text" class="form-input" placeholder="请输入邀请码（选填）" />
           </div>
 
-          <div v-if="!isForgot" class="form-group">
+          <div v-if="!isForgot && loginType !== 'phone'" class="form-group">
             <label class="form-label">密码</label>
             <div class="password-input">
               <input v-model="formData.password" :type="showPassword ? 'text' : 'password'" class="form-input"
@@ -163,7 +177,7 @@
           </div>
 
           <!-- 提交按钮 -->
-          <button type="submit" class="submit-btn" :disabled="loading || (loginType === 'phone' && !isForgot)">
+          <button type="submit" class="submit-btn" :disabled="loading">
             <span v-if="loading" class="loading-spinner"></span>
             {{ loading ? '处理中...' : (isForgot ? '重置密码' : (isLogin ? '登录' : '注册')) }}
           </button>
@@ -179,24 +193,7 @@
               <path
                 d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 4.882-1.900 7.852.194-.242-2.751-3.086-4.380-8.595-4.380z" />
               <path
-                d="M23.759 11.336c0-3.676-3.28-6.65-7.32-6.65-4.041 0-7.32 2.974-7.32 6.65 0 3.675 3.279 6.65 7.32 6.65.784 0 1.551-.115 2.268-.334a.715.715 0 0 1 .593.081l1.579.922a.264.264 0 0 0 .138.044c.134 0 .24-.111.24-.248 0-.06-.024-.115-.04-.176l-.324-1.227a.487.487 0 0 1 .177-.551c1.516-1.109 2.489-2.764 2.489-4.611z" />
-            </svg>
-          </button>
-
-          <button class="social-btn google-btn" @click="handleGoogleLogin">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                fill="#4285F4" />
-              <path
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                fill="#34A853" />
-              <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                fill="#FBBC05" />
-              <path
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                fill="#EA4335" />
+                d="M23.759 11.336c0-3.676-3.28-6.65-7.32-6.65-4.041 0-7.32 2.974-7.32 6.65 0 3.675 3.279 6.65 7.32 6.65.784 0 1.551-.115 2.268-.334a.715.715 0 0 1 .593.081l1.579.922a.264.264 0 0 0 .138.044c .134 0 .24-.111 .24-.248 0-.06-.024-.115-.04-.176l-.324-1.227a.487.487 0 0 1 .177-.551c1.516-1.109 2.489-2.764 2.489-4.611z" />
             </svg>
           </button>
         </div>
@@ -204,7 +201,7 @@
         <!-- 切换登录/注册 -->
         <div class="switch-mode">
           <template v-if="!isForgot">
-            <span v-if="isLogin">
+            <span v-if="isLogin && loginType !== 'phone'">
               还没有账号？
               <button class="link-btn" @click="switchToRegister">立即注册</button>
             </span>
@@ -213,7 +210,7 @@
               <button class="link-btn" @click="switchToLogin">立即登录</button>
             </span>
           </template>
-          <template v-else>
+          <template v-else-if="loginType !== 'phone'">
             <span>
               <button class="link-btn" @click="isForgot = false; isLogin = true">返回登录</button>
             </span>
@@ -231,7 +228,7 @@
 </template>
 
 <script>
-import { emailLogin, emailRegister, sendCheckCodeByEmail, emailResetPassword } from '@/api'
+import { emailLogin, emailRegister, sendCheckCodeByEmail, emailResetPassword, sendSmsCodeByPhone, phoneLogin } from '@/api'
 import { useUserStore } from '@/stores/user'
 export default {
   name: 'LoginModal',
@@ -256,6 +253,10 @@ export default {
       emailCodeSending: false,
       emailCodeCountdown: 0,
       emailCodeTimer: null,
+      // 短信验证码相关
+      smsCodeSending: false,
+      smsCodeCountdown: 0,
+      smsCodeTimer: null,
       formData: {
         phone: '',
         email: '',
@@ -263,6 +264,7 @@ export default {
         confirmPassword: '',
         captcha: '',
         emailCode: '',
+        phoneCode: '',
         invitationCode: ''
       },
       errors: {},
@@ -348,7 +350,8 @@ export default {
         password: '',
         confirmPassword: '',
         captcha: '',
-        emailCode: ''
+        emailCode: '',
+        phoneCode: ''
       }
       this.errors = {}
       this.loading = false
@@ -358,6 +361,13 @@ export default {
       if (this.emailCodeTimer) {
         clearInterval(this.emailCodeTimer)
         this.emailCodeTimer = null
+      }
+      // 重置短信验证码相关状态
+      this.smsCodeSending = false
+      this.smsCodeCountdown = 0
+      if (this.smsCodeTimer) {
+        clearInterval(this.smsCodeTimer)
+        this.smsCodeTimer = null
       }
     },
     showPrompt(text) {
@@ -371,31 +381,38 @@ export default {
       this.errors = {}
 
       // 验证手机号或邮箱
-      // if (this.loginType === 'phone') {
-      //   if (!this.formData.phone) {
-      //     this.errors.phone = '请输入手机号'
-      //   } else if (!/^1[3-9]\d{9}$/.test(this.formData.phone)) {
-      //     this.errors.phone = '请输入正确的手机号'
-      //   }
-      // } else {
-      if (!this.formData.email) {
-        this.errors.email = '请输入邮箱'
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.formData.email)) {
-        this.errors.email = '请输入正确的邮箱格式'
+      if (this.loginType === 'phone') {
+        if (!this.formData.phone) {
+          this.errors.phone = '请输入手机号'
+        } else if (!/^1[3-9]\d{9}$/.test(this.formData.phone)) {
+          this.errors.phone = '请输入正确的手机号'
+        }
+        if (!this.formData.phoneCode) {
+          this.errors.phoneCode = '请输入短信验证码'
+        } else if (!/^[0-9]{6}$/.test(this.formData.phoneCode)) {
+          this.errors.phoneCode = '验证码必须是6位数字'
+        }
+      } else {
+        if (!this.formData.email) {
+          this.errors.email = '请输入邮箱'
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.formData.email)) {
+          this.errors.email = '请输入正确的邮箱格式'
+        }
       }
-      // }
 
       // 验证密码
-      if (!this.formData.password) {
-        this.errors.password = '请输入密码'
-      } else if (this.isForgot) {
-        const strong = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/
-        if (!strong.test(this.formData.password)) {
-          this.errors.password = '密码必须包含字母、数字和特殊字符，且长度至少为6位'
-          this.showPrompt(this.errors.password)
+      if (this.loginType !== 'phone') {
+        if (!this.formData.password) {
+          this.errors.password = '请输入密码'
+        } else if (this.isForgot) {
+          const strong = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/
+          if (!strong.test(this.formData.password)) {
+            this.errors.password = '密码必须包含字母、数字和特殊字符，且长度至少为6位'
+            this.showPrompt(this.errors.password)
+          }
+        } else if (this.formData.password.length < 6) {
+          this.errors.password = '密码至少6位'
         }
-      } else if (this.formData.password.length < 6) {
-        this.errors.password = '密码至少6位'
       }
 
       // 验证确认密码（注册时）
@@ -497,6 +514,40 @@ export default {
             } else {
               this.showPrompt(msg || '登录失败，请重试')
             }
+            this.refreshCaptcha()
+          }
+        }
+        else if (this.isLogin && this.loginType === 'phone') {
+          const result = await phoneLogin({
+            phone: this.formData.phone,
+            code: this.formData.phoneCode
+          })
+          let data = null
+          try { data = JSON.parse(result) } catch (e) { data = { message: result } }
+          if (data && (data.code === 0 || data.code === 200)) {
+            const userStore = useUserStore()
+            if (data.token) {
+              userStore.setToken(data.token)
+            }
+            userStore.setUser({
+              id: data.userId || Date.now(),
+              phone: this.formData.phone,
+              loginTime: new Date(),
+              avatar: '/logo.png'
+            })
+            this.$emit('success', {
+              type: 'login',
+              user: {
+                id: data.userId || Date.now(),
+                phone: this.formData.phone,
+                loginTime: new Date(),
+                token: data.token
+              }
+            })
+            this.closeModal()
+          } else {
+            const msg = String((data && (data.message || data.msg)) || '').trim()
+            this.showPrompt(msg || '登录失败，请重试')
             this.refreshCaptcha()
           }
         }
@@ -661,6 +712,41 @@ export default {
         if (this.emailCodeCountdown <= 0) {
           clearInterval(this.emailCodeTimer)
           this.emailCodeTimer = null
+        }
+      }, 1000)
+    }
+    ,
+    // 发送短信验证码
+    async sendSmsCode() {
+      if (!this.formData.phone || !/^1[3-9]\d{9}$/.test(this.formData.phone)) {
+        this.errors.phone = '请输入正确的手机号'
+        return
+      }
+      this.smsCodeSending = true
+      try {
+        const result = await sendSmsCodeByPhone({ phone: this.formData.phone })
+        let data = null
+        try { data = JSON.parse(result) } catch (e) { data = { message: result } }
+        if (data && (data.code === 0 || data.code === 200)) {
+          this.startSmsCodeCountdown()
+        } else {
+          const msg = String((data && (data.message || data.msg)) || '').trim()
+          this.showPrompt(msg || '验证码发送失败，请重试')
+        }
+      } catch (error) {
+        this.showPrompt('网络错误，请检查网络连接后重试')
+      } finally {
+        this.smsCodeSending = false
+      }
+    }
+    ,
+    startSmsCodeCountdown() {
+      this.smsCodeCountdown = 60
+      this.smsCodeTimer = setInterval(() => {
+        this.smsCodeCountdown--
+        if (this.smsCodeCountdown <= 0) {
+          clearInterval(this.smsCodeTimer)
+          this.smsCodeTimer = null
         }
       }, 1000)
     }

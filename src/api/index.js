@@ -1127,6 +1127,31 @@ export async function sendCheckCodeByEmail({ email }) {
   return res.text()
 }
 
+// 发送短信验证码（手机号）
+export async function sendSmsCodeByPhone({ phone }) {
+  const url = `${BASE_URL}/user/sendSmsCode?phone=${encodeURIComponent(phone)}`
+  const requestOptions = {
+    method: 'POST',
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  return res.text()
+}
+
+// 手机号登录（验证码）
+export async function phoneLogin({ phone, code }) {
+  const url = `${BASE_URL}/user/phoneLogin`
+  const body = JSON.stringify({ phone, code })
+  const requestOptions = {
+    method: 'POST',
+    body,
+    headers: { 'Content-Type': 'application/json' },
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  return res.text()
+}
+
 export async function copyStoryboardVideo({ videoId, order_index, token }) {
   const url = `${BASE_URL}/detail/storyboard/copy`
   const headers = buildAuthHeaders(token)
@@ -1236,6 +1261,8 @@ export default {
   emailRegister,
   sendCheckCodeByEmail
   , emailResetPassword
+  , sendSmsCodeByPhone
+  , phoneLogin
   , regenerateImage
   , queryRegenerateImage
   , getStoryboardImagesDetail

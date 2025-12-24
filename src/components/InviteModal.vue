@@ -140,11 +140,27 @@ export default {
     },
     totalInvites() {
       const d = this.stats || {}
-      return d.totalInvites != null ? d.totalInvites : (d.inviteCount != null ? d.inviteCount : (d.data && d.data.totalInvites != null ? d.data.totalInvites : 0))
+      return d.totalInvites != null
+        ? d.totalInvites
+        : (d.inviteCount != null
+          ? d.inviteCount
+          : (d.successfulInvites != null
+            ? d.successfulInvites
+            : (d.data && (d.data.totalInvites != null
+              ? d.data.totalInvites
+              : (d.data.successfulInvites != null ? d.data.successfulInvites : 0)))))
     },
     totalPoints() {
       const d = this.stats || {}
-      return d.totalPoints != null ? d.totalPoints : (d.points != null ? d.points : (d.data && d.data.totalPoints != null ? d.data.totalPoints : 0))
+      return d.totalPoints != null
+        ? d.totalPoints
+        : (d.points != null
+          ? d.points
+          : (d.earnedPoints != null
+            ? d.earnedPoints
+            : (d.data && (d.data.totalPoints != null
+              ? d.data.totalPoints
+              : (d.data.earnedPoints != null ? d.data.earnedPoints : 0)))))
     }
   },
   watch: {
