@@ -11,7 +11,8 @@ export const useUserStore = defineStore('user', {
       name: '',
       email: '',
       phone: '',
-      avatar: '/logo.png'
+      avatar: '/logo.png',
+      pointsBalance: 0
     }
   }),
   getters: {
@@ -45,7 +46,8 @@ export const useUserStore = defineStore('user', {
         email: user?.email ?? this.userInfo.email,
         phone: user?.phone ?? this.userInfo.phone,
         avatar: user?.avatar ?? this.userInfo.avatar,
-        vipStatus: user?.vipStatus ?? this.userInfo.vipStatus
+        vipStatus: user?.vipStatus ?? this.userInfo.vipStatus,
+        pointsBalance: (typeof user?.pointsBalance !== 'undefined' ? user.pointsBalance : this.userInfo.pointsBalance)
       }
       this.userInfo = merged
       this.isLoggedIn = true
@@ -64,7 +66,8 @@ export const useUserStore = defineStore('user', {
         name: '',
         email: '',
         phone: '',
-        avatar: '/logo.png'
+        avatar: '/logo.png',
+        pointsBalance: 0
       }
       try {
         localStorage.removeItem('token')

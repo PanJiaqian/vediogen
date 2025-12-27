@@ -12,7 +12,25 @@
         <span class="page-title">对口型</span>
       </div>
       <div class="navbar-right">
-        <button class="navbar-btn" @click="showMembershipModal = true">开通会员</button>
+        <div class="header-items">
+          <div class="header-item points-display" @click="showPointsModal = true" v-if="isLoggedIn">
+            <span class="points-val">✨ {{ userBasicInfo.pointsBalance || 0 }}</span>
+          </div>
+          <div class="header-item membership-btn" v-if="!isVip" @click="showMembershipModal = true">开通会员</div>
+          <div class="header-item invite-btn" @click="showInviteModal = true">邀请有礼</div>
+          <div class="header-item theme-toggle" @click="toggleTheme" :aria-label="isDark ? '切换为浅色' : '切换为深色'">
+            <svg v-if="!isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 17a5 5 0 100-10 5 5 0 000 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div v-if="isLoggedIn" class="user-info">
+            <img :src="userBasicInfo.avatar || currentUser.avatar || '/logo.png'" class="user-avatar" alt="avatar">
+          </div>
+        </div>
       </div>
     </div>
 
@@ -37,18 +55,26 @@
       </div>
     </div>
     <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
+    <PointsModal :visible="showPointsModal" :userInfo="{ ...currentUser, ...userBasicInfo }" @close="showPointsModal = false" />
+    <InviteModal :visible="showInviteModal" @close="showInviteModal = false" :token="userStore.token" />
   </div>
 </template>
 
 <script>
 import DigitalHumanToolbar from '@/components/DigitalHumanToolbar.vue'
 import MembershipModal from '@/components/MembershipModal.vue'
+import PointsModal from '@/components/PointsModal.vue'
+import InviteModal from '@/components/InviteModal.vue'
+import { useUserStore } from '@/stores/user'
+import { getUserBasicStatus } from '@/api'
 
 export default {
   name: 'LipSyncView',
   components: {
     DigitalHumanToolbar,
-    MembershipModal
+    MembershipModal,
+    PointsModal,
+    InviteModal
   },
   props: {
     imageUrl: { type: String, default: '' },
@@ -62,13 +88,64 @@ export default {
   data() {
     return {
       // 页面数据
-      showMembershipModal: false
+      showMembershipModal: false,
+      showPointsModal: false,
+      showInviteModal: false,
+      userBasicInfo: {},
+      isDark: false
     }
+  },
+  computed: {
+    userStore() {
+      return useUserStore()
+    },
+    isLoggedIn() {
+      return this.userStore && this.userStore.isLoggedIn
+    },
+    currentUser() {
+      return (this.userStore && this.userStore.userInfo) || {}
+    },
+    isVip() {
+      const a = this.userBasicInfo && this.userBasicInfo.vipStatus
+      const b = this.userStore && this.userStore.userInfo && this.userStore.userInfo.vipStatus
+      return a === 'ACTIVE' || b === 'ACTIVE'
+    }
+  },
+  mounted() {
+    try {
+      const token = this.userStore && this.userStore.token
+      if (token) {
+        getUserBasicStatus(token).then(res => {
+          if (res && res.code === 0 && res.data) {
+            this.userBasicInfo = res.data
+          }
+        }).catch(() => {})
+      }
+    } catch (e) { /* no-op */ }
+    try {
+      const dm = localStorage.getItem('darkMode')
+      this.isDark = String(dm || '').toLowerCase() === 'true'
+      if (this.isDark) {
+        document.documentElement.setAttribute('data-theme', 'dark')
+      } else {
+        document.documentElement.removeAttribute('data-theme')
+      }
+    } catch (e) { /* no-op */ }
   },
   methods: {
     goBack() {
       // 触发父组件的关闭事件，关闭对口型页面覆盖层
       this.$emit('close')
+    },
+    toggleTheme() {
+      this.isDark = !this.isDark
+      if (this.isDark) {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        try { localStorage.setItem('darkMode', 'true') } catch (e) { /* no-op */ }
+      } else {
+        document.documentElement.removeAttribute('data-theme')
+        try { localStorage.setItem('darkMode', 'false') } catch (e) { /* no-op */ }
+      }
     }
   }
 }
@@ -132,6 +209,73 @@ export default {
 .navbar-right {
   display: flex;
   gap: 12px;
+}
+
+.header-items {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.header-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.theme-toggle {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  /* background: var(--bg-tertiary); */
+  color: var(--text-primary);
+}
+[data-theme="dark"] .theme-toggle {
+  background: #1f1f1f;
+}
+.membership-btn {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 500;
+}
+.invite-btn {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 500;
+}
+.points-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--bg-secondary);
+  color: #fbbf24;
+  padding: 0.5rem 0.8rem;
+  border-radius: 20px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.points-display:hover {
+  background-color: var(--bg-tertiary);
+  transform: translateY(-1px);
+}
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .navbar-btn {
@@ -225,6 +369,10 @@ export default {
   width: 400px;
   background: var(--bg-primary);
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  height: 100%;
 }
 
 

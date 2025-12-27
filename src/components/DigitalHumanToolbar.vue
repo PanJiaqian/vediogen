@@ -217,7 +217,7 @@ export default {
       voiceAudioUrl: '',
       toastVisible: false,
       toastText: '',
-      voiceName: '',
+      voiceName: 'cherry',
       voiceLanguage: 'Chinese',
       voiceGender: '女性',
       voiceAge: '青年',

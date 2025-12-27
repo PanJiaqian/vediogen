@@ -37,16 +37,16 @@
         <div class="progress-container">
           <div class="progress-line"></div>
           <div class="progress-nodes">
-            <div class="node" v-for="i in 8" :key="i">
+            <div class="node" v-for="(val, i) in progressValues" :key="i" :class="{ active: successfulInvites >= (i + 1) }">
               <div class="node-dot">◆</div>
-              <div class="node-val">100</div>
+              <div class="node-val">{{ val }}</div>
             </div>
-            <div class="node special">
+            <div class="node special" :class="{ active: successfulInvites >= 10 }">
               <div class="node-icon-star">✨</div>
               <div class="node-val">200</div>
               <div class="node-label">满十人</div>
             </div>
-            <div class="node">
+            <div class="node" :class="{ active: successfulInvites > 10 }">
               <div class="node-dot">◆</div>
               <div class="node-val">100</div>
               <div class="node-label">后续</div>
@@ -138,6 +138,12 @@ export default {
     displayCode() {
       return this.invitationCode || '—'
     },
+    successfulInvites() {
+      const d = this.stats || {}
+      if (d.successfulInvites != null) return Number(d.successfulInvites) || 0
+      if (d.data && d.data.successfulInvites != null) return Number(d.data.successfulInvites) || 0
+      return 0
+    },
     totalInvites() {
       const d = this.stats || {}
       return d.totalInvites != null
@@ -161,6 +167,9 @@ export default {
             : (d.data && (d.data.totalPoints != null
               ? d.data.totalPoints
               : (d.data.earnedPoints != null ? d.data.earnedPoints : 0)))))
+    },
+    progressValues() {
+      return [10, 10, 30, 50, 50, 10, 100, 50]
     }
   },
   watch: {
@@ -455,6 +464,14 @@ export default {
   color: #999;
 }
 
+.node.active .node-dot {
+  color: #FFB75E ;
+}
+.node.active .node-val {
+  color: #FFB75E ;
+  font-weight: 600;
+}
+
 .node.special .node-icon-star {
   font-size: 16px;
   background: #f9f9f9;
@@ -463,6 +480,14 @@ export default {
 
 [data-theme="dark"] .node.special .node-icon-star {
   background: #2a2a2a;
+}
+
+.node.active .node-dot[data-theme="dark"],
+[data-theme="dark"] .node.active .node-dot {
+  color: #FFB75E ;
+}
+[data-theme="dark"] .node.active .node-val {
+  color: #FFB75E ;
 }
 
 .node.special .node-val {

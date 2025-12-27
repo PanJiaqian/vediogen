@@ -536,7 +536,10 @@ export default {
             ...this.currentUser,
             name: res.data.nickname || this.currentUser.name,
             avatar: res.data.avatar || this.currentUser.avatar,
-            vipStatus: res.data.vipStatus || this.currentUser.vipStatus
+            vipStatus: res.data.vipStatus || this.currentUser.vipStatus,
+            pointsBalance: (res.data && typeof res.data.pointsBalance !== 'undefined')
+              ? Number(res.data.pointsBalance) || 0
+              : (this.currentUser && this.currentUser.pointsBalance) || 0
           })
         }
       } catch (e) {

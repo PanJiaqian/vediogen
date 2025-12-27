@@ -17,22 +17,10 @@
       <div class="navbar-left">
         <img src="/logo.png" alt="VideoGen" class="logo-icon" @click="$router.push('/')" />
         <div class="project-title-container">
-          <span v-if="!isEditingTitle" class="project-title-text" @click="startEditTitle" title="点击修改标题">
-            {{ projectTitle }}
-            <svg class="edit-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" width="14" height="14"
-              style="margin-left:4px;opacity:0.6;">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
-            </svg>
-          </span>
-          <input v-else ref="titleInput" v-model="editingTitle" class="project-title-input" @blur="saveTitle"
-            @keyup.enter="saveTitle" />
+          <span class="project-title-text">数字人视频</span>
         </div>
       </div>
       <div class="navbar-right">
-        <button v-if="!isVip" class="navbar-btn premium-btn" @click="showMembershipModal = true">开通会员</button>
         <button class="navbar-btn convert-btn" @click="convertToVideo" :disabled="true">
           一键转视频
           <span class="scene-count-chip">
@@ -44,7 +32,25 @@
             <span class="chip-text">{{ Array.isArray(scenes) ? scenes.length : 0 }}</span>
           </span>
         </button>
-        <!-- <button class="navbar-btn export-btn" @click="exportVideo" :disabled="true">导出视频</button> -->
+        <div class="header-items">
+          <div class="header-item points-display" @click="showPointsModal = true" v-if="isLoggedIn">
+            <span class="points-val">✨ {{ (userStore && userStore.userInfo && userStore.userInfo.pointsBalance) || 0 }}</span>
+          </div>
+          <div class="header-item membership-btn" v-if="!isVip" @click="showMembershipModal = true">开通会员</div>
+          <div class="header-item invite-btn" @click="showInviteModal = true">邀请有礼</div>
+          <div class="header-item theme-toggle" @click="toggleTheme" :aria-label="isDark ? '切换为浅色' : '切换为深色'">
+            <svg v-if="!isDark" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 17a5 5 0 100-10 5 5 0 000 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <div v-if="isLoggedIn" class="user-info">
+            <img :src="(userBasicInfo && userBasicInfo.avatar) || (userStore && userStore.userInfo && userStore.userInfo.avatar) || '/logo.png'" class="user-avatar" alt="avatar">
+          </div>
+        </div>
       </div>
     </div>
 
@@ -52,6 +58,8 @@
       :token="userStore.token" modelName="qwen3-TTS-Flash" />
     
     <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
+    <PointsModal :visible="showPointsModal" :userInfo="mergedUserInfo" @close="showPointsModal = false" />
+    <InviteModal :visible="showInviteModal" @close="showInviteModal = false" :token="userStore.token" />
 
     <!-- 主要内容区域 -->
     <div class="main-content">
@@ -763,11 +771,13 @@
 <script>
 import ToneSelector from '@/components/ToneSelector.vue'
 import MembershipModal from '@/components/MembershipModal.vue'
+import PointsModal from '@/components/PointsModal.vue'
+import InviteModal from '@/components/InviteModal.vue'
 import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 // import Hls from 'hls.js'
-import { getScriptDetailByVideo, regenerateImage, queryRegenerateImage, copyStoryboardVideo, reorderStoryboardScenes, clipStoryboardVideo, updateVideoTitle, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, getDigitalHumanWorksByConversation, getDigitalHumanWorkSingle, objectDetectionByScene, uploadDigitalHumanWorkImage, objectDetectionByWork, digitalhumanGenByWork } from '@/api'
+import { getScriptDetailByVideo, regenerateImage, queryRegenerateImage, copyStoryboardVideo, reorderStoryboardScenes, clipStoryboardVideo, updateVideoTitle, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, getDigitalHumanWorksByConversation, getDigitalHumanWorkSingle, objectDetectionByScene, uploadDigitalHumanWorkImage, objectDetectionByWork, digitalhumanGenByWork, getUserBasicStatus } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -776,13 +786,15 @@ export default {
   components: {
     ToneSelector,
     MembershipModal,
+    PointsModal,
+    InviteModal,
     LipSyncView,
     CanvasEditView,
     CropStoryboardModal
   },
   data() {
     return {
-      projectTitle: '',
+      projectTitle: '数字人视频',
       activeTab: 'image',
       sceneInput: '',
       subtitleEnabled: true,
@@ -803,7 +815,7 @@ export default {
       voiceGender: '女性',
       voiceAge: '中年',
       voiceStyle: '普通话',
-      voiceName: '', // 默认为 cherry
+      voiceName: 'cherry', // 默认音色
       voiceLanguage: 'Chinese', // 默认为 Chinese
       supportedLanguages: [],
       showLanguageSelector: false,
@@ -879,7 +891,11 @@ export default {
       dragStartSelY: 0,
       dragStartW: 0,
       dragStartH: 0,
-      displayRect: null
+      displayRect: null,
+      userBasicInfo: {},
+      showPointsModal: false,
+      showInviteModal: false,
+      isDark: false
     }
   },
 
@@ -1049,8 +1065,7 @@ export default {
           this.ensurePreviewFromScenes()
         }
       }
-      const title = localStorage.getItem(`project:prompt:${projectId}`)
-      if (title) this.projectTitle = title
+      this.projectTitle = '数字人视频'
       const shouldGen = localStorage.getItem(`video-edit:generateStoryboard:${projectId}`) === '1'
       const shouldView = localStorage.getItem(`video-edit:viewStoryboard:${projectId}`) === '1'
       this._entryIsGenerate = !!shouldGen
@@ -1082,6 +1097,28 @@ export default {
     this.$nextTick(() => { this.tryAttachHls() })
     this.$nextTick(() => { this.initLeftPanelScript() })
     this.$nextTick(() => { this.prefetchFirstSceneAudioIfMissing() })
+    try {
+      const saved = localStorage.getItem('darkMode')
+      if (saved === 'true' || saved === '1') {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        this.isDark = true
+      } else if (saved === 'false' || saved === '0') {
+        document.documentElement.removeAttribute('data-theme')
+        this.isDark = false
+      } else {
+        this.isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+      }
+    } catch (e) { /* no-op */ }
+    try {
+      const token = this.userStore && this.userStore.token
+      if (token) {
+        getUserBasicStatus(token).then(res => {
+          if (res && res.code === 0 && res.data) {
+            this.userBasicInfo = res.data
+          }
+        }).catch(() => {})
+      }
+    } catch (e) { /* no-op */ }
   },
   computed: {
     isSceneLipSyncMode() {
@@ -1089,6 +1126,17 @@ export default {
     },
     userStore() {
       return useUserStore()
+    },
+    currentUser() {
+      return (this.userStore && this.userStore.userInfo) || {}
+    },
+    mergedUserInfo() {
+      const a = (this.userStore && this.userStore.userInfo) || {}
+      const b = this.userBasicInfo || {}
+      return { ...a, ...b }
+    },
+    isLoggedIn() {
+      return this.userStore && this.userStore.isLoggedIn
     },
     isVip() {
       return this.userStore && this.userStore.userInfo && this.userStore.userInfo.vipStatus === 'ACTIVE'
@@ -1289,6 +1337,16 @@ export default {
     }
   },
   methods: {
+    toggleTheme() {
+      this.isDark = !this.isDark
+      if (this.isDark) {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        try { localStorage.setItem('darkMode', 'true') } catch (e) { /* no-op */ }
+      } else {
+        document.documentElement.removeAttribute('data-theme')
+        try { localStorage.setItem('darkMode', 'false') } catch (e) { /* no-op */ }
+      }
+    },
     async loadDigitalHumanByConversation(conversationId) {
       try {
         const token = (this.userStore && this.userStore.token) || ''
@@ -4091,6 +4149,61 @@ export default {
   gap: 12px;
 }
 
+.header-items {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.theme-toggle svg { width: 20px; height: 20px; }
+.header-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.membership-btn {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 500;
+}
+.invite-btn {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 500;
+}
+.points-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--bg-secondary);
+  color: #fbbf24;
+  padding: 0.5rem 0.8rem;
+  border-radius: 20px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.points-display:hover {
+  background-color: var(--bg-tertiary);
+  transform: translateY(-1px);
+}
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .navbar-btn {
   padding: 8px 16px;
   border: 1px solid var(--border-primary);
@@ -4361,6 +4474,7 @@ export default {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
+[data-theme="dark"] .prompt-edit-input { color: #fff; }
 
 .prompt-edit-actions {
   display: flex;
@@ -4482,6 +4596,7 @@ export default {
 .scene-input:focus {
   outline: none;
 }
+[data-theme="dark"] .scene-input { color: #fff; }
 
 .input-actions {
   position: absolute;
@@ -5271,6 +5386,7 @@ input:checked+.slider:before {
   resize: none;
   outline: none;
 }
+[data-theme="dark"] .voice-script-input { color: #fff; }
 
 .voice-script-input::placeholder {
   color: var(--text-tertiary);

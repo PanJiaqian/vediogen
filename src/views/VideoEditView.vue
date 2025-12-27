@@ -27,7 +27,16 @@
         </button>
       </div>
       <div class="navbar-right">
-        <div class="points-display" v-if="userStore && userStore.isLoggedIn" @click="showPointsModal = true">✨ {{ pointsBalance || 0 }}</div>
+        <div class="points-display" v-if="userStore && userStore.isLoggedIn" @click="showPointsModal = true">✨ {{ (userStore && userStore.userInfo && userStore.userInfo.pointsBalance) || 0 }}</div>
+        <button class="navbar-btn theme-toggle-btn" @click="toggleTheme" :aria-label="isDark ? '切换为浅色' : '切换为深色'">
+          <svg v-if="!isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 17a5 5 0 100-10 5 5 0 000 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
         <button class="navbar-btn premium-btn" v-if="!isVip" @click="showMembershipModal = true">开通会员</button>
         <button class="navbar-btn convert-btn" @click="openConvertConfirmModal"
           :disabled="worksVideoReady || !allImagesReady">一键转视频</button>
@@ -875,8 +884,8 @@ export default {
     CanvasEditView,
     CropStoryboardModal
   },
-  data() {
-    return {
+    data() {
+      return {
       showPointsModal: false,
       projectTitle: '',
       activeTab: 'image',
@@ -963,6 +972,7 @@ export default {
       , convertEstimateTotal: 0
       , convertScenesCount: 0
       , canConfirmConvert: false
+      , isDark: false
       , selectedConvertModelName: 'wan2.2-i2v-flash'
       , selectedDurationMode: 'voice-crop'
       , aspectRatio: '16:9'
@@ -1099,7 +1109,18 @@ export default {
       this._shotOrder = []
     }
     // 禁止进入页面自动调用分镜详情接口：不再加载服务器顺序索引
-
+    try {
+      const saved = localStorage.getItem('darkMode')
+      if (saved === 'true' || saved === '1') {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        this.isDark = true
+      } else if (saved === 'false' || saved === '0') {
+        document.documentElement.removeAttribute('data-theme')
+        this.isDark = false
+      } else {
+        this.isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+      }
+    } catch (e) { /* no-op */ }
     // Check if returning from Lip Sync generation (after scenes loaded)
     try {
       const q = this.$route.query
@@ -1134,7 +1155,11 @@ export default {
         const token = (this.userStore && this.userStore.token) || ''
         if (token) {
           const status = await getUserBasicStatus(token)
-          this.pointsBalance = (status && status.code === 0 && status.data && Number(status.data.pointsBalance)) || 0
+          const balance = (status && status.code === 0 && status.data && Number(status.data.pointsBalance)) || 0
+          this.userStore.setUser({
+            ...this.userStore.userInfo,
+            pointsBalance: balance
+          })
         }
       } catch (e) { /* no-op */ }
     })
@@ -1325,6 +1350,16 @@ export default {
     }
   },
   methods: {
+    toggleTheme() {
+      this.isDark = !this.isDark
+      if (this.isDark) {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        try { localStorage.setItem('darkMode', 'true') } catch (e) { /* no-op */ }
+      } else {
+        document.documentElement.removeAttribute('data-theme')
+        try { localStorage.setItem('darkMode', 'false') } catch (e) { /* no-op */ }
+      }
+    },
     determineSceneType(sc) {
       const rawV = (sc && sc.video_url) || (this.sceneDetail && this.sceneDetail.video_url) || ''
       const vstr = String(rawV || '').trim().toLowerCase()
@@ -3492,10 +3527,14 @@ export default {
         this.convertEstimateTotal = Number.isFinite(total) ? total : 0
         try {
           const status = await getUserBasicStatus(token)
-          this.pointsBalance = (status && status.code === 0 && status.data && Number(status.data.pointsBalance)) || 0
-        } catch (e) { this.pointsBalance = 0 }
+          const balance = (status && status.code === 0 && status.data && Number(status.data.pointsBalance)) || 0
+          this.userStore.setUser({
+            ...this.userStore.userInfo,
+            pointsBalance: balance
+          })
+        } catch (e) { /* no-op */ }
         this.convertScenesCount = Array.isArray(this.scenes) ? this.scenes.length : 0
-        this.canConfirmConvert = this.pointsBalance >= this.convertEstimateTotal
+        this.canConfirmConvert = ((this.userStore && this.userStore.userInfo && this.userStore.userInfo.pointsBalance) || 0) >= this.convertEstimateTotal
         this.convertConfirmVisible = true
       } catch (e) { void 0 }
     },
@@ -3510,7 +3549,7 @@ export default {
         try { estimate = await getBillingEstimate({ videoId, genType: 'video', modelName, token }) } catch (e) { estimate = null }
         const total = estimate && typeof estimate === 'object' ? Number(estimate.total_price || (estimate.data && estimate.data.total_price) || 0) : 0
         this.convertEstimateTotal = Number.isFinite(total) ? total : 0
-        this.canConfirmConvert = this.pointsBalance >= this.convertEstimateTotal
+        this.canConfirmConvert = ((this.userStore && this.userStore.userInfo && this.userStore.userInfo.pointsBalance) || 0) >= this.convertEstimateTotal
       } catch (e) { void 0 }
     },
     closeConvertConfirmModal() {
@@ -3959,7 +3998,7 @@ export default {
           const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
           const prompt = String(sc.description || '').trim()
           const type = this.determineSceneType(sc)
-          const modelname = 'doubao-seedream-4-0-250828'
+          const modelname = type === 'video' ? 'wan2.2-i2v-flash' : 'doubao-seedream-4-0-250828'
           if (token && videoId && shotId && prompt) {
             this.toastText = '已提交修改，生成中...'
             this.toastVisible = true
@@ -3997,7 +4036,7 @@ export default {
         const sc = this.scenes[this.activeSceneIndex] || {}
         const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
         const type = this.determineSceneType(sc)
-        const modelname = 'doubao-seedream-4-0-250828'
+        const modelname = type === 'video' ? 'wan2.2-i2v-flash' : 'doubao-seedream-4-0-250828'
         if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ } return }
         const k = this.getSceneKey(sc, this.activeSceneIndex)
         if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
@@ -4510,13 +4549,21 @@ export default {
 
 .navbar-btn {
   padding: 8px 16px;
-  border: 1px solid var(--border-primary);
+  border: none;
   border-radius: 6px;
   background: var(--bg-primary);
   color: var(--text-secondary);
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s;
+}
+
+.theme-toggle-btn {
+  width: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .navbar-btn:hover {
@@ -4759,6 +4806,10 @@ export default {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+[data-theme="dark"] .prompt-edit-input {
+  color: #fff;
+}
+
 .prompt-edit-actions {
   display: flex;
   gap: 8px;
@@ -4878,6 +4929,10 @@ export default {
 
 .scene-input:focus {
   outline: none;
+}
+
+[data-theme="dark"] .scene-input {
+  color: #fff;
 }
 
 .input-actions {
@@ -5875,6 +5930,10 @@ input:checked+.slider:before {
 
 .voice-script-input::placeholder {
   color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .voice-script-input {
+  color: #fff;
 }
 
 .voice-script-controls {

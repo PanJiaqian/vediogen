@@ -1822,16 +1822,16 @@ export default {
 }
 
 .action-buttons {
-  background: var(--bg-primary);
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px solid var(--border-secondary);
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  border: none;
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-bottom: 20px;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: none;
 }
 
 /* 右侧问答消息气泡样式 */
