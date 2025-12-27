@@ -46,117 +46,42 @@
           </div>
         </div>
 
-        <!-- 标准会员 -->
-        <div class="plan-card highlight">
+        <!-- 会员套餐（接口动态） -->
+        <div
+          v-for="pkg in membershipPackages"
+          :key="pkg.id"
+          class="plan-card highlight"
+        >
           <div class="plan-header">
             <div class="plan-icon">👑</div>
-            <div class="plan-name">标准会员</div>
+            <div class="plan-name">{{ levelName(pkg.membershipLevel) }}</div>
           </div>
           <div class="plan-price">
             <span class="currency">¥</span>
-            <span class="amount">50</span>
+            <span class="amount">{{ pkg.payFee }}</span>
             <div class="price-info">
-              <span class="original">首购特惠</span>
-              <span class="period">原价 ¥60/月</span>
+              <span class="period">/月</span>
             </div>
           </div>
-          <button class="plan-btn primary" @click="openAlipay({ name: '标准会员', price: 50, points: 500 })">订阅计划</button>
+          <button
+            class="plan-btn primary"
+            @click="openAlipay({ name: levelName(pkg.membershipLevel), price: pkg.payFee, points: pkg.points, packageId: pkg.id })"
+          >
+            订阅计划
+          </button>
           <div class="plan-features">
             <div class="feature-item highlight-text">
               <svg class="sparkle-icon" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
               </svg>
-              每月500积分
+              每月{{ pkg.points }}积分
             </div>
-            <div class="feature-desc">约生成50个视频片段或500张图片</div>
+            <div class="feature-desc">约生成{{ Math.floor((pkg.points || 0) / 10) }}个视频片段或{{ pkg.points }}张图片</div>
             <div class="feature-item">
               <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               每日登录赠送积分
-            </div>
-            <div class="feature-item">
-              <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              成片支持生成最多50个分镜
-            </div>
-            <div class="feature-item">
-              <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              高清视频生成
-            </div>
-            <div class="feature-item">
-              <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              专项快速生成通道
-            </div>
-            <div class="feature-item">
-              <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              下载去水印
-            </div>
-          </div>
-        </div>
-
-        <!-- 高级会员 -->
-        <div class="plan-card highlight">
-          <div class="tag-badge">最划算</div>
-          <div class="plan-header">
-            <div class="plan-icon">💎</div>
-            <div class="plan-name">高级会员</div>
-          </div>
-          <div class="plan-price">
-            <span class="currency">¥</span>
-            <span class="amount">280</span>
-            <div class="price-info">
-              <span class="original">首购特惠</span>
-              <span class="period">原价 ¥300/月</span>
-            </div>
-          </div>
-          <button class="plan-btn primary" @click="openAlipay({ name: '高级会员', price: 280, points: 3000 })">订阅计划</button>
-          <div class="plan-features">
-            <div class="feature-item highlight-text">
-              <svg class="sparkle-icon" viewBox="0 0 24 24" fill="currentColor">
-                <path
-                  d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-              </svg>
-              每月3000积分
-            </div>
-            <div class="feature-desc">约生成300个视频片段或3000张图片</div>
-            <div class="feature-item">
-              <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              每日登录赠送积分
-            </div>
-            <div class="feature-item">
-              <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              成片支持生成最多80个分镜
-            </div>
-            <div class="feature-item">
-              <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              高清视频生成
-            </div>
-            <div class="feature-item">
-              <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              专项快速生成通道
-            </div>
-            <div class="feature-item">
-              <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              下载去水印
             </div>
           </div>
         </div>
@@ -234,7 +159,7 @@
 
 <script>
 import PaymentModal from './PaymentModal.vue'
-import { createSubscriptionOrder } from '../api'
+import { getMembershipPackages, createOrderByPackage } from '../api'
 import { useUserStore } from '../stores/user'
 
 export default {
@@ -257,12 +182,31 @@ export default {
     return {
       alipayVisible: false,
       paymentChecked: false,
-      currentPlan: null
+      currentPlan: null,
+      membershipPackages: []
+    }
+  },
+  watch: {
+    visible(val) {
+      if (val) this.fetchMembershipPackages()
     }
   },
   methods: {
     close() {
       this.$emit('close')
+    },
+    async fetchMembershipPackages() {
+      try {
+        const userStore = useUserStore()
+        const res = await getMembershipPackages({ token: userStore.token })
+        if (res && res.code === 0 && Array.isArray(res.data)) {
+          this.membershipPackages = res.data
+        }
+      } catch (e) { void 0 }
+    },
+    levelName(level) {
+      const map = { STANDARD: '标准会员', PREMIUM: '高级会员', VIP: '标准会员', SVIP: '高级会员' }
+      return map[String(level || '').toUpperCase()] || '会员'
     },
     async openAlipay(plan) {
       this.currentPlan = plan || null
@@ -270,16 +214,10 @@ export default {
       
       try {
         const userStore = useUserStore()
-        const levelMap = {
-          '标准会员': 'VIP',
-          '高级会员': 'SVIP'
-        }
-        const membershipLevel = levelMap[plan.name] || 'VIP'
-        
-        const res = await createSubscriptionOrder({
+        const res = await createOrderByPackage({
           token: userStore.token,
-          amount: plan.price,
-          membershipLevel
+          orderType: 'SUBSCRIPTION',
+          packageId: plan && plan.packageId
         })
         
         if (res.code === 0) {

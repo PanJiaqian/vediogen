@@ -592,6 +592,56 @@ export async function initiateAlipayPayment({ token, orderNo }) {
   return res.json()
 }
 
+// GET 查询订阅套餐列表
+export async function getMembershipPackages({ token }) {
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(`${BASE_URL}/user/membership/getPackages`, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
+// GET 查询积分充值套餐列表
+export async function getPointsPackagesList({ token }) {
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(`${BASE_URL}/api/points/getPackagesList`, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
+// POST 创建订单（按套餐ID）
+export async function createOrderByPackage({ token, orderType, packageId }) {
+  const myHeaders = buildAuthHeaders(token)
+  const formdata = new FormData()
+  formdata.append('orderType', String(orderType || '').toUpperCase())
+  formdata.append('packageId', String(packageId))
+  const requestOptions = {
+    method: 'POST',
+    headers: myHeaders,
+    body: formdata,
+    redirect: 'follow'
+  }
+  const res = await fetch(`${BASE_URL}/api/payment/orders`, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
 // GET 查询订单支付状态
 export async function getPaymentOrderStatus({ token, orderNo }) {
   const myHeaders = buildAuthHeaders(token)

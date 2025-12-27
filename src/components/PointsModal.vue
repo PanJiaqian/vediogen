@@ -15,13 +15,13 @@
       <div class="plans-container">
         <div class="plan-card" v-for="(plan, index) in plans" :key="index">
           <div class="plan-header">
-            <div class="points-amount">✨ {{ plan.points }}</div>
+            <div class="points-amount">✨ {{ plan.pointsAmount || plan.points }}</div>
           </div>
           <div class="plan-desc">
-            约生成{{ Math.floor(plan.points / 10) }}个视频片段<br>或{{ plan.points }}张图片
+            约生成{{ Math.floor((plan.pointsAmount || plan.points) / 10) }}个视频片段<br>或{{ plan.pointsAmount || plan.points }}张图片
           </div>
           <div class="plan-footer">
-            <div class="plan-price">¥{{ plan.price }}</div>
+            <div class="plan-price">¥{{ plan.payAmount || plan.price }}</div>
             <button class="buy-btn" @click="buyPoints(plan)">立即购买</button>
           </div>
         </div>
@@ -44,7 +44,7 @@
 
 <script>
 import PaymentModal from './PaymentModal.vue'
-import { createRechargeOrder } from '../api'
+import { getPointsPackagesList, createOrderByPackage } from '../api'
 import { useUserStore } from '../stores/user'
 
 export default {
@@ -65,33 +65,43 @@ export default {
   emits: ['close'],
   data() {
     return {
-      plans: [
-        { points: 500, price: 50 },
-        { points: 1000, price: 98 },
-        { points: 3000, price: 280 }
-      ],
+      plans: [],
       showPayment: false,
       selectedPlan: null
+    }
+  },
+  watch: {
+    visible(val) {
+      if (val) this.fetchPointsPlans()
     }
   },
   methods: {
     close() {
       this.$emit('close')
     },
+    async fetchPointsPlans() {
+      try {
+        const userStore = useUserStore()
+        const res = await getPointsPackagesList({ token: userStore.token })
+        if (res && res.code === 0 && Array.isArray(res.data)) {
+          this.plans = res.data
+        }
+      } catch (e) { void 0 }
+    },
     async buyPoints(plan) {
       try {
         const userStore = useUserStore()
-        const res = await createRechargeOrder({
+        const res = await createOrderByPackage({
           token: userStore.token,
-          amount: plan.price,
-          rechargePoints: plan.points
+          orderType: 'RECHARGE',
+          packageId: plan.id
         })
         
         if (res.code === 0) {
           this.selectedPlan = {
-            name: plan.points + '积分',
-            price: plan.price,
-            points: plan.points,
+            name: (plan.pointsAmount || plan.points) + '积分',
+            price: plan.payAmount || plan.price,
+            points: plan.pointsAmount || plan.points,
             orderNo: res.data.orderNo
           }
           this.showPayment = true

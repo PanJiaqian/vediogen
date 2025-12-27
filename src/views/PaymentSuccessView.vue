@@ -37,10 +37,11 @@ export default {
     goHome() {
       this.$router.push('/')
     },
-    viewOrder() {
-      // Navigate to order history or similar
-      console.log('View order clicked')
-      this.$router.push('/profile?tab=orders')
+    async viewOrder() {
+      await this.$router.push('/')
+      try {
+        window.dispatchEvent(new CustomEvent('open-order-records-modal'))
+      } catch (e) { /* no-op */ }
     }
   }
 }

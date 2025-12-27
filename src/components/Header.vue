@@ -289,6 +289,8 @@ export default {
     window.addEventListener('open-login-modal', this.showLoginModal)
     window.addEventListener('auth-401', this.handleAuth401)
     window.addEventListener('open-points-modal', this.openPointsRecharge)
+    this._onOpenOrderRecords = () => { this.showOrderRecordsModal = true }
+    window.addEventListener('open-order-records-modal', this._onOpenOrderRecords)
     this._onInsufficientPoints = () => { this.centerPromptText = '积分不足，请充值'; this.centerPromptAction = 'recharge'; this.centerPromptVisible = true }
     window.addEventListener('open-insufficient-points', this._onInsufficientPoints)
     this._onCenterPrompt = (e) => {
@@ -317,6 +319,7 @@ export default {
     window.removeEventListener('open-login-modal', this.showLoginModal)
     window.removeEventListener('auth-401', this.handleAuth401)
     window.removeEventListener('open-points-modal', this.openPointsRecharge)
+    if (this._onOpenOrderRecords) window.removeEventListener('open-order-records-modal', this._onOpenOrderRecords)
     if (this._onInsufficientPoints) window.removeEventListener('open-insufficient-points', this._onInsufficientPoints)
     if (this._onCenterPrompt) window.removeEventListener('open-center-prompt', this._onCenterPrompt)
     if (this.phoneCodeTimer) { clearInterval(this.phoneCodeTimer); this.phoneCodeTimer = null }
