@@ -129,7 +129,7 @@
           </div>
         </div>
 
-          <template v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || sceneDetail.video_url === null || (isConverting && isActiveImageMissing && !isVideo(sceneDetail.video_url))">
+          <template v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (isConverting && isActiveImageMissing && !isVideo(sceneDetail.video_url))">
             <div class="skeleton-block">
               <div class="skeleton-line"></div>
               <div class="skeleton-line"></div>
@@ -210,7 +210,7 @@
               <!-- 图片展示 -->
               <div class="image-container">
                 <div
-                  v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || sceneDetail.video_url === null || isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
+                  v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
                   class="skeleton-image"></div>
                 <video v-else-if="isVideo(sceneDetail.video_url) && sceneDetail.video_url && sceneDetail.video_url.trim() !== ''" ref="sceneVideo"
                   :src="isM3u8(sceneDetail.video_url) ? '' : cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
@@ -486,7 +486,7 @@
       <!-- 右侧区域 -->
       <div class="right-panel">
         <!-- 画布编辑和对口型 -->
-        <div v-if="isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || sceneDetail.video_url === null" class="skeleton-block"
+        <div v-if="isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || (isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail))" class="skeleton-block"
           style="margin-bottom: 8px;">
           <div class="skeleton-line" style="width: 200px; height: 32px;"></div>
         </div>
@@ -513,7 +513,7 @@
         <div class="video-preview">
             <div class="video-container" ref="videoContainer">
               <!-- 1、视频未完全生成并且没有视频url -->
-              <div v-if="isVideoConverting || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || sceneDetail.video_url === null" class="skeleton-image" style="height:100%"></div>
+              <div v-if="isVideoConverting || (isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail))" class="skeleton-image" style="height:100%"></div>
             <video v-else-if="isVideo(sceneDetail.video_url) && sceneDetail.video_url && sceneDetail.video_url.trim() !== ''"
               ref="previewVideo"
               :src="isM3u8(sceneDetail.video_url) ? '' : cleanUrl(sceneDetail.video_url)"
@@ -546,7 +546,7 @@
           </div>
           <div class="preview-aside">
             <template
-              v-if="isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || sceneDetail.video_url === null || isPreviewPending || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)">
+              v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || isPreviewPending || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)">
               <div class="thumb-card">
                 <div class="skeleton-image"></div>
               </div>
@@ -710,7 +710,7 @@
                           <div class="skeleton-image" style="height:28px;"></div>
                         </div>
                       </template>
-                      <template v-else-if="isVideoPendingScene(scene, index) || (index === activeSceneIndex && sceneDetail.video_url === null)">
+                      <template v-else-if="isVideoPendingScene(scene, index) || (index === activeSceneIndex && sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail))">
                         <div v-for="m in 10" :key="'gen-skel-' + index + '-' + m" class="scene-clip">
                           <div class="skeleton-image" style="height:28px;"></div>
                         </div>
@@ -741,7 +741,7 @@
                       </template>
                     </div>
                     <div class="track-audio">
-                      <template v-if="isSceneUpdating(scene, index) || isCropPendingScene(scene, index) || isVideoPendingScene(scene, index) || (index === activeSceneIndex && sceneDetail.video_url === null)">
+                      <template v-if="isSceneUpdating(scene, index) || isCropPendingScene(scene, index) || isVideoPendingScene(scene, index) || (index === activeSceneIndex && sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail))">
                         <div class="skeleton-image" style="height:28px; width: 60px;"></div>
                       </template>
                       <template v-else>
@@ -1380,9 +1380,9 @@ export default {
       const clip = sc && Array.isArray(sc.clips) && sc.clips[0] ? this.cleanUrl(sc.clips[0].url || '') : ''
       const v1 = this.cleanUrl((this.sceneDetail && this.sceneDetail.video_url) || '')
       const v1Lower = v1.toLowerCase()
-      const primary = v1Lower === 'replaceimage' ? '' : v1
+      if (v1Lower === 'replaceimage') return ''
       const v2 = this.cleanUrl((sc && sc.video_url) || '')
-      return primary || clip || v2 || ''
+      return v1 || clip || v2 || ''
     },
     switchPreviewTo(mode) {
       const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
