@@ -213,7 +213,7 @@
                   v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
                   class="skeleton-image"></div>
                 <video v-else-if="isVideo(sceneDetail.video_url) && sceneDetail.video_url && sceneDetail.video_url.trim() !== ''" ref="sceneVideo"
-                  :src="isM3u8(sceneDetail.video_url) ? '' : cleanUrl(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
+                  :src="preferMp4(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
                   preload="metadata" class="scene-image" playsinline muted controls></video>
                 <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url) && !previewImgErrored"
                   :src="cleanUrl(sceneDetail.reference_image_url)" alt="分镜图片" class="scene-image" decoding="async"
@@ -516,7 +516,7 @@
               <div v-if="isVideoConverting || (isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail))" class="skeleton-image" style="height:100%"></div>
             <video v-else-if="isVideo(sceneDetail.video_url) && sceneDetail.video_url && sceneDetail.video_url.trim() !== ''"
               ref="previewVideo"
-              :src="isM3u8(sceneDetail.video_url) ? '' : cleanUrl(sceneDetail.video_url)"
+              :src="preferMp4(sceneDetail.video_url)"
               :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
               preload="metadata" playsinline muted
               class="video-image"></video>
@@ -565,7 +565,7 @@
                   <span>视频</span>
                 </div>
                 <video v-if="!isM3u8(getActiveSceneVideoUrl())"
-                  :src="cleanUrl(getActiveSceneVideoUrl())"
+                  :src="preferMp4(getActiveSceneVideoUrl())"
                   :poster="cleanUrl(sceneDetail.reference_image_url || '')"
                   class="thumb-image" muted playsinline preload="none" disablepictureinpicture></video>
                 <img v-else
@@ -724,7 +724,7 @@
                         <div v-for="(clip, cidx) in getSceneClips(scene)" :key="cidx" class="scene-clip"
                           :class="{ active: index === activeSceneIndex }" :style="getClipStyle(scene, clip)">
                           <video v-if="scene.hasVideo || isVideo(clip.url || scene.video_url || scene.thumbnail)"
-                            :src="cleanUrl(clip.url || scene.video_url || scene.thumbnail)"
+                            :src="preferMp4(clip.url || scene.video_url || scene.thumbnail)"
                             :poster="cleanUrl(scene.thumbnail || '')" class="clip-thumbnail" muted playsinline
                             :preload="index < 4 ? 'metadata' : 'none'" disablepictureinpicture></video>
                           <img
@@ -1380,9 +1380,26 @@ export default {
       const clip = sc && Array.isArray(sc.clips) && sc.clips[0] ? this.cleanUrl(sc.clips[0].url || '') : ''
       const v1 = this.cleanUrl((this.sceneDetail && this.sceneDetail.video_url) || '')
       const v1Lower = v1.toLowerCase()
-      const primary = v1Lower === 'replaceimage' ? '' : v1
+      // 如果是 replaceimage，返回空
+      if (v1Lower === 'replaceimage') return ''
+      // 如果 sceneDetail.video_url 是视频，优先返回
+      if (v1 && this.isVideo(v1)) return this.preferMp4(v1)
+
       const v2 = this.cleanUrl((sc && sc.video_url) || '')
-      return primary || clip || v2 || ''
+      const v2Lower = v2.toLowerCase()
+      // 如果 scene.video_url 是 replaceimage，返回空
+      if (v2Lower === 'replaceimage') return ''
+      // 如果 scene.video_url 是视频，返回
+      if (v2 && this.isVideo(v2)) return this.preferMp4(v2)
+
+      // 如果 scene.hasVideo 为 true 且 clips 有视频 URL
+      if (sc && sc.hasVideo) {
+        const clipLower = clip.toLowerCase()
+        if (clipLower !== 'replaceimage' && clip && this.isVideo(clip)) return this.preferMp4(clip)
+      }
+
+      // 没有视频，返回空
+      return ''
     },
     switchPreviewTo(mode) {
       const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
@@ -1786,6 +1803,11 @@ export default {
       const s = this.cleanUrl(u)
       return /\.m3u8(\?|#|$)/i.test(s)
     },
+    preferMp4(u) {
+      const s = this.cleanUrl(u)
+      if (!s) return ''
+      return this.isM3u8(s) ? s.replace(/\.m3u8/i, '.mp4') : s
+    },
     async attachHls(videoEl, src) {
       /* HLS相关逻辑已停用 */
       return null
@@ -1988,7 +2010,7 @@ export default {
         try { el.muted = true } catch (e) { void 0 }
         try { el.playsInline = true } catch (e) { void 0 }
         const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
-        const src = this.cleanUrl((this.sceneDetail && this.sceneDetail.video_url) || (sc && Array.isArray(sc.clips) && sc.clips[0] && sc.clips[0].url) || (sc && sc.video_url) || '')
+        const src = this.preferMp4((this.sceneDetail && this.sceneDetail.video_url) || (sc && Array.isArray(sc.clips) && sc.clips[0] && sc.clips[0].url) || (sc && sc.video_url) || '')
         const isHls = this.isM3u8(src)
         const safePlay = () => {
           try {
@@ -2576,7 +2598,9 @@ export default {
             if (refImg) target.thumbnail = refImg
             target.audio_url = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
            console.log(target.audio_url,555)
-            if (vurl) {
+            // 检查是否是真正的视频 URL（排除 "replace image" 等特殊值）
+            const isRealVideo = vurl && this.isVideo(vurl)
+            if (isRealVideo) {
               const first = (target && Array.isArray(target.clips) && target.clips[0]) || null
               const existingVid = this.cleanUrl((target && target.video_url) || (first && first.url) || '')
               const alreadyProcessed = !!(target && target.hasVideo) && (!!existingVid && this.isVideo(existingVid))
@@ -2594,6 +2618,14 @@ export default {
                 }
               }
             } else if (!this.isVideoGenerating && (!Array.isArray(target.clips) || !target.clips.length)) {
+              target.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
+            }
+            // 当 video_url 是 "replace image" 时，标记场景为图片状态
+            const isReplaceImage = vurl && vurl.toLowerCase() === 'replaceimage'
+            if (isReplaceImage) {
+              target.video_url = 'replaceimage'
+              target.hasVideo = false
+              // 关键：把 clips 也更新为图片 URL，否则 getActiveSceneVideoUrl() 会返回旧的视频 URL
               target.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
             }
             this.clearClipErrorsForIndex(targetIndex)
@@ -2774,10 +2806,15 @@ export default {
                   if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 5000 }]
                 }
                 if (this.worksVideoReady && (!vurl || !this.isVideo(vurl))) {
-                  sc.video_url = null
+                  // 检查是否是 "replace image" 状态
+                  const isReplaceImage = vurl && vurl.toLowerCase() === 'replaceimage'
+                  sc.video_url = isReplaceImage ? 'replaceimage' : null
+                  sc.hasVideo = false
+                  // 关键：把 clips 也更新为图片 URL
+                  sc.clips = [{ url: refImg, durationMs: 5000 }]
                   if (idx === this.activeSceneIndex) {
                     const activeThumb = this.cleanUrl(sc.thumbnail || '')
-                    this.sceneDetail = { reference_image_url: activeThumb, video_url: null }
+                    this.sceneDetail = { reference_image_url: activeThumb, video_url: isReplaceImage ? 'replaceimage' : null }
                   }
                 } else if (vurl && this.isVideo(vurl)) {
                   const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
@@ -3179,7 +3216,7 @@ export default {
           const cached = Number(this.durationMap.get(url)) || 0
           if (cached > 0) return cached
         }
-        const s = this.cleanUrl(url)
+        const s = this.preferMp4(url)
         if (this.isM3u8(s)) {
           try {
             const res = await fetch(s)
