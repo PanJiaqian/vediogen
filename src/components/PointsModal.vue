@@ -14,6 +14,7 @@
 
       <div class="plans-container">
         <div class="plan-card" v-for="(plan, index) in plans" :key="index">
+          <div class="discount-badge">{{ formatDiscount(plan.discountRate) }}</div>
           <div class="plan-header">
             <div class="points-amount">✨ {{ plan.pointsAmount || plan.points }}</div>
           </div>
@@ -21,7 +22,7 @@
             约生成{{ Math.floor((plan.pointsAmount || plan.points) / 10) }}个视频片段<br>或{{ plan.pointsAmount || plan.points }}张图片
           </div>
           <div class="plan-footer">
-            <div class="plan-price">¥{{ plan.payAmount || plan.price }}</div>
+            <div class="plan-price"><span class="actual">¥{{ calcActualPay(plan) }}</span><span class="original">¥{{ plan.payAmount || plan.price }}</span></div>
             <button class="buy-btn" @click="buyPoints(plan)">立即购买</button>
           </div>
         </div>
@@ -100,7 +101,7 @@ export default {
         if (res.code === 0) {
           this.selectedPlan = {
             name: (plan.pointsAmount || plan.points) + '积分',
-            price: plan.payAmount || plan.price,
+            price: this.calcActualPay(plan),
             points: plan.pointsAmount || plan.points,
             orderNo: res.data.orderNo
           }
@@ -111,6 +112,16 @@ export default {
       } catch (error) {
         console.error('Error creating order:', error)
       }
+    },
+    calcActualPay(plan) {
+      const pay = Number(plan && (plan.payAmount ?? plan.price) || 0)
+      const rate = Number(plan && plan.discountRate || 100)
+      const actual = (pay * rate) / 100
+      return actual.toFixed(2)
+    },
+    formatDiscount(rate) {
+      const r = Number(rate || 100)
+      return `${r.toFixed(2)}%`
     }
   }
 }
@@ -219,6 +230,7 @@ export default {
   transition: all 0.3s;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 [data-theme="dark"] .plan-card {
@@ -262,14 +274,30 @@ export default {
   align-items: center;
 }
 
-.plan-price {
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
-}
+.plan-price { display: flex; align-items: baseline; gap: 8px; }
+.plan-price .actual { font-size: 20px; font-weight: 700; color: #000000; }
+.plan-price .original { font-size: 12px; color: #999; text-decoration: line-through; }
+
 
 [data-theme="dark"] .plan-price {
   color: #fff;
+}
+
+.discount-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #ffe58f;
+  color: #ad6800;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+[data-theme="dark"] .discount-badge {
+  background: rgba(255, 229, 143, 0.2);
+  color: #ffd666;
+  border: 1px solid rgba(255, 214, 102, 0.4);
 }
 
 .buy-btn {

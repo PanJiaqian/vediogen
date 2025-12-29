@@ -906,9 +906,9 @@ export default {
       // 配音相关数据
       voiceScript: '',
       voiceGender: '女性',
-      voiceAge: '中年',
+      voiceAge: '青年',
       voiceStyle: '普通话',
-      voiceName: '', // 默认为 cherry
+      voiceName: 'cherry',
       voiceLanguage: 'Chinese', // 默认为 Chinese
       supportedLanguages: [],
       showLanguageSelector: false,
@@ -1149,6 +1149,13 @@ export default {
     // 禁止进入页面自动调用分镜详情接口：不再进行当前分镜/预取调用
     if (!this._entryIsGenerate) { this.pollImagesActive = true; this.pollStoryboardImagesDetail() }
     this.precacheSceneThumbnails()
+    if (this.voiceName && (!this.supportedLanguages || this.supportedLanguages.length === 0)) {
+      this.supportedLanguages = [
+        'Chinese', 'English', 'Japanese', 'Korean', 'French',
+        'German', 'Spanish', 'Italian', 'Russian', 'Portuguese',
+        'Hindi', 'Arabic'
+      ]
+    }
     // this.$nextTick(() => { this.tryAttachHls() })
     Promise.resolve().then(async () => {
       try {

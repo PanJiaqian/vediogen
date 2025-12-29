@@ -239,6 +239,17 @@ export default {
       return useUserStore()
     }
   },
+  mounted() {
+    try {
+      if (this.voiceName && (!this.supportedLanguages || this.supportedLanguages.length === 0)) {
+        this.supportedLanguages = [
+          'Chinese', 'English', 'Japanese', 'Korean', 'French',
+          'German', 'Spanish', 'Italian', 'Russian', 'Portuguese',
+          'Hindi', 'Arabic'
+        ]
+      }
+    } catch (e) { /* no-op */ }
+  },
   methods: {
     handleToneSelect(selected) {
       this.voiceName = selected.voiceName
@@ -501,7 +512,8 @@ export default {
   flex-direction: column;
   gap: 15px;
   overflow-y: auto;
-  max-height: calc(100vh - 300px);
+  max-height: none;
+  min-height: 0;
 }
 
 .upload-area {
@@ -696,6 +708,7 @@ export default {
   font-size: 14px;
   resize: none;
   background-color: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 /* 朗读控制 */
@@ -846,7 +859,10 @@ export default {
 [data-theme="dark"] .filter-select {
   background-color: #1f1f1f;
   border-color: #333;
-  color: #ccc;
+  color: #fff;
+}
+[data-theme="dark"] .text-input {
+  color: #fff;
 }
 
 .filter-select:hover {
@@ -1008,7 +1024,7 @@ export default {
   .filter-select {
     background-color: #1f1f1f;
     border-color: #333;
-    color: #ccc;
+    color: #fff;
   }
   .filter-select:hover {
     border-color: #1890ff;
@@ -1016,6 +1032,20 @@ export default {
   }
   .no-voice-tip {
     color: #666;
+  }
+  .text-input {
+    color: #fff;
+    background-color: #1f1f1f;
+  }
+  .text-input::placeholder {
+    color: #aaa;
+  }
+  .description-input {
+    color: #fff;
+    background-color: #1f1f1f;
+  }
+  .description-input::placeholder {
+    color: #aaa;
   }
 }
 .uploaded-audio-card {
