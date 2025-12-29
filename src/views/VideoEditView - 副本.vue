@@ -1175,7 +1175,7 @@ export default {
         const data = json && json.data ? json.data : null
         if (data) {
           const refImg = this.cleanUrl(data.reference_image_url || '')
-          const vurl = this.cleanUrl(data.fallback_mp4 || data.video_url || '')
+          const vurl = this.cleanUrl(data.fallback_mp4 || '')
           const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
           const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
           const audioUrl = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
@@ -1629,7 +1629,7 @@ export default {
             const d = detail && detail.data ? detail.data : null
             if (d) {
               const refImg = this.cleanUrl(d.reference_image_url || next || '')
-              const vurl = this.cleanUrl(d.fallback_mp4 || d.video_url || '')
+              const vurl = this.cleanUrl(d.fallback_mp4 || '')
               const audioUrl = this.cleanUrl(d.audio_url || '')
               const finalVid = vurl ? vurl : ''
               this.sceneDetail = Object.assign({}, this.sceneDetail, { reference_image_url: refImg, video_url: finalVid, audio_url: audioUrl })
@@ -2560,9 +2560,7 @@ export default {
         console.log(this.scenes)
         if (data) {
           const refImg = this.cleanUrl(data.reference_image_url || scene.thumbnail || '')
-          // 优先使用 fallback_mp4，其次 video_url，保留 "replace image" 等特殊值
-          const rawVideoUrl = data.fallback_mp4 || data.video_url || ''
-          const vurl = this.cleanUrl(rawVideoUrl)
+          const vurl = this.cleanUrl(data.fallback_mp4 || '')
           console.log(vurl,1111)
           const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
           const vlocal = vurl ? await this.getLocalUrl(vurl) : ''
@@ -2632,8 +2630,7 @@ export default {
           // const nextVideo = vlocal || vurl || (this.isVideo(targetVid) ? targetVid : (this.isVideo(clipUrl) ? clipUrl : ''))
           const nextVideo = (vlocal || vurl) || null
           const sdAudio = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
-          // 确保 reference_image_url 有回退值
-          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: nextVideo, audio_url: sdAudio }
+          this.sceneDetail = { reference_image_url: refLocal, video_url: nextVideo, audio_url: sdAudio }
           console.log(this.sceneDetail,2222222)
           if (targetIndex === this.activeSceneIndex) this.syncPreviewPlayback()
         } else {
@@ -2675,7 +2672,7 @@ export default {
           if (idx >= 0 && idx < this.scenes.length) {
             const sc = this.scenes[idx]
             const refImg = this.cleanUrl(item.reference_image_url || sc.thumbnail || '')
-            const vurl = this.cleanUrl(item.fallback_mp4 || item.video_url || '')
+            const vurl = this.cleanUrl(item.fallback_mp4 || '')
             if (item.audio_url) {
                if (this.$set) this.$set(sc, 'audio_url', this.cleanUrl(item.audio_url)); else sc.audio_url = this.cleanUrl(item.audio_url)
                if (idx === this.activeSceneIndex) {
@@ -2727,10 +2724,10 @@ export default {
         const activeItem = arr.find(x => String(x.scene_number || '').trim() === activeKey) || null
         if (activeItem) {
           const refImg = this.cleanUrl(activeItem.reference_image_url || active.thumbnail || '')
-          const vurl = this.cleanUrl(activeItem.fallback_mp4 || activeItem.video_url || '')
+          const vurl = this.cleanUrl(activeItem.fallback_mp4 || '')
           const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
           const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
-          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || null }
+          this.sceneDetail = { reference_image_url: refLocal, video_url: vLocal || null }
         }
       } catch (e) { void 0 }
     },
@@ -2961,7 +2958,7 @@ export default {
           const data = json && json.data ? json.data : null
           if (data) {
             const refImg = this.cleanUrl(data.reference_image_url || sc.thumbnail || '')
-            const vurl = this.cleanUrl(data.fallback_mp4 || data.video_url || '')
+            const vurl = this.cleanUrl(data.fallback_mp4 || '')
             const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
             const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
             const incomingKey = String(data.scene_number || '').trim()
@@ -3047,7 +3044,7 @@ export default {
         const data = json && json.data ? json.data : null
         if (data) {
           const refImg = this.cleanUrl(data.reference_image_url || sc.thumbnail || '')
-          const vurl = this.cleanUrl(data.fallback_mp4 || data.video_url || '')
+          const vurl = this.cleanUrl(data.fallback_mp4 || '')
           const incomingKey = String(data.scene_number || '').trim()
           const targetIndex = i
           const duration = Number(data.duration) ? Number(data.duration) * 1000 : undefined
@@ -4304,7 +4301,7 @@ export default {
         try { obj = typeof resp === 'string' ? JSON.parse(resp) : resp } catch (e) { obj = null }
         const data = obj && obj.data ? obj.data : null
         if (obj && obj.code === 0 && data) {
-          const remote = this.cleanUrl(data.fallback_mp4 || data.video_url || '')
+          const remote = this.cleanUrl(data.fallback_mp4 || '')
           const url = await this.getLocalUrl(remote)
           const durMs = Number(data.duration) ? Math.round(Number(data.duration) * 1000) : Math.max(1, Number(sel.endMs || 0) - Number(sel.startMs || 0)) || 5000
           if (Array.isArray(scene.clips) && scene.clips.length) {
