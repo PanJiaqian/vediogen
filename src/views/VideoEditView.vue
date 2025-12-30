@@ -1015,6 +1015,9 @@ export default {
       pendingVideoSet: new Set()
       , videoQueue: [],
       videoProcessing: false,
+      videoBatchSize: 2,
+      videoBatchInProgress: false,
+      videoBatchActiveCount: 0,
       durationMap: new Map(),
       imagesDetailMap: new Map(),
       pollImagesActive: false,
@@ -3444,55 +3447,63 @@ export default {
       this.processVideoQueue()
     },
     async processVideoQueue() {
-      if (this.videoProcessing) return
+      if (this.videoBatchInProgress) return
       if (!Array.isArray(this.videoQueue) || this.videoQueue.length === 0) return
-      this.videoProcessing = true
-      const task = this.videoQueue.shift()
-      try {
-        const idx = task.index
-        const url = task.url
-        const vLocal = await this.getLocalUrl(url)
-        let dur = task.duration
-        if (!dur) {
-          dur = this.isVideo(url) ? await this.measureVideoDurationMs(url) : 5000
-        }
-        if (idx >= 0 && idx < this.scenes.length) {
-          const scene = this.scenes[idx]
-          scene.clips = [{ url: vLocal || url, durationMs: dur }]
-          scene.hasVideo = true
-          scene.video_url = vLocal || url
-          if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
-          this.durationMap.set(url, dur)
-          if (vLocal) this.durationMap.set(vLocal, dur)
-
-          if (Number.isFinite(task.orderIndex) && task.orderIndex > 0) {
-            scene.order_index = task.orderIndex
-            if (!(this._orderIndexMap instanceof Map)) this._orderIndexMap = new Map()
-            if (task.sceneKey) this._orderIndexMap.set(task.sceneKey, task.orderIndex)
+      this.videoBatchInProgress = true
+      const batch = []
+      const size = Math.min(this.videoBatchSize || 2, this.videoQueue.length)
+      for (let i = 0; i < size; i++) batch.push(this.videoQueue.shift())
+      this.videoBatchActiveCount = batch.length
+      const runTask = async (task) => {
+        try {
+          const idx = task.index
+          const url = task.url
+          const vLocal = await this.getLocalUrl(url)
+          let dur = task.duration
+          if (!dur) {
+            dur = this.isVideo(url) ? await this.measureVideoDurationMs(url) : 5000
           }
-          const k = task.pendingKey || this.getSceneKey(scene, idx)
-          if (this.pendingVideoSet instanceof Set) this.pendingVideoSet.delete(k)
-          try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
-          if (idx === this.activeSceneIndex) {
-            const thumb = this.cleanUrl(scene.thumbnail || '')
-            this.sceneDetail = { reference_image_url: thumb, video_url: vLocal || url }
-            if (this.isPlaying) {
-              this.$nextTick(() => {
-                const el = this.$refs.previewVideo
-                if (el && this.isVideo(this.sceneDetail.video_url)) {
-                  this.playVideoSafely(el)
-                }
-              })
+          if (idx >= 0 && idx < this.scenes.length) {
+            const scene = this.scenes[idx]
+            scene.clips = [{ url: vLocal || url, durationMs: dur }]
+            scene.hasVideo = true
+            scene.video_url = vLocal || url
+            if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+            this.durationMap.set(url, dur)
+            if (vLocal) this.durationMap.set(vLocal, dur)
+            if (Number.isFinite(task.orderIndex) && task.orderIndex > 0) {
+              scene.order_index = task.orderIndex
+              if (!(this._orderIndexMap instanceof Map)) this._orderIndexMap = new Map()
+              if (task.sceneKey) this._orderIndexMap.set(task.sceneKey, task.orderIndex)
+            }
+            const k = task.pendingKey || this.getSceneKey(scene, idx)
+            if (this.pendingVideoSet instanceof Set) this.pendingVideoSet.delete(k)
+            try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
+            if (idx === this.activeSceneIndex) {
+              const thumb = this.cleanUrl(scene.thumbnail || '')
+              this.sceneDetail = { reference_image_url: thumb, video_url: vLocal || url }
+              if (this.isPlaying) {
+                this.$nextTick(() => {
+                  const el = this.$refs.previewVideo
+                  if (el && this.isVideo(this.sceneDetail.video_url)) {
+                    this.playVideoSafely(el)
+                  }
+                })
+              }
             }
           }
+        } catch (e) { void 0 }
+        finally {
+          const pendingEmpty = this.pendingVideoSet instanceof Set ? this.pendingVideoSet.size === 0 : true
+          if (pendingEmpty) this.isVideoGenerating = false
+          this.videoBatchActiveCount = Math.max(0, (this.videoBatchActiveCount || 0) - 1)
+          if (this.videoBatchActiveCount === 0) {
+            this.videoBatchInProgress = false
+            setTimeout(() => this.processVideoQueue(), 0)
+          }
         }
-      } catch (e) { void 0 }
-      finally {
-        this.videoProcessing = false
-        const pendingEmpty = this.pendingVideoSet instanceof Set ? this.pendingVideoSet.size === 0 : true
-        if (pendingEmpty) this.isVideoGenerating = false
-        setTimeout(() => this.processVideoQueue(), 0)
       }
+      for (let i = 0; i < batch.length; i++) runTask(batch[i])
     },
     async handleRegenerateActiveScene() {
       try {
