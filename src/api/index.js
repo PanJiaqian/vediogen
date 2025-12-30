@@ -523,6 +523,43 @@ export async function getWorksVideoStatus({ videoId, token }) {
   return res.text()
 }
 
+export async function getSceneVersionHistory({ videoId, sceneNumber, token }) {
+  const url = `${BASE_URL}/storyboard/versions/getSceneHistory?videoId=${encodeURIComponent(videoId)}&sceneNumber=${encodeURIComponent(sceneNumber)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
+export async function applySceneVersion({ videoId, sceneNumber, versionId, token }) {
+  const url = `${BASE_URL}/storyboard/versions/apply`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ videoId: String(videoId), sceneNumber: String(sceneNumber), versionId: String(versionId) })
+  const requestOptions = {
+    method: 'POST',
+    headers,
+    body,
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
 export async function exportWorksVideo({ videoId, token }) {
   const url = `${BASE_URL}/detail/works/video/export?videoId=${encodeURIComponent(videoId)}`
   const requestOptions = {
@@ -1372,6 +1409,8 @@ export default {
   , reorderStoryboardScenes
   , clipStoryboardVideo
   , replaceStoryboardImage
+  , getSceneVersionHistory
+  , applySceneVersion
   , deleteConversation
   , exportWorksVideo
   , exportWorksVideoDownload

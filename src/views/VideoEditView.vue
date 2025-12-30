@@ -207,20 +207,7 @@
                 </div>
               </div>
 
-              <!-- 图片展示 -->
-              <div class="image-container">
-                <div
-                  v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
-                  class="skeleton-image"></div>
-                <video v-else-if="isVideo(sceneDetail.video_url) && sceneDetail.video_url && sceneDetail.video_url.trim() !== ''" ref="sceneVideo"
-                  :src="preferMp4(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
-                  preload="metadata" class="scene-image" playsinline muted controls></video>
-                <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url) && !previewImgErrored"
-                  :src="cleanUrl(sceneDetail.reference_image_url)" alt="分镜图片" class="scene-image" decoding="async"
-                  fetchpriority="high" />
-              </div>
-
-              <!-- 底部操作按钮 -->
+              <!-- 底部操作按钮（移动到图片提示词下方） -->
               <div class="bottom-actions">
                 <button class="bottom-btn download-btn">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -230,7 +217,7 @@
                   </svg>
                   下载
                 </button>
-                <button class="bottom-btn apply-btn">
+                <button class="bottom-btn apply-btn" @click="applySelectedSceneVersion">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <polyline points="20,6 9,17 4,12" stroke="currentColor" stroke-width="2" />
                   </svg>
@@ -244,6 +231,70 @@
                   </svg>
                   重新生成
                 </button>
+              </div>
+
+              <!-- 图片展示 -->
+              <div class="image-container">
+                <div
+                  v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
+                  class="skeleton-image"></div>
+                <video v-else-if="isVideo(sceneDetail.video_url) && sceneDetail.video_url && sceneDetail.video_url.trim() !== ''" ref="sceneVideo"
+                  :src="preferMp4(sceneDetail.video_url)" :poster="cleanUrl(sceneDetail.reference_image_url || '')"
+                  preload="metadata" class="scene-image" playsinline muted controls></video>
+                <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url) && !previewImgErrored"
+                  :src="cleanUrl(sceneDetail.reference_image_url)" alt="分镜图片" class="scene-image" decoding="async"
+                  fetchpriority="high" />
+              </div>
+
+              
+
+              <!-- 版本记录（样式更新：顶部ID与时间，下面放大图片与按钮） -->
+              <div class="version-history-section" style="margin-top: 12px;">
+                <div class="prompt-header">
+                  <div class="prompt-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                  </div>
+                  <span class="prompt-title">版本记录</span>
+                </div>
+                <div v-if="sceneHistoryLoading" class="skeleton-image" style="height:100px;"></div>
+                <div v-else-if="sceneHistory && sceneHistory.length" class="version-list" style="display:flex;flex-direction:column;gap:12px;">
+                  <div
+                    v-for="v in sceneHistory"
+                    :key="v.id"
+                    class="version-item"
+                    :class="{ selected: selectedVersionId === v.id }"
+                    style="padding:10px;border-radius:12px;"
+                  >
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                      <span style="font-size:12px;opacity:0.85;">ID {{ v.id }}</span>
+                      <span style="font-size:12px;opacity:0.6;">{{ v.createdAt }}</span>
+                    </div>
+                    <img :src="cleanUrl(v.content)" alt="版本图"
+                         style="width:100%;height:auto;border-radius:10px;object-fit:contain;cursor:pointer;"
+                         decoding="async" @click="openVersionPreview(v.content)" />
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+                      <button class="bottom-btn apply-btn" @click.stop="applySceneVersionItem(v)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <polyline points="20,6 9,17 4,12" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                        应用
+                      </button>
+                      <button class="bottom-btn download-btn" @click.stop="downloadImage(v.content)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" />
+                          <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" />
+                          <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                        下载
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div v-else style="font-size:12px;opacity:0.7;padding:8px;">暂无版本记录</div>
               </div>
               <div class="chat-messages" style="margin-top: 12px;">
                 <div v-for="msg in leftChatMessages" :key="msg.id" class="chat-message-wrapper" style="margin-bottom: 12px;">
@@ -859,7 +910,18 @@
       </div>
     </div>
   </div>
- 
+  <!-- 版本预览浮层（置于同一模板内） -->
+  <div v-if="versionPreviewVisible" class="version-preview-overlay" @click="closeVersionPreview" style="position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:4000;display:flex;align-items:center;justify-content:center;">
+    <div class="version-preview-modal" @click.stop style="position:relative;max-width:90vw;max-height:90vh;padding:12px;background:var(--bg-primary);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.3);display:flex;flex-direction:column;gap:10px;align-items:center;">
+      <button @click="closeVersionPreview" style="position:absolute;top:8px;right:8px;width:32px;height:32px;border:none;background:var(--bg-tertiary);border-radius:16px;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+          <line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      </button>
+      <img :src="cleanUrl(versionPreviewUrl)" alt="预览" style="max-width:86vw;max-height:78vh;object-fit:contain;border-radius:10px;" />
+    </div>
+  </div>
 </template>
 
 <script>
@@ -870,7 +932,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -994,6 +1056,11 @@ export default {
       , replaceDragStartSelY: 0
       , replaceDragStartW: 0
       , replaceDragStartH: 0
+      , sceneHistory: []
+      , sceneHistoryLoading: false
+      , selectedVersionId: null
+      , versionPreviewVisible: false
+      , versionPreviewUrl: ''
     }
   },
   beforeUnmount() {
@@ -1204,6 +1271,18 @@ export default {
         this.worksVideoReady = !!(data && data.video === true)
       } catch (e) { void 0 }
     })
+    Promise.resolve().then(async () => {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) return
+        const obj = await getSceneVersionHistory({ videoId, sceneNumber: 'shot_1_1', token })
+        const arr = obj && obj.code === 0 && Array.isArray(obj.data) ? obj.data : []
+        this.sceneHistory = arr.map(x => ({ ...x, content: this.cleanUrl(x.content || '') })).filter(x => !!x.content)
+        if (this.sceneHistory.length) this.selectedVersionId = this.sceneHistory[0].id
+      } catch (e) { void 0 }
+    })
   },
   computed: {
     userStore() {
@@ -1316,6 +1395,7 @@ export default {
         this.syncPreviewPlayback()
       } catch (e) { void 0 }
       // this.$nextTick(() => { this.tryAttachHls() })
+      this.$nextTick(() => { this.fetchSceneHistoryForActiveScene() })
     },
     'sceneDetail.reference_image_url'(val) {
       this.previewImgErrored = false
@@ -1382,6 +1462,27 @@ export default {
       if (!el) return
       try { el.scrollTop = el.scrollHeight } catch (e) { void 0 }
     },
+    async fetchSceneHistoryForActiveScene() {
+      try {
+        this.sceneHistoryLoading = true
+        this.sceneHistory = []
+        this.selectedVersionId = null
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+        const sceneNumber = String((sc && sc.scene_number) || '').trim()
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!videoId || !sceneNumber || !token) { this.sceneHistoryLoading = false; return }
+        const obj = await getSceneVersionHistory({ videoId, sceneNumber, token })
+        const arr = obj && obj.code === 0 && Array.isArray(obj.data) ? obj.data : []
+        this.sceneHistory = arr.map(x => ({ ...x, content: this.cleanUrl(x.content || '') })).filter(x => !!x.content)
+        if (this.sceneHistory.length) this.selectedVersionId = this.sceneHistory[0].id
+      } catch (e) {
+        this.sceneHistory = []
+      } finally {
+        this.sceneHistoryLoading = false
+      }
+    },
     getActiveSceneVideoUrl() {
       const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
       const clip = sc && Array.isArray(sc.clips) && sc.clips[0] ? this.cleanUrl(sc.clips[0].url || '') : ''
@@ -1420,6 +1521,63 @@ export default {
         this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: '', reference_image_url: img })
         this.previewImgErrored = false
       }
+    },
+    downloadImage(u) {
+      try {
+        const url = this.cleanUrl(u || '')
+        if (!url) return
+        const a = document.createElement('a')
+        a.href = url
+        a.download = ''
+        a.target = '_blank'
+        a.rel = 'noopener'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      } catch (e) { /* no-op */ }
+    },
+    openVersionPreview(u) {
+      this.versionPreviewUrl = this.cleanUrl(u || '')
+      this.versionPreviewVisible = !!this.versionPreviewUrl
+    },
+    closeVersionPreview() {
+      this.versionPreviewVisible = false
+      this.versionPreviewUrl = ''
+    },
+    async applySceneVersionItem(v) {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+        const sceneNumber = String((sc && sc.scene_number) || '').trim()
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!videoId || !sceneNumber || !v || !v.id || !token) return
+        const obj = await applySceneVersion({ videoId: String(videoId), sceneNumber, versionId: String(v.id), token })
+        const ok = !!(obj && obj.code === 0)
+        if (ok) {
+          const nextImg = this.cleanUrl(v.content || '')
+          const local = nextImg ? await this.getLocalUrl(nextImg) : ''
+          this.sceneDetail = { ...this.sceneDetail, reference_image_url: local || nextImg }
+          const scn = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+          if (scn) scn.thumbnail = local || nextImg
+          this.toastText = '应用成功'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        } else {
+          this.toastText = '应用失败'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        }
+      } catch (e) {
+        this.toastText = '应用失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }
+    },
+    async applySelectedSceneVersion() {
+      const v = this.sceneHistory.find(x => x.id === this.selectedVersionId) || this.sceneHistory[0]
+      if (!v) return
+      await this.applySceneVersionItem(v)
     },
     triggerReplaceImageUpload() {
       const el = this.$refs.replaceFileInput
@@ -1662,6 +1820,7 @@ export default {
           this.toastText = '替换成功'
           this.toastVisible = true
           setTimeout(() => { this.toastVisible = false }, 2000)
+          this.$nextTick(() => { this.fetchSceneHistoryForActiveScene() })
         } else {
           const msg = (obj && (obj.message || obj.msg)) ? String(obj.message || obj.msg) : '替换失败，请重试'
           this.toastText = msg
@@ -4062,6 +4221,7 @@ export default {
                   this.toastVisible = true
                   setTimeout(() => { this.toastVisible = false }, 2000)
                   this.$nextTick(() => { this.scrollLeftToBottom() })
+                  this.$nextTick(() => { this.fetchSceneHistoryForActiveScene() })
                 }
               }
             }).catch(() => { /* no-op */ })
@@ -4169,6 +4329,7 @@ export default {
               this.subtitleEnabled = this.subtitleEnabledPrev
               this.updateLeftPreviewFromImagesDetail()
               this.$nextTick(() => { this.scrollLeftToBottom() })
+              this.$nextTick(() => { this.fetchSceneHistoryForActiveScene() })
               return
             }
             if (idx >= 0) {
