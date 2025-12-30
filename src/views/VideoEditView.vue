@@ -533,7 +533,7 @@
             <audio ref="previewAudio" style="display:none" preload="auto"></audio>
             <input ref="replaceFileInput" type="file" accept="image/*" style="display:none" @change="onReplaceImageFileSelected" />
             <button
-              v-if="!isVideo(sceneDetail.video_url) && shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail) && !(isVideoConverting || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || sceneDetail.video_url === null)"
+              v-if="!isVideo(sceneDetail.video_url) && shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail) && !(isVideoConverting || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex))"
               class="replace-btn"
               @click="triggerReplaceImageUpload">
               <span class="replace-icon">⟲</span>

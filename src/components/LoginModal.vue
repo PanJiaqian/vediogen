@@ -205,7 +205,7 @@
               还没有账号？
               <button class="link-btn" @click="switchToRegister">立即注册</button>
             </span>
-            <span v-else>
+            <span v-else-if="loginType !== 'phone'">
               已有账号？
               <button class="link-btn" @click="switchToLogin">立即登录</button>
             </span>
