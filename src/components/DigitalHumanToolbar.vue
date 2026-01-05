@@ -16,7 +16,8 @@
       <!-- 文本朗读模式 -->
       <div v-if="activeTab === 'text'" class="tab-content">
         <div class="text-input-section">
-          <textarea v-model="textInput" placeholder="输入想要人物讲述的台词" class="text-input"></textarea>
+          <textarea v-model="textInput" placeholder="输入想要人物讲述的台词" class="text-input" maxlength="150"></textarea>
+          <div class="voice-char-counter">{{ (textInput || '').length }}/150</div>
 
           <!-- 朗读控制 -->
           <div class="playback-controls">
@@ -697,6 +698,7 @@ export default {
   flex-direction: column;
   gap: 10px;
   margin-bottom: 15px;
+  position: relative;
 }
 
 .text-input {
@@ -709,6 +711,14 @@ export default {
   resize: none;
   background-color: var(--bg-tertiary);
   color: var(--text-primary);
+}
+
+.voice-char-counter {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 12px;
+  color: var(--text-tertiary, #999);
 }
 
 /* 朗读控制 */

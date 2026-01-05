@@ -169,7 +169,7 @@ export default {
               : (d.data.earnedPoints != null ? d.data.earnedPoints : 0)))))
     },
     progressValues() {
-      return [10, 10, 30, 50, 50, 10, 100, 50]
+      return [10, 10, 30, 50, 50, 10, 100, 50, 10]
     }
   },
   watch: {

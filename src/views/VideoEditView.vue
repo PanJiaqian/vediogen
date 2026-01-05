@@ -27,7 +27,7 @@
         </button>
       </div>
       <div class="navbar-right">
-        <div class="points-display" v-if="userStore && userStore.isLoggedIn" @click="showPointsModal = true">✨ {{ (userStore && userStore.userInfo && userStore.userInfo.pointsBalance) || 0 }}</div>
+        <div class="points-display" :class="{ 'non-member-points': !isVip }" :title="!isVip ? '会员已过期，请重新订阅' : ''" v-if="userStore && userStore.isLoggedIn" @click="showPointsModal = true"><span class="points-icon">✨</span> {{ (userStore && userStore.userInfo && userStore.userInfo.pointsBalance) || 0 }}</div>
         <button class="navbar-btn theme-toggle-btn" @click="toggleTheme" :aria-label="isDark ? '切换为浅色' : '切换为深色'">
           <svg v-if="!isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M12 17a5 5 0 100-10 5 5 0 000 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -248,31 +248,16 @@
 
               
 
-              <!-- 版本记录（样式更新：顶部ID与时间，下面放大图片与按钮） -->
               <div class="version-history-section" style="margin-top: 12px;">
-                <div class="prompt-header">
-                  <div class="prompt-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
-                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
-                    </svg>
-                  </div>
-                  <span class="prompt-title">版本记录</span>
-                </div>
                 <div v-if="sceneHistoryLoading" class="skeleton-image" style="height:100px;"></div>
-                <div v-else-if="sceneHistory && sceneHistory.length" class="version-list" style="display:flex;flex-direction:column;gap:12px;">
+                <div v-else-if="sortedSceneHistory && sortedSceneHistory.length" class="version-list" style="display:flex;flex-direction:column;gap:12px;">
                   <div
-                    v-for="v in sceneHistory"
-                    :key="v.id"
-                    class="version-item"
-                    :class="{ selected: selectedVersionId === v.id }"
+                    v-for="v in sortedSceneHistory"
+                    :key="v.id || v.createdAt || v.created_at"
+                    class="chat-bubble chat-left"
                     style="padding:10px;border-radius:12px;"
                   >
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                      <span style="font-size:12px;opacity:0.85;">ID {{ v.id }}</span>
-                      <span style="font-size:12px;opacity:0.6;">{{ v.createdAt }}</span>
-                    </div>
+                    <div style="font-size:12px;opacity:0.6;margin-bottom:8px;">{{ formatDisplayTime(v.createdAt || v.created_at) }}</div>
                     <img :src="cleanUrl(v.content)" alt="版本图"
                          style="width:100%;height:auto;border-radius:10px;object-fit:contain;cursor:pointer;"
                          decoding="async" @click="openVersionPreview(v.content)" />
@@ -409,7 +394,8 @@
               <!-- 画外音合词区域 -->
               <div class="voice-script-section">
                 <div class="voice-input-box">
-                  <textarea v-model="voiceScript" class="voice-script-input" placeholder="输入想要人物讲述的台词"></textarea>
+                  <textarea v-model="voiceScript" class="voice-script-input" placeholder="输入想要人物讲述的台词" maxlength="150"></textarea>
+                  <div class="voice-char-counter">{{ (voiceScript || '').length }}/150</div>
                 </div>
                 <div class="voice-script-controls">
                   <div class="voice-play-controls">
@@ -796,13 +782,12 @@
                         <div class="skeleton-image" style="height:28px; width: 60px;"></div>
                       </template>
                       <template v-else>
-                        <button v-if="scene.audio_url" class="audio-btn">
+                        <button v-if="hasAudio(scene, index)" class="audio-btn">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                            <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
-                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
-                              stroke-width="2" />
+                            <path d="M3 10h4l5-4v12l-5-4H3z" stroke="currentColor" stroke-width="2" />
+                            <path d="M16 8c2 2 2 6 0 8" stroke="currentColor" stroke-width="2" />
+                            <path d="M18 5c3 3 3 11 0 14" stroke="currentColor" stroke-width="2" />
                           </svg>
-                          配音
                         </button>
                         <button v-else class="audio-btn add-audio" @click.stop="activeSceneIndex = index; activeTab = 'voice'">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
@@ -1015,9 +1000,6 @@ export default {
       pendingVideoSet: new Set()
       , videoQueue: [],
       videoProcessing: false,
-      videoBatchSize: 2,
-      videoBatchInProgress: false,
-      videoBatchActiveCount: 0,
       durationMap: new Map(),
       imagesDetailMap: new Map(),
       pollImagesActive: false,
@@ -1282,14 +1264,31 @@ export default {
         if (!token) return
         const obj = await getSceneVersionHistory({ videoId, sceneNumber: 'shot_1_1', token })
         const arr = obj && obj.code === 0 && Array.isArray(obj.data) ? obj.data : []
-        this.sceneHistory = arr.map(x => ({ ...x, content: this.cleanUrl(x.content || '') })).filter(x => !!x.content)
+        this.sceneHistory = arr
+          .filter(x => String(x.changeType || '').toUpperCase() === 'IMAGE')
+          .map(x => ({ ...x, content: this.cleanUrl(x.content || ''), createdAt: x.createdAt || x.created_at }))
+          .filter(x => !!x.content)
         if (this.sceneHistory.length) this.selectedVersionId = this.sceneHistory[0].id
       } catch (e) { void 0 }
+    })
+    this.$nextTick(() => {
+      this.scrollLeftToBottom()
+      setTimeout(() => { this.scrollLeftToBottom() }, 300)
+      setTimeout(() => { this.scrollLeftToBottom() }, 1000)
     })
   },
   computed: {
     userStore() {
       return useUserStore()
+    },
+    sortedSceneHistory() {
+      const arr = Array.isArray(this.sceneHistory) ? [...this.sceneHistory] : []
+      const toTs = (x) => {
+        const s = String((x && (x.createdAt || x.created_at)) || '').replace('T', ' ').trim()
+        const d = new Date(s)
+        return Number.isFinite(d.getTime()) ? d.getTime() : 0
+      }
+      return arr.sort((a, b) => toTs(a) - toTs(b))
     },
     isVip() {
       return this.userStore && this.userStore.userInfo && this.userStore.userInfo.vipStatus === 'ACTIVE'
@@ -1478,7 +1477,10 @@ export default {
         if (!videoId || !sceneNumber || !token) { this.sceneHistoryLoading = false; return }
         const obj = await getSceneVersionHistory({ videoId, sceneNumber, token })
         const arr = obj && obj.code === 0 && Array.isArray(obj.data) ? obj.data : []
-        this.sceneHistory = arr.map(x => ({ ...x, content: this.cleanUrl(x.content || '') })).filter(x => !!x.content)
+        this.sceneHistory = arr
+          .filter(x => String(x.changeType || '').toUpperCase() === 'IMAGE')
+          .map(x => ({ ...x, content: this.cleanUrl(x.content || ''), createdAt: x.createdAt || x.created_at }))
+          .filter(x => !!x.content)
         if (this.sceneHistory.length) this.selectedVersionId = this.sceneHistory[0].id
       } catch (e) {
         this.sceneHistory = []
@@ -2112,6 +2114,18 @@ export default {
     shouldRenderImage(u) {
       return shouldRenderImageUtil(u)
     },
+    hasAudio(scene, index) {
+      try {
+        if (!scene) return false
+        const a1 = this.cleanUrl((scene && scene.audio_url) || '')
+        if (a1) return true
+        if (index === this.activeSceneIndex) {
+          const a2 = this.cleanUrl((this.sceneDetail && this.sceneDetail.audio_url) || '')
+          return !!a2
+        }
+        return false
+      } catch (e) { return false }
+    },
     getSceneKey(scene, index) {
       const sn = String((scene && scene.scene_number) || '').trim()
       if (sn) return 'sn:' + sn
@@ -2303,6 +2317,21 @@ export default {
       const mm = String(Math.floor(s / 60)).padStart(2, '0')
       const ss = String(s % 60).padStart(2, '0')
       return `${mm}:${ss}`
+    },
+    formatDisplayTime(time) {
+      const t = String(time || '').trim().replace('T', ' ')
+      if (!t) return ''
+      try {
+        const d = new Date(t)
+        const yyyy = d.getFullYear()
+        const mm = String(d.getMonth() + 1).padStart(2, '0')
+        const dd = String(d.getDate()).padStart(2, '0')
+        const hh = String(d.getHours()).padStart(2, '0')
+        const min = String(d.getMinutes()).padStart(2, '0')
+        return `${yyyy}-${mm}-${dd} ${hh}:${min}`
+      } catch (e) {
+        return t
+      }
     },
     // 解析原始分镜，生成包含clips的场景结构
     parseStoryboardRawToScenes(raw) {
@@ -3447,63 +3476,55 @@ export default {
       this.processVideoQueue()
     },
     async processVideoQueue() {
-      if (this.videoBatchInProgress) return
+      if (this.videoProcessing) return
       if (!Array.isArray(this.videoQueue) || this.videoQueue.length === 0) return
-      this.videoBatchInProgress = true
-      const batch = []
-      const size = Math.min(this.videoBatchSize || 2, this.videoQueue.length)
-      for (let i = 0; i < size; i++) batch.push(this.videoQueue.shift())
-      this.videoBatchActiveCount = batch.length
-      const runTask = async (task) => {
-        try {
-          const idx = task.index
-          const url = task.url
-          const vLocal = await this.getLocalUrl(url)
-          let dur = task.duration
-          if (!dur) {
-            dur = this.isVideo(url) ? await this.measureVideoDurationMs(url) : 5000
+      this.videoProcessing = true
+      const task = this.videoQueue.shift()
+      try {
+        const idx = task.index
+        const url = task.url
+        const vLocal = await this.getLocalUrl(url)
+        let dur = task.duration
+        if (!dur) {
+          dur = this.isVideo(url) ? await this.measureVideoDurationMs(url) : 5000
+        }
+        if (idx >= 0 && idx < this.scenes.length) {
+          const scene = this.scenes[idx]
+          scene.clips = [{ url: vLocal || url, durationMs: dur }]
+          scene.hasVideo = true
+          scene.video_url = vLocal || url
+          if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+          this.durationMap.set(url, dur)
+          if (vLocal) this.durationMap.set(vLocal, dur)
+
+          if (Number.isFinite(task.orderIndex) && task.orderIndex > 0) {
+            scene.order_index = task.orderIndex
+            if (!(this._orderIndexMap instanceof Map)) this._orderIndexMap = new Map()
+            if (task.sceneKey) this._orderIndexMap.set(task.sceneKey, task.orderIndex)
           }
-          if (idx >= 0 && idx < this.scenes.length) {
-            const scene = this.scenes[idx]
-            scene.clips = [{ url: vLocal || url, durationMs: dur }]
-            scene.hasVideo = true
-            scene.video_url = vLocal || url
-            if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
-            this.durationMap.set(url, dur)
-            if (vLocal) this.durationMap.set(vLocal, dur)
-            if (Number.isFinite(task.orderIndex) && task.orderIndex > 0) {
-              scene.order_index = task.orderIndex
-              if (!(this._orderIndexMap instanceof Map)) this._orderIndexMap = new Map()
-              if (task.sceneKey) this._orderIndexMap.set(task.sceneKey, task.orderIndex)
+          const k = task.pendingKey || this.getSceneKey(scene, idx)
+          if (this.pendingVideoSet instanceof Set) this.pendingVideoSet.delete(k)
+          try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
+          if (idx === this.activeSceneIndex) {
+            const thumb = this.cleanUrl(scene.thumbnail || '')
+            this.sceneDetail = { reference_image_url: thumb, video_url: vLocal || url }
+            if (this.isPlaying) {
+              this.$nextTick(() => {
+                const el = this.$refs.previewVideo
+                if (el && this.isVideo(this.sceneDetail.video_url)) {
+                  this.playVideoSafely(el)
+                }
+              })
             }
-            const k = task.pendingKey || this.getSceneKey(scene, idx)
-            if (this.pendingVideoSet instanceof Set) this.pendingVideoSet.delete(k)
-            try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
-            if (idx === this.activeSceneIndex) {
-              const thumb = this.cleanUrl(scene.thumbnail || '')
-              this.sceneDetail = { reference_image_url: thumb, video_url: vLocal || url }
-              if (this.isPlaying) {
-                this.$nextTick(() => {
-                  const el = this.$refs.previewVideo
-                  if (el && this.isVideo(this.sceneDetail.video_url)) {
-                    this.playVideoSafely(el)
-                  }
-                })
-              }
-            }
-          }
-        } catch (e) { void 0 }
-        finally {
-          const pendingEmpty = this.pendingVideoSet instanceof Set ? this.pendingVideoSet.size === 0 : true
-          if (pendingEmpty) this.isVideoGenerating = false
-          this.videoBatchActiveCount = Math.max(0, (this.videoBatchActiveCount || 0) - 1)
-          if (this.videoBatchActiveCount === 0) {
-            this.videoBatchInProgress = false
-            setTimeout(() => this.processVideoQueue(), 0)
           }
         }
+      } catch (e) { void 0 }
+      finally {
+        this.videoProcessing = false
+        const pendingEmpty = this.pendingVideoSet instanceof Set ? this.pendingVideoSet.size === 0 : true
+        if (pendingEmpty) this.isVideoGenerating = false
+        setTimeout(() => this.processVideoQueue(), 0)
       }
-      for (let i = 0; i < batch.length; i++) runTask(batch[i])
     },
     async handleRegenerateActiveScene() {
       try {
@@ -4225,6 +4246,14 @@ export default {
               videoId, shotId, prompt, type, modelname, token,
               signal: this._updateSceneCtrl.signal,
               onEvent: (obj) => {
+                const code = obj && obj.code
+                if (code === 'INSUFFICIENT_POINTS') {
+                  if (this._updateSceneCtrl && this._updateSceneCtrl.abort) this._updateSceneCtrl.abort()
+                  this.toastText = '余额不足'
+                  this.toastVisible = true
+                  setTimeout(() => { this.toastVisible = false }, 2000)
+                  return
+                }
                 const ev = obj && obj.event
                 if (ev === 'node_finished' || ev === 'workflow_finished' || ev === 'succeeded') {
                   this.updateLeftPreviewFromImagesDetail()
@@ -4244,9 +4273,6 @@ export default {
       try {
         const text = String(this.sceneInput || '').trim()
         if (!text) return
-        const msgIdUser = Date.now()
-        this.leftChatMessages.push({ id: msgIdUser, text, side: 'right' })
-        this.$nextTick(() => { this.scrollLeftToBottom() })
         this.sceneInput = ''
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -4262,23 +4288,6 @@ export default {
         this.subtitleEnabledPrev = this.subtitleEnabled
         this.subtitleEnabled = false
         const msgIdPending = Date.now() + 1
-        
-        // Capture current scene script data for the prompt box
-        const currentScript = sc.scene_script || {}
-        const promptData = {
-          shot_title: currentScript.shot_title || '',
-          visual_description: currentScript.visual_description || '',
-          // Add other fields if necessary
-        }
-        
-        this.leftChatMessages.push({ 
-          id: msgIdPending, 
-          text: '', 
-          side: 'left', 
-          pending: true,
-          type: 'prompt_box',
-          data: promptData
-        })
         this.$nextTick(() => { this.scrollLeftToBottom() })
         
         this._updateSceneCtrl = new AbortController()
@@ -4286,14 +4295,20 @@ export default {
           videoId, shotId, prompt: text, type, modelname, token,
           signal: this._updateSceneCtrl.signal,
           onEvent: (obj) => {
+            const code = obj && obj.code
+            if (code === 'INSUFFICIENT_POINTS') {
+              if (this._updateSceneCtrl && this._updateSceneCtrl.abort) this._updateSceneCtrl.abort()
+              const setB = this.updatingKeySet instanceof Set ? this.updatingKeySet : null
+              if (setB) { setB.delete(k); this.updatingKeySet = new Set(setB) }
+              this.subtitleEnabled = this.subtitleEnabledPrev
+              this.toastText = '余额不足'
+              this.toastVisible = true
+              setTimeout(() => { this.toastVisible = false }, 2000)
+              return
+            }
             const ev = obj && obj.event
             const tp = obj && obj.type
-            const idx = this.leftChatMessages.findIndex(m => m.id === msgIdPending)
             if (tp === 'connected') {
-              const msg = (obj && obj.message) ? String(obj.message).trim() : '分镜修改连接开始'
-              // Keep type prompt_box
-              if (idx >= 0) this.leftChatMessages[idx] = { ...this.leftChatMessages[idx], text: msg, pending: true }
-              this.$nextTick(() => { this.scrollLeftToBottom() })
               return
             }
             if (tp === 'scene_updated') {
@@ -4301,13 +4316,11 @@ export default {
               const cleaned = raw.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
               const imageUrl = this.cleanUrl(cleaned)
               const script = (obj && obj.scene_script) || {}
-              const title = String(script.shot_title || '').trim()
-              const visual = String(script.visual_description || '').trim()
-              const summary = (title && visual) ? (title + '：' + visual) : (title || visual || String(obj && obj.message || '分镜修改结果已更新').trim())
               const aidx = this.activeSceneIndex
               const target = this.scenes[aidx] || {}
               if (imageUrl) {
                 target.thumbnail = imageUrl
+                this.sceneDetail = { reference_image_url: imageUrl, video_url: this.cleanUrl(target.video_url || ''), audio_url: this.cleanUrl(target.audio_url || '') }
               }
               if (script && Object.keys(script).length) {
                 const prev = Object.assign({}, target.scene_script || {})
@@ -4318,23 +4331,10 @@ export default {
                 if (next.visual_description) parts.push(next.visual_description)
                 target.description = parts.join('：')
               }
-              if (idx >= 0) {
-                 // Update the message with new image and script data if needed
-                 // User requested "original image prompt content unchanged", so we might NOT update msg.data.visual_description
-                 // But we MUST update imageUrl
-                 this.leftChatMessages[idx] = { 
-                   ...this.leftChatMessages[idx], 
-                   text: summary, 
-                   imageUrl: imageUrl, 
-                   pending: true,
-                   // data: { ...this.leftChatMessages[idx].data, ...script } // Uncomment if we want to update text
-                 }
-                 this.$nextTick(() => { this.scrollLeftToBottom() })
-              }
+              this.$nextTick(() => { this.scrollLeftToBottom() })
               return
             }
             if (tp === 'finished' || ev === 'node_finished' || ev === 'workflow_finished' || ev === 'succeeded') {
-              if (idx >= 0) this.leftChatMessages[idx] = { ...this.leftChatMessages[idx], text: '生成完成', pending: false }
               const setB = this.updatingKeySet instanceof Set ? this.updatingKeySet : null
               if (setB) { setB.delete(k); this.updatingKeySet = new Set(setB) }
               this.subtitleEnabled = this.subtitleEnabledPrev
@@ -4343,15 +4343,8 @@ export default {
               this.$nextTick(() => { this.fetchSceneHistoryForActiveScene() })
               return
             }
-            if (idx >= 0) {
-              const t = typeof obj === 'string' ? obj : JSON.stringify(obj || {})
-              this.leftChatMessages[idx] = { ...this.leftChatMessages[idx], text: t, pending: true }
-              this.$nextTick(() => { this.scrollLeftToBottom() })
-            }
           }
         }).catch(() => {
-          const idx = this.leftChatMessages.findIndex(m => m.id === msgIdPending)
-          if (idx >= 0) this.leftChatMessages[idx] = { ...this.leftChatMessages[idx], text: '生成失败', pending: false }
           const setB = this.updatingKeySet instanceof Set ? this.updatingKeySet : null
           if (setB) { setB.delete(k); this.updatingKeySet = new Set(setB) }
           this.subtitleEnabled = this.subtitleEnabledPrev
@@ -6133,6 +6126,7 @@ input:checked+.slider:before {
   border-radius: 8px;
   padding: 4px;
   margin-bottom: 12px;
+  position: relative;
 }
 
 .voice-script-input {
@@ -6155,6 +6149,13 @@ input:checked+.slider:before {
   color: #fff;
 }
 
+.voice-char-counter {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
 .voice-script-controls {
   display: flex;
   align-items: center;
@@ -6730,5 +6731,11 @@ input:checked + .slider:before {
 .points-display:hover {
   background-color: var(--bg-tertiary);
   transform: translateY(-1px);
+}
+.non-member-points {
+  color: var(--text-tertiary);
+}
+.non-member-points .points-icon {
+  filter: grayscale(1);
 }
 </style>

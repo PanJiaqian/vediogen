@@ -33,7 +33,7 @@
           </span>
         </button>
         <div class="header-items">
-          <div class="header-item points-display" @click="showPointsModal = true" v-if="isLoggedIn">
+          <div class="header-item points-display" :class="{ 'non-member-points': !isVip }" :title="!isVip ? '会员已过期，请重新订阅' : ''" @click="showPointsModal = true" v-if="isLoggedIn">
             <span class="points-val">✨ {{ (userStore && userStore.userInfo && userStore.userInfo.pointsBalance) || 0 }}</span>
           </div>
           <div class="header-item membership-btn" v-if="!isVip" @click="showMembershipModal = true">开通会员</div>
@@ -4191,6 +4191,9 @@ export default {
 .points-display:hover {
   background-color: var(--bg-tertiary);
   transform: translateY(-1px);
+}
+.non-member-points {
+  color: var(--text-tertiary);
 }
 .user-info {
   display: flex;
