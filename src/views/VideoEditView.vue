@@ -1386,30 +1386,15 @@ export default {
         const scene = this.scenes[sceneIndex]
         if (!scene) return false
 
-        const key = this.getSceneKey(scene, sceneIndex)
-
-        // 1. 如果 video_url 为 null 且正在生成视频，显示骨架屏
-        if (scene.video_url === null) {
-          // 检查是否确实在生成视频
-          const isGenerating = this.isVideoGenerating || this.isVideoConverting ||
-                              (this.pendingVideoSet instanceof Set && this.pendingVideoSet.size > 0)
-          if (isGenerating) return true
-        }
-
-        // 2. 如果在等待队列中，且没有视频，显示骨架屏
-        if (this.pendingVideoSet instanceof Set && this.pendingVideoSet.has(key)) {
+        // 使用 isVideoPendingScene 方法判断视频是否正在生成
+        // 该方法会检查 video_url === null，即使重新进入页面也能正确判断
+        if (this.isVideoPendingScene(scene, sceneIndex)) {
+          // 检查是否有视频
           const hasVid = this.isVideo(scene.video_url || '') ||
                         (Array.isArray(scene.clips) && scene.clips.length > 0 &&
                          this.isVideo(scene.clips[0].url || ''))
+          // 没有视频就显示骨架屏
           if (!hasVid) return true
-        }
-
-        // 3. 如果是当前分镜且 sceneDetail.video_url 为 null 且正在生成视频，显示骨架屏
-        if (sceneIndex === this.activeSceneIndex &&
-            this.sceneDetail.video_url === null) {
-          const isGenerating = this.isVideoGenerating || this.isVideoConverting ||
-                              (this.pendingVideoSet instanceof Set && this.pendingVideoSet.size > 0)
-          if (isGenerating) return true
         }
 
         return false
