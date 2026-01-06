@@ -29,13 +29,39 @@
               <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </div>
-          <div class="header-item">
+          <div class="header-item notification-bell" @click.stop="toggleNotificationsMenu" v-if="isLoggedIn">
             <svg class="header-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
+            <span v-if="notificationsUnreadCount > 0" class="notif-badge">{{ notificationsUnreadCount }}</span>
+            <div v-if="showNotificationsMenu" class="notifications-popover" @click.stop>
+              <div class="notifications-header">
+                <div class="notif-title">通知</div>
+                <div class="notif-actions">
+                  <button class="notif-refresh" @click.stop="refreshNotifications">刷新</button>
+                </div>
+              </div>
+              <div class="notifications-body">
+                <div v-if="notificationsLoading" class="notif-loading">加载中...</div>
+                <div v-else-if="!notificationsList.length" class="notif-empty">暂无通知</div>
+                <div v-else>
+                  <div v-for="n in notificationsList" :key="'notif-'+n.id" class="notif-item" :class="{ unread: n.isRead === 0 }">
+                    <div class="notif-item-main">
+                      <div class="notif-item-title">{{ n.title || '通知' }}</div>
+                      <div class="notif-item-content">{{ parseNotificationContent(n.content) }}</div>
+                    </div>
+                    <div class="notif-item-meta">
+                      <span class="notif-item-time">{{ formatDateTime(n.createdAt || n.updatedAt) }}</span>
+                      <div class="notif-item-actions">
+                        <button v-if="n.isRead === 0" class="notif-action" @click.stop="markAsRead(n)">标记已读</button>
+                        <button class="notif-action danger" @click.stop="deleteNotif(n)">删除</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           <div class="header-item">
             <svg class="header-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -221,7 +247,7 @@ import UserProfileEditModal from '@/components/UserProfileEditModal.vue'
 import InviteModal from '@/components/InviteModal.vue'
 import OrderRecordsModal from '@/components/OrderRecordsModal.vue'
 import { useUserStore } from '@/stores/user'
-import { getUserBasicStatus, updateAvatarAndNickname, getBindStatus, bindPhone, bindEmail, sendSmsCodeByPhone, sendCheckCodeByEmail } from '@/api'
+import { getUserBasicStatus, updateAvatarAndNickname, getBindStatus, bindPhone, bindEmail, sendSmsCodeByPhone, sendCheckCodeByEmail, getNotificationsList, getNotificationsUnreadCount, markNotificationRead, deleteNotification } from '@/api'
 
 export default {
   name: 'AppHeader',
@@ -237,6 +263,7 @@ export default {
     return {
       loginModalVisible: false,
       showUserMenu: false,
+      showNotificationsMenu: false,
       centerPromptVisible: false,
       centerPromptText: '',
       centerPromptAction: '',
@@ -264,6 +291,12 @@ export default {
       , bindSubmitting: false
       , toastVisible: false
       , toastText: ''
+      , notificationsList: []
+      , notificationsLoading: false
+      , notificationsUnreadCount: 0
+      , notifWS: null
+      , notifWsAttempt: 0
+      , notifWsTimer: null
     }
   },
   computed: {
@@ -312,6 +345,8 @@ export default {
     }
     if (this.userStore && this.userStore.isLoggedIn && this.userStore.token) {
       this.fetchUserBasicStatus()
+      this.fetchNotificationsUnreadCount()
+      this.initNotificationsWebSocket()
     }
   },
   beforeUnmount() {
@@ -324,8 +359,99 @@ export default {
     if (this._onCenterPrompt) window.removeEventListener('open-center-prompt', this._onCenterPrompt)
     if (this.phoneCodeTimer) { clearInterval(this.phoneCodeTimer); this.phoneCodeTimer = null }
     if (this.emailCodeTimer) { clearInterval(this.emailCodeTimer); this.emailCodeTimer = null }
+    this.teardownNotificationsWebSocket()
+  },
+  watch: {
+    isLoggedIn(val) {
+      if (val) this.initNotificationsWebSocket()
+      else this.teardownNotificationsWebSocket()
+    },
+    'userStore.token'(tok) {
+      if (tok) this.initNotificationsWebSocket()
+    }
   },
   methods: {
+    async toggleNotificationsMenu() {
+      this.showNotificationsMenu = !this.showNotificationsMenu
+      if (this.showNotificationsMenu) {
+        await this.fetchNotificationsUnreadCount()
+        await this.fetchNotificationsList()
+      }
+    },
+    async refreshNotifications() {
+      await this.fetchNotificationsUnreadCount()
+      await this.fetchNotificationsList()
+    },
+    async fetchNotificationsList() {
+      try {
+        const token = this.userStore && this.userStore.token
+        if (!token) return
+        this.notificationsLoading = true
+        const res = await getNotificationsList({ token })
+        const ok = res && res.code === 0 && Array.isArray(res.data)
+        this.notificationsList = ok ? res.data : []
+      } catch (e) {
+        this.notificationsList = []
+      } finally {
+        this.notificationsLoading = false
+      }
+    },
+    async fetchNotificationsUnreadCount() {
+      try {
+        const token = this.userStore && this.userStore.token
+        if (!token) return
+        const res = await getNotificationsUnreadCount({ token })
+        const ok = res && res.code === 0 && res.data && typeof res.data.count !== 'undefined'
+        this.notificationsUnreadCount = ok ? Number(res.data.count) || 0 : 0
+      } catch (e) {
+        this.notificationsUnreadCount = 0
+      }
+    },
+    async markAsRead(n) {
+      try {
+        const token = this.userStore && this.userStore.token
+        if (!token || !n || !n.id) return
+        const res = await markNotificationRead({ id: n.id, token })
+        const ok = res && res.code === 0
+        if (ok) {
+          const idx = this.notificationsList.findIndex(x => x.id === n.id)
+          if (idx >= 0) this.$set ? this.$set(this.notificationsList[idx], 'isRead', 1) : (this.notificationsList[idx].isRead = 1)
+          await this.fetchNotificationsUnreadCount()
+        }
+      } catch (e) { /* no-op */ }
+    },
+    async deleteNotif(n) {
+      try {
+        const token = this.userStore && this.userStore.token
+        if (!token || !n || !n.id) return
+        const res = await deleteNotification({ id: n.id, token })
+        const ok = res && res.code === 0
+        if (ok) {
+          this.notificationsList = this.notificationsList.filter(x => x.id !== n.id)
+          await this.fetchNotificationsUnreadCount()
+        }
+      } catch (e) { /* no-op */ }
+    },
+    parseNotificationContent(s) {
+      try {
+        const obj = JSON.parse(String(s || ''))
+        return String(obj && obj.message ? obj.message : s || '')
+      } catch (e) {
+        return String(s || '')
+      }
+    },
+    formatDateTime(s) {
+      try {
+        const d = new Date(String(s || '').replace('T', ' '))
+        if (Number.isFinite(d.getTime())) {
+          const pad = n => String(n).padStart(2, '0')
+          return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+        }
+        return String(s || '')
+      } catch (e) {
+        return String(s || '')
+      }
+    },
     openBindStatusModal() {
       this.showUserMenu = false
       this.showBindStatusModal = true
@@ -642,9 +768,9 @@ export default {
     // 点击外部关闭用户菜单
     handleClickOutside(event) {
       const userInfo = this.$el?.querySelector('.user-info')
-      if (userInfo && !userInfo.contains(event.target)) {
-        this.showUserMenu = false
-      }
+      if (userInfo && !userInfo.contains(event.target)) this.showUserMenu = false
+      const notif = this.$el?.querySelector('.notification-bell')
+      if (notif && !notif.contains(event.target)) this.showNotificationsMenu = false
     },
 
     // 查看个人资料
@@ -732,6 +858,90 @@ export default {
       this.showPointsModal = true
       this.centerPromptVisible = false
       this.centerPromptAction = ''
+    },
+    initNotificationsWebSocket() {
+      try { if (this.notifWS) { this.notifWS.close(); this.notifWS = null } } catch (e) { /* no-op */ }
+      let token = this.userStore && this.userStore.token
+      if (!token) {
+        try { token = (localStorage.getItem('token') || '').trim() } catch (e) { token = '' }
+      }
+      if (!token) { console.warn('[notif-ws] skip: no token'); return }
+      if (this.notifWsTimer) { clearTimeout(this.notifWsTimer); this.notifWsTimer = null }
+      const t = encodeURIComponent(String(token).trim())
+      const candidates = [
+        `wss://www.xydriftcraft.com:1770/ws/notification?token=${t}`,
+        `wss://www.xydriftcraft.com:1770/ws/notification?${t}`,
+        `wss://www.xydriftcraft.com:1770/ws/notification?token-${t}`,
+        `wss://www.xydriftcraft.com:1770/notification/ws?token=${t}`
+      ]
+      const tryConnect = (i) => {
+        if (i >= candidates.length) { this.scheduleNotifWsReconnect(); return }
+        const url = candidates[i]
+        console.log('[notif-ws] connecting to', url)
+        const ws = new WebSocket(url)
+        this.notifWS = ws
+        ws.onopen = () => {
+          console.log('[notif-ws] connected to', url)
+          this.notifWsAttempt = 0
+          this.fetchNotificationsUnreadCount()
+        }
+        ws.onmessage = (ev) => {
+          console.log('[notif-ws] message received')
+          let obj = null
+          try { obj = JSON.parse(String(ev.data || '')) } catch (e) { obj = null }
+          if (obj && typeof obj === 'object') {
+            if (typeof obj.unreadCount !== 'undefined') {
+              this.notificationsUnreadCount = Number(obj.unreadCount) || 0
+            } else {
+              this.fetchNotificationsUnreadCount()
+            }
+            if (obj.notification || obj.list) {
+              this.fetchNotificationsList()
+            }
+          } else {
+            this.fetchNotificationsUnreadCount()
+            this.fetchNotificationsList()
+          }
+        }
+        ws.onclose = () => {
+          console.warn('[notif-ws] closed', url)
+          this.scheduleNotifWsReconnect()
+        }
+        ws.onerror = () => {
+          console.error('[notif-ws] error on', url)
+          try { ws.close() } catch (e) { /* no-op */ }
+          tryConnect(i + 1)
+        }
+      }
+      tryConnect(0)
+    },
+    scheduleNotifWsReconnect() {
+      let token = this.userStore && this.userStore.token
+      if (!token) {
+        try { token = (localStorage.getItem('token') || '').trim() } catch (e) { token = '' }
+      }
+      if (!token) { console.warn('[notif-ws] reconnect aborted: no token'); return }
+      if ((this.notifWsAttempt || 0) > 8) return
+      if (this.notifWsTimer) { clearTimeout(this.notifWsTimer); this.notifWsTimer = null }
+      const delay = Math.min(30000, 1000 * Math.pow(2, Math.min(this.notifWsAttempt || 0, 5)))
+      this.notifWsAttempt = (this.notifWsAttempt || 0) + 1
+      console.warn('[notif-ws] reconnect attempt', this.notifWsAttempt, 'in', delay, 'ms')
+      this.notifWsTimer = setTimeout(() => { this.initNotificationsWebSocket() }, delay)
+    },
+    teardownNotificationsWebSocket() {
+      try {
+        if (this.notifWS) {
+          console.log('[notif-ws] teardown: closing current connection')
+          this.notifWS.onopen = null
+          this.notifWS.onmessage = null
+          this.notifWS.onclose = null
+          this.notifWS.onerror = null
+          this.notifWS.close()
+        }
+      } catch (e) { /* no-op */ }
+      this.notifWS = null
+      if (this.notifWsTimer) { clearTimeout(this.notifWsTimer); this.notifWsTimer = null }
+      this.notifWsAttempt = 0
     }
   }
 }
@@ -807,6 +1017,113 @@ export default {
   width: 20px;
   height: 20px;
   color: var(--text-tertiary);
+}
+.notification-bell {
+  position: relative;
+}
+.notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  background: var(--error-color);
+  color: #fff;
+  border-radius: 10px;
+  font-size: 12px;
+  padding: 0 6px;
+  line-height: 16px;
+  min-width: 16px;
+  text-align: center;
+}
+.notifications-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 10px;
+  width: 380px;
+  max-width: 80vw;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  z-index: 3000;
+  overflow: hidden;
+}
+.notifications-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-secondary);
+}
+.notif-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.notif-refresh {
+  font-size: 12px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.notifications-body {
+  max-height: 360px;
+  overflow: auto;
+}
+.notif-loading, .notif-empty {
+  padding: 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.notif-item {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-secondary);
+}
+.notif-item.unread {
+  background: var(--bg-tertiary);
+}
+.notif-item-main {
+  margin-bottom: 8px;
+}
+.notif-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.notif-item-content {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.notif-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.notif-item-time {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.notif-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.notif-action {
+  font-size: 12px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.notif-action.danger {
+  color: var(--error-color);
 }
 
 .membership-btn {

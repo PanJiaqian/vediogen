@@ -560,6 +560,20 @@ export async function applySceneVersion({ videoId, sceneNumber, versionId, token
   }
 }
 
+export async function updateSceneScript({ videoid, scene_number, text, token }) {
+  const url = `${BASE_URL}/detail/scene/script/update`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ videoid: String(videoid), scene_number: String(scene_number), text: String(text) })
+  const requestOptions = { method: 'POST', headers, body, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
 export async function exportWorksVideo({ videoId, token }) {
   const url = `${BASE_URL}/detail/works/video/export?videoId=${encodeURIComponent(videoId)}`
   const requestOptions = {
@@ -836,6 +850,38 @@ export async function getInvitationStats({ token }) {
   } catch (e) {
     return await res.text()
   }
+}
+
+export async function getNotificationsList({ token }) {
+  const url = `${BASE_URL}/notification/getNotList`
+  const requestOptions = { method: 'GET', headers: buildAuthHeaders(token), redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) { try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { /* no-op */ } }
+  try { return await res.json() } catch (e) { return await res.text() }
+}
+
+export async function getNotificationsUnreadCount({ token }) {
+  const url = `${BASE_URL}/notification/unread-count`
+  const requestOptions = { method: 'GET', headers: buildAuthHeaders(token), redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) { try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { /* no-op */ } }
+  try { return await res.json() } catch (e) { return await res.text() }
+}
+
+export async function markNotificationRead({ id, token }) {
+  const url = `${BASE_URL}/notification/read?id=${encodeURIComponent(id)}`
+  const requestOptions = { method: 'POST', headers: buildAuthHeaders(token), redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) { try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { /* no-op */ } }
+  try { return await res.json() } catch (e) { return await res.text() }
+}
+
+export async function deleteNotification({ id, token }) {
+  const url = `${BASE_URL}/notification/delete?id=${encodeURIComponent(id)}`
+  const requestOptions = { method: 'POST', headers: buildAuthHeaders(token), redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) { try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { /* no-op */ } }
+  try { return await res.json() } catch (e) { return await res.text() }
 }
 
 export async function getBillingEstimate({ videoId, genType, modelName, token }) {
@@ -1425,4 +1471,8 @@ export default {
   , uploadStoryboardVoiceoverAudio
   , getBillingEstimate
   , updateSceneStream
+  , getNotificationsList
+  , getNotificationsUnreadCount
+  , markNotificationRead
+  , deleteNotification
 }

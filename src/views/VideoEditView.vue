@@ -129,7 +129,7 @@
           </div>
         </div>
 
-          <template v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (isConverting && isActiveImageMissing && !isVideo(sceneDetail.video_url))">
+          <template v-if="shouldShowActiveSkeleton">
             <div class="skeleton-block">
               <div class="skeleton-line"></div>
               <div class="skeleton-line"></div>
@@ -548,16 +548,18 @@
 
         <!-- 视频画面 -->
         <div class="video-preview">
-            <div class="video-container" ref="videoContainer">
-              <!-- 1、视频未完全生成并且没有视频url -->
-              <div v-if="isVideoConverting || (isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail))" class="skeleton-image" style="height:100%"></div>
-            <video v-else-if="isVideo(sceneDetail.video_url) && sceneDetail.video_url && sceneDetail.video_url.trim() !== ''"
+            <div class="video-container" ref="videoContainer" @click="handleVideoContainerClick">
+              <!-- 1、骨架屏 -->
+              <div v-if="shouldShowActiveSkeleton"
+                   class="skeleton-image"
+                   style="height:100%"></div>
+            <video v-else-if="shouldShowVideo"
               ref="previewVideo"
               :src="preferMp4(sceneDetail.video_url)"
               :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
               preload="metadata" playsinline muted
               class="video-image"></video>
-            <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url)"
+            <img v-else-if="shouldShowImage"
               :src="cleanUrl(sceneDetail.reference_image_url)"
               :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image"
               decoding="async" fetchpriority="high" @error="onPreviewImgError" />
@@ -577,13 +579,17 @@
               替换
             </button>
             <!-- 字幕叠加层 -->
-            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }">
-              {{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
+            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && (isEditingSubtitle || scenes[activeSceneIndex].scene_script.dialogue_or_narration)" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }">
+              <div v-if="isEditingSubtitle">
+                <textarea v-model="editingSubtitleText" class="subtitle-edit-input" @keyup.enter="saveSubtitleEdit" @blur="saveSubtitleEdit"></textarea>
+              </div>
+              <div v-else @click="startEditSubtitle">
+                {{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
+              </div>
             </div>
           </div>
           <div class="preview-aside">
-            <template
-              v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || isPreviewPending || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)">
+            <template v-if="shouldShowActiveSkeleton || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending">
               <div class="thumb-card">
                 <div class="skeleton-image"></div>
               </div>
@@ -742,18 +748,8 @@
                       </div>
                     </div>
                     <div class="track-clips" @click="selectScene(index)">
-                      <template v-if="isSceneUpdating(scene, index) || isCropPendingScene(scene, index)">
-                        <div v-for="m in 10" :key="'up-skel-' + index + '-' + m" class="scene-clip">
-                          <div class="skeleton-image" style="height:28px;"></div>
-                        </div>
-                      </template>
-                      <template v-else-if="isVideoPendingScene(scene, index) || (index === activeSceneIndex && sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail))">
-                        <div v-for="m in 10" :key="'gen-skel-' + index + '-' + m" class="scene-clip">
-                          <div class="skeleton-image" style="height:28px;"></div>
-                        </div>
-                      </template>
-                      <template v-else-if="index === activeSceneIndex && (isPreviewPending || isActiveImageMissing)">
-                        <div v-for="m in 10" :key="'prev-skel-' + index + '-' + m" class="scene-clip">
+                      <template v-if="shouldShowSkeletonForScene(index)">
+                        <div v-for="m in 10" :key="'skel-' + index + '-' + m" class="scene-clip">
                           <div class="skeleton-image" style="height:28px;"></div>
                         </div>
                       </template>
@@ -778,7 +774,7 @@
                       </template>
                     </div>
                     <div class="track-audio">
-                      <template v-if="isSceneUpdating(scene, index) || isCropPendingScene(scene, index) || isVideoPendingScene(scene, index) || (index === activeSceneIndex && sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail))">
+                      <template v-if="shouldShowSkeletonForScene(index)">
                         <div class="skeleton-image" style="height:28px; width: 60px;"></div>
                       </template>
                       <template v-else>
@@ -917,7 +913,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -938,6 +934,8 @@ export default {
       activeTab: 'image',
       sceneInput: '',
       subtitleEnabled: true,
+      isEditingSubtitle: false,
+      editingSubtitleText: '',
       activeSceneIndex: 0,
       playbackPosition: 0, // 播放进度百分比
       playbackLeftPx: 0,
@@ -1381,6 +1379,65 @@ export default {
       const w = Math.max(0, Math.round(this.replaceCropSelW || 0))
       const h = Math.max(0, Math.round(this.replaceCropSelH || 0))
       return { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px', position: 'absolute' }
+    },
+    // 判断指定分镜是否应该显示骨架屏
+    shouldShowSkeletonForScene() {
+      return (sceneIndex) => {
+        const scene = this.scenes[sceneIndex]
+        if (!scene) return false
+
+        const key = this.getSceneKey(scene, sceneIndex)
+
+        // 1. 如果 video_url 为 null 且正在生成视频，显示骨架屏
+        if (scene.video_url === null) {
+          // 检查是否确实在生成视频
+          const isGenerating = this.isVideoGenerating || this.isVideoConverting ||
+                              (this.pendingVideoSet instanceof Set && this.pendingVideoSet.size > 0)
+          if (isGenerating) return true
+        }
+
+        // 2. 如果在等待队列中，且没有视频，显示骨架屏
+        if (this.pendingVideoSet instanceof Set && this.pendingVideoSet.has(key)) {
+          const hasVid = this.isVideo(scene.video_url || '') ||
+                        (Array.isArray(scene.clips) && scene.clips.length > 0 &&
+                         this.isVideo(scene.clips[0].url || ''))
+          if (!hasVid) return true
+        }
+
+        // 3. 如果是当前分镜且 sceneDetail.video_url 为 null 且正在生成视频，显示骨架屏
+        if (sceneIndex === this.activeSceneIndex &&
+            this.sceneDetail.video_url === null) {
+          const isGenerating = this.isVideoGenerating || this.isVideoConverting ||
+                              (this.pendingVideoSet instanceof Set && this.pendingVideoSet.size > 0)
+          if (isGenerating) return true
+        }
+
+        return false
+      }
+    },
+    // 当前激活分镜是否显示骨架屏
+    shouldShowActiveSkeleton() {
+      return this.shouldShowSkeletonForScene(this.activeSceneIndex)
+    },
+    // 判断是否应该显示视频
+    shouldShowVideo() {
+      const videoUrl = this.sceneDetail.video_url
+      if (!videoUrl || videoUrl === null) return false
+      const cleanedUrl = this.cleanUrl(videoUrl)
+      return !!cleanedUrl && this.isVideo(cleanedUrl)
+    },
+    // 判断是否应该显示图片
+    shouldShowImage() {
+      // 如果应该显示骨架屏，则不显示图片
+      if (this.shouldShowActiveSkeleton) return false
+
+      // 如果有视频，则不显示图片
+      if (this.shouldShowVideo) return false
+
+      // 显示图片（没点击一键转视频，或点击了但没有视频）
+      const imageUrl = this.sceneDetail.reference_image_url ||
+                       this.scenes[this.activeSceneIndex]?.thumbnail
+      return this.shouldRenderImage(imageUrl)
     }
   },
   watch: {
@@ -1548,6 +1605,59 @@ export default {
     closeVersionPreview() {
       this.versionPreviewVisible = false
       this.versionPreviewUrl = ''
+    },
+    handleVideoContainerClick(e) {
+      if (this.isEditingSubtitle) return
+      const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+      const hasText = !!(sc && sc.scene_script && sc.scene_script.dialogue_or_narration)
+      if (hasText) return
+      if (!this.subtitleEnabled) return
+      if (this.isVideoConverting || this.isVideoPendingScene(sc, this.activeSceneIndex)) return
+      const t = e && e.target
+      if (t && (t.closest && (t.closest('.replace-btn') || t.closest('.thumb-card') || t.closest('.playback-section') || t.closest('.preview-aside')))) return
+      this.startEditSubtitle()
+    },
+    startEditSubtitle() {
+      const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+      const t = sc && sc.scene_script && sc.scene_script.dialogue_or_narration ? String(sc.scene_script.dialogue_or_narration) : ''
+      this.editingSubtitleText = t
+      this.isEditingSubtitle = true
+    },
+    cancelSubtitleEdit() {
+      this.isEditingSubtitle = false
+      this.editingSubtitleText = ''
+    },
+    async saveSubtitleEdit() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+        const sceneNumber = String((sc && sc.scene_number) || '').trim()
+        const token = (this.userStore && this.userStore.token) || ''
+        const text = String(this.editingSubtitleText || '').trim()
+        if (!videoId || !sceneNumber || !token) return
+        const resp = await updateSceneScript({ videoid: String(videoId), scene_number: sceneNumber, text, token })
+        const ok = !!(resp && resp.code === 0)
+        if (ok) {
+          if (sc) {
+            if (!sc.scene_script) sc.scene_script = {}
+            sc.scene_script.dialogue_or_narration = text
+          }
+          this.isEditingSubtitle = false
+          this.toastText = '字幕已更新'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        } else {
+          const msg = (resp && (resp.message || resp.msg)) ? String(resp.message || resp.msg) : '更新失败'
+          this.toastText = msg
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        }
+      } catch (e) {
+        this.toastText = '更新失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }
     },
     async applySceneVersionItem(v) {
       try {
@@ -3660,6 +3770,8 @@ export default {
           if (!hasVid) {
             const k = this.getSceneKey(sc, i)
             set.add(k)
+            // 明确标记为等待状态
+            sc.video_url = null
           }
         }
         this.pendingVideoSet = set
@@ -6599,18 +6711,40 @@ input:checked+.slider:before {
   font-size: 16px;
   text-align: center;
   max-width: 80%;
-  pointer-events: none;
+  pointer-events: auto;
   z-index: 10;
   text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
   white-space: pre-wrap;
 }
 
 .subtitle-overlay.portrait-mode {
-  max-width: 92%;
+  max-width: calc(100% - 48px);
 }
 
 .subtitle-overlay.fullscreen-mode {
   font-size: clamp(24px, 3vw, 40px);
+}
+
+.subtitle-edit-input {
+  width: 100%;
+  min-height: 60px;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 4px;
+}
+
+.subtitle-confirm-btn {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 16px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Switch Styles */
