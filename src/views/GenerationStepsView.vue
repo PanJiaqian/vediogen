@@ -71,7 +71,7 @@
             <div class="step-title">{{ step.title }}</div>
             <div class="step-status">
               <span v-if="currentStep < index" class="status-pending">待开始执行</span>
-              <span v-else-if="currentStep === index" class="status-progress">执行中 {{ progress }}%</span>
+              <span v-else-if="currentStep === index" class="status-progress">执行中 {{ progressDisplay }}%</span>
               <span v-else class="status-completed">执行完成</span>
             </div>
           </div>
@@ -124,6 +124,12 @@ export default {
       timeoutPromptVisible: false,
       timeoutRedirectTimer: null
       , redirectTimer: null
+    }
+  },
+  computed: {
+    progressDisplay() {
+      const p = Number(this.progress) || 0
+      return p.toFixed(2)
     }
   },
   mounted() {
@@ -416,6 +422,7 @@ export default {
   width: 90%;
   position: relative;
   z-index: 1;
+  margin-top: 48px;
 }
 
 .header-section {

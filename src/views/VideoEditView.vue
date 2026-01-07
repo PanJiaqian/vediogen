@@ -587,8 +587,8 @@
             </button>
             <!-- 字幕叠加层 -->
             <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && (isEditingSubtitle || scenes[activeSceneIndex].scene_script.dialogue_or_narration)" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }" :style="subtitleOverlayStyle">
-              <div v-if="isEditingSubtitle" style="display:flex;align-items:flex-start;gap:8px;">
-                <textarea v-model="editingSubtitleText" class="subtitle-edit-input" @keyup.enter="saveSubtitleEdit" @blur="saveSubtitleEdit"></textarea>
+              <div v-if="isEditingSubtitle" style="display:flex;flex-direction:column;align-items:flex-start;gap:8px;">
+                <textarea v-model="editingSubtitleText" class="subtitle-edit-input" @keyup.enter="saveSubtitleEdit"></textarea>
                 <button class="subtitle-confirm-btn" @click="saveSubtitleEdit" title="确认修改">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <polyline points="20 6 9 17 4 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
@@ -610,7 +610,7 @@
               </div>
             </template>
             <template v-else>
-              <div v-if="isVideo(getActiveSceneVideoUrl()) && !isPreviewPending" class="thumb-card" @click="switchPreviewTo('video')">
+              <div v-if="hasVideoThumb() && !isPreviewPending" class="thumb-card" @click="switchPreviewTo('video')">
                 <div class="thumb-label">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
@@ -619,8 +619,8 @@
                   </svg>
                   <span>视频</span>
                 </div>
-                <video v-if="!isM3u8(getActiveSceneVideoUrl())"
-                  :src="preferMp4(getActiveSceneVideoUrl())"
+                <video v-if="!isM3u8(getSceneVideoUrlForThumb())"
+                  :src="preferMp4(getSceneVideoUrlForThumb())"
                   :poster="cleanUrl(sceneDetail.reference_image_url || '')"
                   class="thumb-image" muted playsinline preload="none" disablepictureinpicture></video>
                 <img v-else
@@ -925,7 +925,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -1298,9 +1298,15 @@ export default {
     },
     sortedSceneHistory() {
       const arr = Array.isArray(this.sceneHistory) ? [...this.sceneHistory] : []
-      const mode = String(this.lastPreviewMode || '').toLowerCase()
+      let mode = String(this.lastPreviewMode || '').toLowerCase()
+      if (!mode) {
+        const hasVid = this.hasVideoThumb()
+        const hasImg = this.shouldRenderImage(this.sceneDetail.reference_image_url || this.scenes[this.activeSceneIndex]?.thumbnail)
+        if (hasVid && hasImg) mode = 'video'
+      }
       const filtered = arr.filter(x => {
         const t = String((x && (x.changeType || x.change_type)) || '').toUpperCase()
+        if (t === 'SCRIPT') return false
         if (mode === 'image') return t === 'IMAGE'
         if (mode === 'video') return t === 'VIDEO'
         return true
@@ -1409,6 +1415,7 @@ export default {
       return (sceneIndex) => {
         const scene = this.scenes[sceneIndex]
         if (!scene) return false
+        if (this.isSceneUpdating(scene, sceneIndex)) return true
 
         // 使用 isVideoPendingScene 方法判断视频是否正在生成
         // 该方法会检查 video_url === null，即使重新进入页面也能正确判断
@@ -1598,6 +1605,18 @@ export default {
 
       // 没有视频，返回空
       return ''
+    },
+    getSceneVideoUrlForThumb() {
+      const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+      const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
+      const v2 = this.cleanUrl((sc && sc.video_url) || (first && first.url) || '')
+      const v2Lower = v2.toLowerCase()
+      if (!v2 || v2Lower === 'replaceimage') return ''
+      return this.isVideo(v2) ? v2 : ''
+    },
+    hasVideoThumb() {
+      const url = this.getSceneVideoUrlForThumb()
+      return !!url && this.isVideo(url)
     },
     switchPreviewTo(mode) {
       const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
@@ -2844,6 +2863,11 @@ export default {
           }
         }
       } catch (e) { void 0 }
+      try {
+        const active = this.scenes[this.activeSceneIndex] || {}
+        const k = this.getSceneKey(active, this.activeSceneIndex)
+        if (this.updatingKeySet && this.updatingKeySet.delete) this.updatingKeySet.delete(k)
+      } catch (e) { void 0 }
     },
     prefetchFirstSceneAudioIfMissing() {
       try {
@@ -3002,15 +3026,14 @@ export default {
      
           // const nextVideo = vlocal || vurl || (this.isVideo(targetVid) ? targetVid : (this.isVideo(clipUrl) ? clipUrl : ''))
           const nextVideo = (vlocal || vurl) || null
-        const sdAudio = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
-        // 确保 reference_image_url 有回退值
-        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: nextVideo, audio_url: sdAudio }
-        console.log(this.sceneDetail,2222222)
-        this.ensureDefaultPreviewMode()
-        if (targetIndex === this.activeSceneIndex) this.syncPreviewPlayback()
-      } else {
-        this.refreshSidebarFromLocal()
-      }
+          const sdAudio = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
+          // 确保 reference_image_url 有回退值
+          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: nextVideo, audio_url: sdAudio }
+          console.log(this.sceneDetail,2222222)
+          if (targetIndex === this.activeSceneIndex) this.syncPreviewPlayback()
+        } else {
+          this.refreshSidebarFromLocal()
+        }
       } catch (e) {
         this.refreshSidebarFromLocal()
       } finally {
@@ -3260,7 +3283,6 @@ export default {
         const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
         const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
         this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: (vLocal || vurl) || null }
-        this.ensureDefaultPreviewMode()
         if (activeIdx >= 0 && activeIdx < this.scenes.length) {
           const sc = this.scenes[activeIdx]
           const shotTitle = (match && match.scene_script && match.scene_script.shot_title) || match.shot_title || ''
@@ -3383,7 +3405,6 @@ export default {
                 const targetVid = this.cleanUrl(target && target.video_url || '')
                 const nextVideo = vLocal || vurl || ''
                 this.sceneDetail = { reference_image_url: refLocal, video_url: nextVideo }
-                this.ensureDefaultPreviewMode()
               }
             }
           }
@@ -3407,16 +3428,6 @@ export default {
           const u = this.cleanUrl(sc.thumbnail || '')
           if (!u) continue
           try { await this.getLocalUrl(u) } catch (e) { void 0 }
-        }
-      } catch (e) { void 0 }
-    },
-    ensureDefaultPreviewMode() {
-      try {
-        const v = this.cleanUrl((this.sceneDetail && this.sceneDetail.video_url) || '')
-        const i = this.cleanUrl((this.sceneDetail && this.sceneDetail.reference_image_url) || '')
-        if (!this.lastPreviewMode && v && this.isVideo(v) && i) {
-          this.lastPreviewMode = 'video'
-          this.$nextTick(() => { this.switchPreviewTo('video') })
         }
       } catch (e) { void 0 }
     },
@@ -3472,7 +3483,6 @@ export default {
             const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
             const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
             this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || vurl || '' }
-            this.ensureDefaultPreviewMode()
           }
         }
         try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
@@ -4369,7 +4379,9 @@ export default {
     // 图片提示词相关方法
     editPrompt() {
       const currentScene = this.scenes[this.activeSceneIndex]
-      this.editingPromptText = currentScene ? currentScene.description : ''
+      const sceneScript = currentScene && currentScene.scene_script ? currentScene.scene_script : {}
+      const vd = sceneScript && sceneScript.visual_description ? String(sceneScript.visual_description) : ''
+      this.editingPromptText = vd || (currentScene ? currentScene.description : '')
       this.isEditingPrompt = true
       // 下一帧聚焦到输入框
       this.$nextTick(() => {
@@ -4381,49 +4393,38 @@ export default {
     },
     savePromptEdit() {
       if (this.activeSceneIndex >= 0 && this.activeSceneIndex < this.scenes.length) {
-        this.scenes[this.activeSceneIndex].description = this.editingPromptText
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        const sc = this.scenes[this.activeSceneIndex] || {}
+        const sceneNumber = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
+        const text = String(this.editingPromptText || '').trim()
+        if (token && videoId && sceneNumber && text) {
+          updateVisualDescription({ videoid: String(videoId), scene_number: sceneNumber, text, token })
+            .then(resp => {
+              const ok = !!(resp && resp.code === 0)
+              if (ok) {
+                if (!sc.scene_script) sc.scene_script = {}
+                sc.scene_script.visual_description = text
+                this.scenes[this.activeSceneIndex].description = text
+                this.toastText = '提示词已更新'
+                this.toastVisible = true
+                setTimeout(() => { this.toastVisible = false }, 2000)
+              } else {
+                const msg = (resp && (resp.message || resp.msg)) ? String(resp.message || resp.msg) : '更新失败'
+                this.toastText = msg
+                this.toastVisible = true
+                setTimeout(() => { this.toastVisible = false }, 2000)
+              }
+            })
+            .catch(() => {
+              this.toastText = '更新失败'
+              this.toastVisible = true
+              setTimeout(() => { this.toastVisible = false }, 2000)
+            })
+        }
         this.isEditingPrompt = false
         this.editingPromptText = ''
-        console.log('提示词已保存:', this.editingPromptText)
-        try {
-          const projectId = this.$route.params.id
-          const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-          const token = (this.userStore && this.userStore.token) || ''
-          const sc = this.scenes[this.activeSceneIndex] || {}
-          const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
-          const prompt = String(sc.description || '').trim()
-          const type = this.determineSceneType(sc)
-          const modelname = type === 'video' ? 'wan2.2-i2v-flash' : 'doubao-seedream-4-0-250828'
-          if (token && videoId && shotId && prompt) {
-            this.toastText = '已提交修改，生成中...'
-            this.toastVisible = true
-            setTimeout(() => { this.toastVisible = false }, 2000)
-            this._updateSceneCtrl = new AbortController()
-            updateSceneStream({
-              videoId, shotId, prompt, type, modelname, token,
-              signal: this._updateSceneCtrl.signal,
-              onEvent: (obj) => {
-                const code = obj && obj.code
-                if (code === 'INSUFFICIENT_POINTS') {
-                  if (this._updateSceneCtrl && this._updateSceneCtrl.abort) this._updateSceneCtrl.abort()
-                  this.toastText = '余额不足'
-                  this.toastVisible = true
-                  setTimeout(() => { this.toastVisible = false }, 2000)
-                  return
-                }
-                const ev = obj && obj.event
-                if (ev === 'node_finished' || ev === 'workflow_finished' || ev === 'succeeded') {
-                  this.updateLeftPreviewFromImagesDetail()
-                  this.toastText = '生成成功'
-                  this.toastVisible = true
-                  setTimeout(() => { this.toastVisible = false }, 2000)
-                  this.$nextTick(() => { this.scrollLeftToBottom() })
-                  this.$nextTick(() => { this.fetchSceneHistoryForActiveScene() })
-                }
-              }
-            }).catch(() => { /* no-op */ })
-          }
-        } catch (e) { /* no-op */ }
       }
     },
     async sendSceneInput() {
@@ -4446,6 +4447,10 @@ export default {
         this.subtitleEnabled = false
         const msgIdPending = Date.now() + 1
         this.$nextTick(() => { this.scrollLeftToBottom() })
+        
+        this.toastText = '小梦收到你的新想法啦'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
         
         this._updateSceneCtrl = new AbortController()
         updateSceneStream({
@@ -4492,8 +4497,6 @@ export default {
               return
             }
             if (tp === 'finished' || ev === 'node_finished' || ev === 'workflow_finished' || ev === 'succeeded') {
-              const setB = this.updatingKeySet instanceof Set ? this.updatingKeySet : null
-              if (setB) { setB.delete(k); this.updatingKeySet = new Set(setB) }
               this.subtitleEnabled = this.subtitleEnabledPrev
               this.updateLeftPreviewFromImagesDetail()
               this.$nextTick(() => { this.scrollLeftToBottom() })
@@ -4506,6 +4509,9 @@ export default {
           if (setB) { setB.delete(k); this.updatingKeySet = new Set(setB) }
           this.subtitleEnabled = this.subtitleEnabledPrev
           this.$nextTick(() => { this.scrollLeftToBottom() })
+          this.toastText = '修改失败'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
         })
       } catch (e) { /* no-op */ }
     },
@@ -6776,7 +6782,12 @@ input:checked+.slider:before {
   background: rgba(0, 0, 0, 0.4);
   color: #fff;
   border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 4px;
+  border-radius: 8px;
+  font-size: inherit;
+  line-height: 1.5;
+  padding: 10px 12px;
+  outline: none;
+  backdrop-filter: blur(2px);
 }
 
 .subtitle-confirm-btn {

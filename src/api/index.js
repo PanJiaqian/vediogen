@@ -574,6 +574,20 @@ export async function updateSceneScript({ videoid, scene_number, text, token }) 
   }
 }
 
+export async function updateVisualDescription({ videoid, scene_number, text, token }) {
+  const url = `${BASE_URL}/detail/scene/updateVisualDescription`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ videoid: String(videoid), scene_number: String(scene_number), text: String(text) })
+  const requestOptions = { method: 'POST', headers, body, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
 export async function exportWorksVideo({ videoId, token }) {
   const url = `${BASE_URL}/detail/works/video/export?videoId=${encodeURIComponent(videoId)}`
   const requestOptions = {

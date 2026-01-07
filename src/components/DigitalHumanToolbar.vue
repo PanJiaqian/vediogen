@@ -100,7 +100,7 @@
 
       <!-- 上传配音模式 -->
       <div v-if="activeTab === 'upload'" class="tab-content upload-content">
-        <div v-if="!voiceAudioUrl" class="upload-area" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="handleDrop">
+        <div v-if="!uploadAudioUrl" class="upload-area" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="handleDrop">
           <div class="upload-placeholder">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-linecap="round" stroke-linejoin="round"/>
@@ -111,11 +111,11 @@
           <input type="file" accept=".mp3,.wav" style="display:none" ref="fileInput" @change="onUploadFileSelected">
         </div>
         
-        <div v-if="!voiceAudioUrl" class="upload-note">
+        <div v-if="!uploadAudioUrl" class="upload-note">
           <span class="info-icon">ⓘ</span> 上传配音暂不支持生成字幕
         </div>
 
-        <div v-if="voiceAudioUrl" class="uploaded-audio-card">
+        <div v-if="uploadAudioUrl" class="uploaded-audio-card">
           <button class="audio-icon-btn" @click.stop="toggleUploadAudioPlay">
             <svg v-if="!uploadPlaying" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
               <path d="M8 5v14l11-7z"/>
@@ -229,6 +229,7 @@ export default {
       supportedLanguages: [],
       uploadAudioEl: null,
       uploadAudioFile: null,
+      uploadAudioUrl: '',
       uploadAudioName: '',
       uploadAudioDuration: 0,
       uploadCurrentTime: 0,
@@ -405,7 +406,7 @@ export default {
         if (this.uploadAudioEl) { try { this.uploadAudioEl.pause() } catch (err) { /* no-op */ } this.uploadAudioEl = null }
         this.uploadAudioFile = f
         const url = URL.createObjectURL(f)
-        this.voiceAudioUrl = url
+        this.uploadAudioUrl = url
         this.uploadAudioName = String(f.name || '音频')
         const el = new Audio(url)
         el.addEventListener('loadedmetadata', () => { this.uploadAudioDuration = Number(el.duration) || 0 })
@@ -438,9 +439,9 @@ export default {
     }
     , removeUploadedAudio() {
       try { if (this.uploadAudioEl) { try { this.uploadAudioEl.pause() } catch (e) { /* no-op */ } this.uploadAudioEl = null } } catch (e) { /* no-op */ }
-      try { if (this.voiceAudioUrl && /^blob:/.test(this.voiceAudioUrl)) URL.revokeObjectURL(this.voiceAudioUrl) } catch (e) { /* no-op */ }
+      try { if (this.uploadAudioUrl && /^blob:/.test(this.uploadAudioUrl)) URL.revokeObjectURL(this.uploadAudioUrl) } catch (e) { /* no-op */ }
       this.uploadAudioFile = null
-      this.voiceAudioUrl = ''
+      this.uploadAudioUrl = ''
       this.uploadAudioName = ''
       this.uploadAudioDuration = 0
       this.uploadCurrentTime = 0

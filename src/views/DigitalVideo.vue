@@ -777,7 +777,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 // import Hls from 'hls.js'
-import { getScriptDetailByVideo, regenerateImage, queryRegenerateImage, copyStoryboardVideo, reorderStoryboardScenes, clipStoryboardVideo, updateVideoTitle, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, getDigitalHumanWorksByConversation, getDigitalHumanWorkSingle, objectDetectionByScene, uploadDigitalHumanWorkImage, objectDetectionByWork, digitalhumanGenByWork, getUserBasicStatus } from '@/api'
+import { getScriptDetailByVideo, regenerateImage, queryRegenerateImage, copyStoryboardVideo, reorderStoryboardScenes, clipStoryboardVideo, updateVideoTitle, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, getDigitalHumanWorksByConversation, getDigitalHumanWorkSingle, objectDetectionByScene, uploadDigitalHumanWorkImage, objectDetectionByWork, digitalhumanGenByWork, getUserBasicStatus, updateVisualDescription } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -3922,7 +3922,9 @@ export default {
     // 图片提示词相关方法
     editPrompt() {
       const currentScene = this.scenes[this.activeSceneIndex]
-      this.editingPromptText = currentScene ? currentScene.description : ''
+      const sceneScript = currentScene && currentScene.scene_script ? currentScene.scene_script : {}
+      const vd = sceneScript && sceneScript.visual_description ? String(sceneScript.visual_description) : ''
+      this.editingPromptText = vd || (currentScene ? currentScene.description : '')
       this.isEditingPrompt = true
       // 下一帧聚焦到输入框
       this.$nextTick(() => {
@@ -3934,10 +3936,38 @@ export default {
     },
     savePromptEdit() {
       if (this.activeSceneIndex >= 0 && this.activeSceneIndex < this.scenes.length) {
-        this.scenes[this.activeSceneIndex].description = this.editingPromptText
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        const sc = this.scenes[this.activeSceneIndex] || {}
+        const sceneNumber = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
+        const text = String(this.editingPromptText || '').trim()
+        if (token && videoId && sceneNumber && text) {
+          updateVisualDescription({ videoid: String(videoId), scene_number: sceneNumber, text, token })
+            .then(resp => {
+              const ok = !!(resp && resp.code === 0)
+              if (ok) {
+                if (!sc.scene_script) sc.scene_script = {}
+                sc.scene_script.visual_description = text
+                this.scenes[this.activeSceneIndex].description = text
+                this.toastText = '提示词已更新'
+                this.toastVisible = true
+                setTimeout(() => { this.toastVisible = false }, 2000)
+              } else {
+                const msg = (resp && (resp.message || resp.msg)) ? String(resp.message || resp.msg) : '更新失败'
+                this.toastText = msg
+                this.toastVisible = true
+                setTimeout(() => { this.toastVisible = false }, 2000)
+              }
+            })
+            .catch(() => {
+              this.toastText = '更新失败'
+              this.toastVisible = true
+              setTimeout(() => { this.toastVisible = false }, 2000)
+            })
+        }
         this.isEditingPrompt = false
         this.editingPromptText = ''
-        console.log('提示词已保存:', this.editingPromptText)
       }
     },
     cancelPromptEdit() {
