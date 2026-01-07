@@ -21,7 +21,7 @@
         </div>
       </div>
       <div class="navbar-right">
-        <button class="navbar-btn convert-btn" @click="convertToVideo" :disabled="true">
+        <!-- <button class="navbar-btn convert-btn" @click="convertToVideo" :disabled="true">
           一键转视频
           <span class="scene-count-chip">
             <svg class="chip-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -31,7 +31,7 @@
             </svg>
             <span class="chip-text">{{ Array.isArray(scenes) ? scenes.length : 0 }}</span>
           </span>
-        </button>
+        </button> -->
         <div class="header-items">
           <div class="header-item points-display" :class="{ 'non-member-points': !isVip }" :title="!isVip ? '会员已过期，请重新订阅' : ''" @click="showPointsModal = true" v-if="isLoggedIn">
             <span class="points-val">✨ {{ (userStore && userStore.userInfo && userStore.userInfo.pointsBalance) || 0 }}</span>
@@ -262,7 +262,7 @@
             <!-- 可滚动内容区域 -->
             <div class="voice-scrollable-content">
               <!-- 画外音合词区域 -->
-              <div class="voice-script-section">
+              <div class="voice-script-section" @dragover.prevent="onVoiceDragOver" @dragleave.prevent="onVoiceDragLeave" @drop.prevent="onVoiceFileDrop" :class="{ 'drag-over': isVoiceDragging }">
                 <div class="voice-input-box">
                   <textarea v-model="voiceScript" class="voice-script-input" placeholder="输入想要人物讲述的台词"></textarea>
                 </div>
@@ -424,7 +424,7 @@
               v-if="(isVideoGenerating || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])"
               class="skeleton-image"></div>
               <template v-else>
-              <div v-if="isBlankScene(scenes[activeSceneIndex])" class="blank-scene-display" @click="triggerUpload(activeSceneIndex)">
+              <div v-if="isBlankScene(scenes[activeSceneIndex])" class="blank-scene-display" @click="triggerUpload(activeSceneIndex)" @dragover.prevent="onImageDragOver" @dragleave.prevent="onImageDragLeave" @drop.prevent="onImageDrop" :class="{ 'drag-over': isImageDragging }">
                 <svg class="upload-icon-large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                   <circle cx="8.5" cy="8.5" r="1.5"></circle>
@@ -610,7 +610,7 @@
                         </div>
                       </template>
                       <template v-else-if="isBlankScene(scene)">
-                        <div class="blank-scene-placeholder" @click.stop="triggerUpload(index)" style="height:28px; width:100%" title="添加图片">
+                        <div class="blank-scene-placeholder" @click.stop="triggerUpload(index)" @dragover.prevent="onImageDragOver" @dragleave.prevent="onImageDragLeave" @drop.prevent="onImageDrop" :class="{ 'drag-over': isImageDragging }" style="height:28px; width:100%" title="添加图片">
                           <div class="blank-upload-ui">
                             <svg class="upload-icon-small" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                               <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
@@ -857,6 +857,7 @@ export default {
       previewImgErrored: false,
       clipImgErrorMap: {},
       isVideoGenerating: false,
+      generationTimeoutTimer: null,
       pendingVideoSet: new Set()
       , videoQueue: [],
       videoProcessing: false,
@@ -895,11 +896,14 @@ export default {
       userBasicInfo: {},
       showPointsModal: false,
       showInviteModal: false,
-      isDark: false
+      isDark: false,
+      isImageDragging: false
+      , isVoiceDragging: false
     }
   },
 
   beforeUnmount() {
+    try { if (this.generationTimeoutTimer) { clearTimeout(this.generationTimeoutTimer); this.generationTimeoutTimer = null } } catch (e) { /* no-op */ }
     if (this.storyboardQueryInterval) {
       clearInterval(this.storyboardQueryInterval)
       this.storyboardQueryInterval = null
@@ -952,8 +956,20 @@ export default {
       }
       return
     }
-    const taskId = this.$route.params.taskId
+    const taskId = this.$route.params.taskId || (this.$route.query && this.$route.query.taskId)
     if (taskId) {
+      this.toastText = '数字人的生成大概是在5分钟到10分钟'
+      this.toastVisible = true
+      setTimeout(() => { this.toastVisible = false }, 2500)
+      if (this.generationTimeoutTimer) { try { clearTimeout(this.generationTimeoutTimer) } catch (e) { void 0 } this.generationTimeoutTimer = null }
+      this.generationTimeoutTimer = setTimeout(() => {
+        try { if (this.digitalVideoQueryInterval) { clearInterval(this.digitalVideoQueryInterval) } } catch (e) { void 0 }
+        this.digitalVideoQueryInterval = null
+        this.isVideoGenerating = false
+        this.toastText = '重新尝试一下'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }, 11 * 60 * 1000)
       this.isVideoGenerating = true
       this.sceneDetail = { reference_image_url: '', video_url: '', audio_url: '' }
       const token = (this.userStore && this.userStore.token) || ''
@@ -1230,6 +1246,18 @@ export default {
     '$route.params.taskId'(taskId) {
       try { if (this.digitalVideoQueryInterval) { clearInterval(this.digitalVideoQueryInterval); this.digitalVideoQueryInterval = null } } catch (e) { void 0 }
       if (!taskId) return
+      this.toastText = '数字人的生成大概是在5分钟到10分钟'
+      this.toastVisible = true
+      setTimeout(() => { this.toastVisible = false }, 2500)
+      if (this.generationTimeoutTimer) { try { clearTimeout(this.generationTimeoutTimer) } catch (e) { void 0 } this.generationTimeoutTimer = null }
+      this.generationTimeoutTimer = setTimeout(() => {
+        try { if (this.digitalVideoQueryInterval) { clearInterval(this.digitalVideoQueryInterval) } } catch (e) { void 0 }
+        this.digitalVideoQueryInterval = null
+        this.isVideoGenerating = false
+        this.toastText = '重新尝试一下'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }, 11 * 60 * 1000)
       this.isVideoGenerating = true
       this.sceneDetail = { reference_image_url: '', video_url: '', audio_url: '' }
       const token = (this.userStore && this.userStore.token) || ''
@@ -1245,12 +1273,14 @@ export default {
           const s = String(status || '').toLowerCase()
           if (s === 'failed') {
             if (this.digitalVideoQueryInterval) { try { clearInterval(this.digitalVideoQueryInterval) } catch (e) { void 0 } this.digitalVideoQueryInterval = null }
+            if (this.generationTimeoutTimer) { try { clearTimeout(this.generationTimeoutTimer) } catch (e) { void 0 } this.generationTimeoutTimer = null }
             this.isVideoGenerating = false
             this.toastText = '生成失败'
             this.toastVisible = true
             this.previewImgErrored = true
             setTimeout(() => { this.toastVisible = false }, 2000)
           } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
+            if (this.generationTimeoutTimer) { try { clearTimeout(this.generationTimeoutTimer) } catch (e) { void 0 } this.generationTimeoutTimer = null }
             const videoUrl = this.cleanUrl(String(vid || ''))
             const imageUrl = this.cleanUrl(String(img || ''))
             const audioUrl = this.cleanUrl(String(aud || ''))
@@ -1268,6 +1298,81 @@ export default {
               const sc = this.scenes[idx] || {}
               sc.thumbnail = imageUrl || sc.thumbnail || clipUrl
               sc.video_url = clipUrl
+              sc.hasVideo = !!videoUrl
+              sc.audio_url = audioUrl
+              sc.clips = [{ url: clipUrl, durationMs: durMs }]
+            }
+            try {
+              if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
+              if (clipUrl) this.durationMap.set(clipUrl, durMs)
+              if (videoUrl && clipUrl !== videoUrl) this.durationMap.set(videoUrl, durMs)
+            } catch (e) { void 0 }
+            this.updateTimeMarkers()
+            this.ensurePreviewFromScenes()
+            this.isVideoGenerating = false
+            if (this.digitalVideoQueryInterval) { try { clearInterval(this.digitalVideoQueryInterval) } catch (e) { void 0 } this.digitalVideoQueryInterval = null }
+            this.$nextTick(() => { this.tryAttachHls() })
+          }
+        } catch (e) { void 0 }
+      }
+      poll()
+      this.digitalVideoQueryInterval = setInterval(poll, 30000)
+    },
+    '$route.query.taskId'(taskId) {
+      try { if (this.digitalVideoQueryInterval) { clearInterval(this.digitalVideoQueryInterval); this.digitalVideoQueryInterval = null } } catch (e) { void 0 }
+      if (!taskId) return
+      this.toastText = '数字人的生成大概是在5分钟到10分钟'
+      this.toastVisible = true
+      setTimeout(() => { this.toastVisible = false }, 2500)
+      if (this.generationTimeoutTimer) { try { clearTimeout(this.generationTimeoutTimer) } catch (e) { void 0 } this.generationTimeoutTimer = null }
+      this.generationTimeoutTimer = setTimeout(() => {
+        try { if (this.digitalVideoQueryInterval) { clearInterval(this.digitalVideoQueryInterval) } } catch (e) { void 0 }
+        this.digitalVideoQueryInterval = null
+        this.isVideoGenerating = false
+        this.toastText = '重新尝试一下'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }, 11 * 60 * 1000)
+      this.isVideoGenerating = true
+      this.sceneDetail = { reference_image_url: '', video_url: '', audio_url: '' }
+      const token = (this.userStore && this.userStore.token) || ''
+      const poll = async () => {
+        try {
+          const resp = await digitalhumanQuery({ taskId, token })
+          const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
+          const data = obj && obj.data
+          const status = (obj && obj.status) || (data && data.task_status)
+          const vid = data && data.generated_video_url
+          const img = data && data.image_url
+          const aud = data && data.audio_url
+          const s = String(status || '').toLowerCase()
+          if (s === 'failed') {
+            if (this.digitalVideoQueryInterval) { try { clearInterval(this.digitalVideoQueryInterval) } catch (e) { void 0 } this.digitalVideoQueryInterval = null }
+            if (this.generationTimeoutTimer) { try { clearTimeout(this.generationTimeoutTimer) } catch (e) { void 0 } this.generationTimeoutTimer = null }
+            this.isVideoGenerating = false
+            this.toastText = '生成失败'
+            this.toastVisible = true
+            this.previewImgErrored = true
+            setTimeout(() => { this.toastVisible = false }, 2000)
+          } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
+            if (this.generationTimeoutTimer) { try { clearTimeout(this.generationTimeoutTimer) } catch (e) { void 0 } this.generationTimeoutTimer = null }
+            const videoUrl = this.cleanUrl(String(vid || ''))
+            const imageUrl = this.cleanUrl(String(img || ''))
+            const audioUrl = this.cleanUrl(String(aud || ''))
+            this.sceneDetail = { reference_image_url: imageUrl, video_url: videoUrl, audio_url: audioUrl }
+            let clipUrl = videoUrl || imageUrl
+            let durMs = 5000
+            if (videoUrl) {
+              try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 }
+            }
+            if (!Array.isArray(this.scenes) || this.scenes.length === 0) {
+              this.scenes = [{ id: 1, title: '分镜1', description: '数字人视频', thumbnail: imageUrl || clipUrl, clips: [{ url: clipUrl, durationMs: durMs }], video_url: videoUrl, hasVideo: !!videoUrl, order_index: 1, audio_url: audioUrl }]
+              this.activeSceneIndex = 0
+            } else {
+              const idx = this.activeSceneIndex
+              const sc = this.scenes[idx] || {}
+              sc.thumbnail = imageUrl || sc.thumbnail || clipUrl
+              sc.video_url = videoUrl
               sc.hasVideo = !!videoUrl
               sc.audio_url = audioUrl
               sc.clips = [{ url: clipUrl, durationMs: durMs }]
@@ -2953,6 +3058,21 @@ export default {
     triggerVoiceFileUpload() {
       if (this.$refs.voiceFileInput) this.$refs.voiceFileInput.click()
     },
+    onVoiceDragOver(e) {
+      this.isVoiceDragging = true
+    },
+    onVoiceDragLeave(e) {
+      this.isVoiceDragging = false
+    },
+    onVoiceFileDrop(e) {
+      this.isVoiceDragging = false
+      try {
+        const f = e && e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]
+        if (!f) return
+        const evt = { target: { files: [f] } }
+        this.onVoiceFileSelected(evt)
+      } catch (err) { /* no-op */ }
+    },
     onVoiceFileSelected(e) {
       const file = e.target.files && e.target.files[0]
       if (!file) return
@@ -3183,6 +3303,18 @@ export default {
       if (!file) return
       this.validateAndProcessImage(file)
       e.target.value = ''
+    },
+    onImageDragOver(e) {
+      this.isImageDragging = true
+    },
+    onImageDragLeave(e) {
+      this.isImageDragging = false
+    },
+    onImageDrop(e) {
+      this.isImageDragging = false
+      const file = e && e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]
+      if (!file) return
+      this.validateAndProcessImage(file)
     },
     validateAndProcessImage(file) {
       if (!file.type.startsWith('image/')) {
@@ -5870,6 +6002,10 @@ input:checked+.slider:before {
 .blank-scene-placeholder:hover {
   background: var(--bg-tertiary);
 }
+.blank-scene-placeholder.drag-over {
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--primary-color);
+}
 
 .blank-upload-ui {
   display: inline-flex;
@@ -5912,6 +6048,13 @@ input:checked+.slider:before {
 
 .blank-scene-display:hover {
   background: var(--bg-tertiary);
+}
+.blank-scene-display.drag-over {
+  background: var(--bg-tertiary);
+  border: 2px dashed var(--primary-color);
+}
+.voice-script-section.drag-over {
+  border: 1px dashed var(--primary-color);
 }
 
 .upload-icon-large {

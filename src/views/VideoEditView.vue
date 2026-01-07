@@ -258,9 +258,16 @@
                     style="padding:10px;border-radius:12px;"
                   >
                     <div style="font-size:12px;opacity:0.6;margin-bottom:8px;">{{ formatDisplayTime(v.createdAt || v.created_at) }}</div>
-                    <img :src="cleanUrl(v.content)" alt="版本图"
-                         style="width:100%;height:auto;border-radius:10px;object-fit:contain;cursor:pointer;"
-                         decoding="async" @click="openVersionPreview(v.content)" />
+                    <template v-if="isVideo(v.content)">
+                      <video :src="preferMp4(cleanUrl(v.content))"
+                             style="width:100%;height:auto;border-radius:10px;object-fit:contain;"
+                             muted playsinline preload="none" controls></video>
+                    </template>
+                    <template v-else>
+                      <img :src="cleanUrl(v.content)" alt="版本图"
+                           style="width:100%;height:auto;border-radius:10px;object-fit:contain;cursor:pointer;"
+                           decoding="async" @click="openVersionPreview(v.content)" />
+                    </template>
                     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
                       <button class="bottom-btn apply-btn" @click.stop="applySceneVersionItem(v)">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -558,11 +565,11 @@
               :src="preferMp4(sceneDetail.video_url)"
               :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
               preload="metadata" playsinline muted
-              class="video-image"></video>
+              class="video-image" @loadedmetadata="updateSubtitleMaxWidth"></video>
             <img v-else-if="shouldShowImage"
               :src="cleanUrl(sceneDetail.reference_image_url)"
-              :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image"
-              decoding="async" fetchpriority="high" @error="onPreviewImgError" />
+              :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" ref="previewImage"
+              decoding="async" fetchpriority="high" @error="onPreviewImgError" @load="updateSubtitleMaxWidth" />
             <div v-else class="skeleton-image"></div>
             <div
               v-if="!isVideo(sceneDetail.video_url) && (previewImgErrored || isGenerateFailed(sceneDetail.reference_image_url))"
@@ -579,9 +586,14 @@
               替换
             </button>
             <!-- 字幕叠加层 -->
-            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && (isEditingSubtitle || scenes[activeSceneIndex].scene_script.dialogue_or_narration)" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }">
-              <div v-if="isEditingSubtitle">
+            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && (isEditingSubtitle || scenes[activeSceneIndex].scene_script.dialogue_or_narration)" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }" :style="subtitleOverlayStyle">
+              <div v-if="isEditingSubtitle" style="display:flex;align-items:flex-start;gap:8px;">
                 <textarea v-model="editingSubtitleText" class="subtitle-edit-input" @keyup.enter="saveSubtitleEdit" @blur="saveSubtitleEdit"></textarea>
+                <button class="subtitle-confirm-btn" @click="saveSubtitleEdit" title="确认修改">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="20 6 9 17 4 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                  </svg>
+                </button>
               </div>
               <div v-else @click="startEditSubtitle">
                 {{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
@@ -934,6 +946,7 @@ export default {
       activeTab: 'image',
       sceneInput: '',
       subtitleEnabled: true,
+      lastPreviewMode: '',
       isEditingSubtitle: false,
       editingSubtitleText: '',
       activeSceneIndex: 0,
@@ -1044,6 +1057,7 @@ export default {
       , selectedVersionId: null
       , versionPreviewVisible: false
       , versionPreviewUrl: ''
+      , subtitleMaxWidthPx: 0
     }
   },
   beforeUnmount() {
@@ -1263,7 +1277,6 @@ export default {
         const obj = await getSceneVersionHistory({ videoId, sceneNumber: 'shot_1_1', token })
         const arr = obj && obj.code === 0 && Array.isArray(obj.data) ? obj.data : []
         this.sceneHistory = arr
-          .filter(x => String(x.changeType || '').toUpperCase() === 'IMAGE')
           .map(x => ({ ...x, content: this.cleanUrl(x.content || ''), createdAt: x.createdAt || x.created_at }))
           .filter(x => !!x.content)
         if (this.sceneHistory.length) this.selectedVersionId = this.sceneHistory[0].id
@@ -1279,14 +1292,25 @@ export default {
     userStore() {
       return useUserStore()
     },
+    subtitleOverlayStyle() {
+      const w = Math.max(0, Number(this.subtitleMaxWidthPx) || 0)
+      return w ? { maxWidth: w + 'px' } : {}
+    },
     sortedSceneHistory() {
       const arr = Array.isArray(this.sceneHistory) ? [...this.sceneHistory] : []
+      const mode = String(this.lastPreviewMode || '').toLowerCase()
+      const filtered = arr.filter(x => {
+        const t = String((x && (x.changeType || x.change_type)) || '').toUpperCase()
+        if (mode === 'image') return t === 'IMAGE'
+        if (mode === 'video') return t === 'VIDEO'
+        return true
+      })
       const toTs = (x) => {
         const s = String((x && (x.createdAt || x.created_at)) || '').replace('T', ' ').trim()
         const d = new Date(s)
         return Number.isFinite(d.getTime()) ? d.getTime() : 0
       }
-      return arr.sort((a, b) => toTs(a) - toTs(b))
+      return filtered.sort((a, b) => toTs(a) - toTs(b))
     },
     isVip() {
       return this.userStore && this.userStore.userInfo && this.userStore.userInfo.vipStatus === 'ACTIVE'
@@ -1406,6 +1430,7 @@ export default {
     },
     // 判断是否应该显示视频
     shouldShowVideo() {
+      if (this.lastPreviewMode === 'image') return false
       const videoUrl = this.sceneDetail.video_url
       if (!videoUrl || videoUrl === null) return false
       const cleanedUrl = this.cleanUrl(videoUrl)
@@ -1413,6 +1438,7 @@ export default {
     },
     // 判断是否应该显示图片
     shouldShowImage() {
+      if (this.lastPreviewMode === 'video') return false
       // 如果应该显示骨架屏，则不显示图片
       if (this.shouldShowActiveSkeleton) return false
 
@@ -1440,9 +1466,14 @@ export default {
       } catch (e) { void 0 }
       // this.$nextTick(() => { this.tryAttachHls() })
       this.$nextTick(() => { this.fetchSceneHistoryForActiveScene() })
+      this.$nextTick(() => {
+        if (this.lastPreviewMode === 'image') this.switchPreviewTo('image')
+        else if (this.lastPreviewMode === 'video') this.switchPreviewTo('video')
+      })
     },
     'sceneDetail.reference_image_url'(val) {
       this.previewImgErrored = false
+      this.$nextTick(() => { this.updateSubtitleMaxWidth() })
     },
     'sceneDetail.video_url'(val) {
       if (this.isPlaying) {
@@ -1456,6 +1487,7 @@ export default {
       try { this._previewLoadSrc = '' } catch (e) { void 0 }
       // this.$nextTick(() => { this.tryAttachHls() })
       this.$nextTick(() => { this.updateActiveSceneDurationFromVideo() })
+      this.$nextTick(() => { this.updateSubtitleMaxWidth() })
     },
     isConverting(val) {
       if (!val) this.$nextTick(() => { this.initTimelineSync() })
@@ -1492,7 +1524,8 @@ export default {
       }
     },
     determineSceneType(sc) {
-      const rawV = (sc && sc.video_url) || (this.sceneDetail && this.sceneDetail.video_url) || ''
+      if (this.lastPreviewMode === 'image') return 'image'
+      const rawV = (this.sceneDetail && this.sceneDetail.video_url) || (sc && sc.video_url) || ''
       const vstr = String(rawV || '').trim().toLowerCase()
       const isReplace = vstr === 'replace image' || vstr === 'replaceimage' || vstr === 'replace_image'
       const vurl = this.cleanUrl(rawV || '')
@@ -1500,6 +1533,17 @@ export default {
       const img = this.cleanUrl((this.sceneDetail && this.sceneDetail.reference_image_url) || (sc && sc.thumbnail) || '')
       if (img) return 'image'
       return 'image'
+    },
+    updateSubtitleMaxWidth() {
+      try {
+        const cont = this.$refs.videoContainer
+        const ve = this.$refs.previewVideo
+        const ie = this.$refs.previewImage
+        const basis = (ve && ve.clientWidth) || (ie && ie.clientWidth) || (cont && cont.clientWidth) || 0
+        const pad = 48
+        const w = Math.max(0, Math.floor(basis - pad))
+        this.subtitleMaxWidthPx = w
+      } catch (e) { /* no-op */ }
     },
     scrollLeftToBottom() {
       const el = this.$refs.sceneScrollable
@@ -1520,7 +1564,6 @@ export default {
         const obj = await getSceneVersionHistory({ videoId, sceneNumber, token })
         const arr = obj && obj.code === 0 && Array.isArray(obj.data) ? obj.data : []
         this.sceneHistory = arr
-          .filter(x => String(x.changeType || '').toUpperCase() === 'IMAGE')
           .map(x => ({ ...x, content: this.cleanUrl(x.content || ''), createdAt: x.createdAt || x.created_at }))
           .filter(x => !!x.content)
         if (this.sceneHistory.length) this.selectedVersionId = this.sceneHistory[0].id
@@ -1559,14 +1602,17 @@ export default {
     switchPreviewTo(mode) {
       const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
       if (mode === 'video') {
+        this.lastPreviewMode = 'video'
         const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
         const vurl = this.cleanUrl((sc && sc.video_url) || (first && first.url) || '')
         this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: vurl })
         this.$nextTick(() => { this.tryAttachHls && this.tryAttachHls() })
       } else {
+        this.lastPreviewMode = 'image'
         const img = this.cleanUrl((this.sceneDetail && this.sceneDetail.reference_image_url) || (sc && sc.thumbnail) || '')
         this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: '', reference_image_url: img })
         this.previewImgErrored = false
+        this.$nextTick(() => { this.updateSubtitleMaxWidth() })
       }
     },
     downloadImage(u) {
@@ -2956,14 +3002,15 @@ export default {
      
           // const nextVideo = vlocal || vurl || (this.isVideo(targetVid) ? targetVid : (this.isVideo(clipUrl) ? clipUrl : ''))
           const nextVideo = (vlocal || vurl) || null
-          const sdAudio = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
-          // 确保 reference_image_url 有回退值
-          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: nextVideo, audio_url: sdAudio }
-          console.log(this.sceneDetail,2222222)
-          if (targetIndex === this.activeSceneIndex) this.syncPreviewPlayback()
-        } else {
-          this.refreshSidebarFromLocal()
-        }
+        const sdAudio = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
+        // 确保 reference_image_url 有回退值
+        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: nextVideo, audio_url: sdAudio }
+        console.log(this.sceneDetail,2222222)
+        this.ensureDefaultPreviewMode()
+        if (targetIndex === this.activeSceneIndex) this.syncPreviewPlayback()
+      } else {
+        this.refreshSidebarFromLocal()
+      }
       } catch (e) {
         this.refreshSidebarFromLocal()
       } finally {
@@ -3213,6 +3260,7 @@ export default {
         const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
         const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
         this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: (vLocal || vurl) || null }
+        this.ensureDefaultPreviewMode()
         if (activeIdx >= 0 && activeIdx < this.scenes.length) {
           const sc = this.scenes[activeIdx]
           const shotTitle = (match && match.scene_script && match.scene_script.shot_title) || match.shot_title || ''
@@ -3335,6 +3383,7 @@ export default {
                 const targetVid = this.cleanUrl(target && target.video_url || '')
                 const nextVideo = vLocal || vurl || ''
                 this.sceneDetail = { reference_image_url: refLocal, video_url: nextVideo }
+                this.ensureDefaultPreviewMode()
               }
             }
           }
@@ -3358,6 +3407,16 @@ export default {
           const u = this.cleanUrl(sc.thumbnail || '')
           if (!u) continue
           try { await this.getLocalUrl(u) } catch (e) { void 0 }
+        }
+      } catch (e) { void 0 }
+    },
+    ensureDefaultPreviewMode() {
+      try {
+        const v = this.cleanUrl((this.sceneDetail && this.sceneDetail.video_url) || '')
+        const i = this.cleanUrl((this.sceneDetail && this.sceneDetail.reference_image_url) || '')
+        if (!this.lastPreviewMode && v && this.isVideo(v) && i) {
+          this.lastPreviewMode = 'video'
+          this.$nextTick(() => { this.switchPreviewTo('video') })
         }
       } catch (e) { void 0 }
     },
@@ -3413,6 +3472,7 @@ export default {
             const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
             const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
             this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || vurl || '' }
+            this.ensureDefaultPreviewMode()
           }
         }
         try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }

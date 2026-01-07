@@ -100,7 +100,7 @@
 
       <!-- 上传配音模式 -->
       <div v-if="activeTab === 'upload'" class="tab-content upload-content">
-        <div v-if="!voiceAudioUrl" class="upload-area" @click="$refs.fileInput.click()">
+        <div v-if="!voiceAudioUrl" class="upload-area" @click="$refs.fileInput.click()" @dragover.prevent @drop.prevent="handleDrop">
           <div class="upload-placeholder">
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-linecap="round" stroke-linejoin="round"/>
@@ -452,6 +452,20 @@ export default {
       const mm = String(Math.floor(s / 60)).padStart(2, '0')
       const ss = String(s % 60).padStart(2, '0')
       return `${mm}:${ss}`
+    }
+    , handleDrop(e) {
+      try {
+        const f = e && e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]
+        if (!f) return
+        if (!(f.type && f.type.startsWith('audio/'))) {
+          this.toastText = '仅支持音频文件'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
+        const evt = { target: { files: [f] } }
+        this.onUploadFileSelected(evt)
+      } catch (err) { /* no-op */ }
     }
   }
 }
