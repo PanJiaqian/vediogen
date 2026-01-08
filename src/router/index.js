@@ -80,6 +80,16 @@ const router = createRouter({
 
 // 全局登录拦截：未登录时点击侧边栏受限页面弹出登录框
 router.beforeEach((to, from, next) => {
+  // 邀请链接全局兜底处理：任何 /invited/:code 都跳转到首页并弹出登录
+  if (typeof to.path === 'string' && to.path.startsWith('/invited/')) {
+    const parts = to.path.split('/')
+    const code = (to.params && to.params.code) || (parts.length >= 3 ? parts[2] : '')
+    try { localStorage.setItem('app:invitationCode', String(code || '')) } catch (e) { /* no-op */ }
+    setTimeout(() => {
+      try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
+    }, 50)
+    return next({ name: 'Home' })
+  }
   const protectedNames = ['MyProjects', 'AssetLibrary', 'DigitalHuman']
   try {
     const { useUserStore } = require('../stores/user')
