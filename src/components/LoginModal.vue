@@ -12,7 +12,7 @@
 
       <div class="modal-body">
         <!-- 登录方式切换 -->
-        <div class="login-tabs" v-if="!isForgot">
+        <div class="login-tabs" v-if="!isForgot && isLogin">
           <button class="tab-btn" :class="{ active: loginType === 'phone' }" @click="loginType = 'phone'">
             {{ isLogin ? '手机号快捷登录' : '手机号注册' }}
           </button>
@@ -327,8 +327,7 @@ export default {
           email: this.formData.email || '',
           password: this.formData.password || '',
           confirmPassword: this.formData.confirmPassword || '',
-          emailCode: this.formData.emailCode || '',
-          invitationCode: this.formData.invitationCode || ''
+          emailCode: this.formData.emailCode || ''
         }
         localStorage.setItem('login:register_draft', JSON.stringify(draft))
       } catch (e) { /* no-op */ }
@@ -342,10 +341,9 @@ export default {
         this.formData.password = d.password || ''
         this.formData.confirmPassword = d.confirmPassword || ''
         this.formData.emailCode = d.emailCode || ''
-        this.formData.invitationCode = d.invitationCode || ''
         try {
           const code = (this.$route && this.$route.query && this.$route.query.invited) || ''
-          if (code && !this.formData.invitationCode) this.formData.invitationCode = String(code)
+          this.formData.invitationCode = code ? String(code) : ''
         } catch (e) { /* no-op */ }
       } catch (e) { /* no-op */ }
     },
