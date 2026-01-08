@@ -65,7 +65,7 @@ const routes = [
     name: 'Invited',
     beforeEnter: (to, from, next) => {
       try { localStorage.setItem('app:invitationCode', String(to.params.code || '')) } catch (e) { /* no-op */ }
-      next({ name: 'Home' })
+      next({ name: 'Home', query: { invited: String(to.params.code || '') } })
       setTimeout(() => {
         try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
       }, 50)
@@ -88,7 +88,7 @@ router.beforeEach((to, from, next) => {
     setTimeout(() => {
       try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
     }, 50)
-    return next({ name: 'Home' })
+    return next({ name: 'Home', query: { invited: String(code || '') } })
   }
   const protectedNames = ['MyProjects', 'AssetLibrary', 'DigitalHuman']
   try {

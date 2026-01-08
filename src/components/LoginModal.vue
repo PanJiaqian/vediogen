@@ -294,8 +294,8 @@ export default {
         this.generateCaptcha()
         this.resetForm()
         try {
-          const code = localStorage.getItem('app:invitationCode') || ''
-          if (code) this.formData.invitationCode = code
+          const code = (this.$route && this.$route.query && this.$route.query.invited) || ''
+          if (code) this.formData.invitationCode = String(code)
         } catch (e) { /* no-op */ }
       }
     },
@@ -344,8 +344,8 @@ export default {
         this.formData.emailCode = d.emailCode || ''
         this.formData.invitationCode = d.invitationCode || ''
         try {
-          const code = localStorage.getItem('app:invitationCode') || ''
-          if (code && !this.formData.invitationCode) this.formData.invitationCode = code
+          const code = (this.$route && this.$route.query && this.$route.query.invited) || ''
+          if (code && !this.formData.invitationCode) this.formData.invitationCode = String(code)
         } catch (e) { /* no-op */ }
       } catch (e) { /* no-op */ }
     },
@@ -359,8 +359,8 @@ export default {
       const existingCode = this.formData?.invitationCode || ''
       let inviteCode = existingCode
       try {
-        const code = localStorage.getItem('app:invitationCode') || ''
-        if (code) inviteCode = code
+        const code = (this.$route && this.$route.query && this.$route.query.invited) || ''
+        if (code) inviteCode = String(code)
       } catch (e) { /* no-op */ }
       this.formData = {
         phone: '',
