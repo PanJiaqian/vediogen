@@ -1085,7 +1085,7 @@ export default {
       exportProgressPct: 0,
       exportProgressDone: false,
       exportManualUrl: '',
-      _exportTimer: null,
+      exportTimer: null,
       isConverting: false,
       isVideoConverting: false,
       sceneDetail: { reference_image_url: '', video_url: '' },
@@ -1334,7 +1334,7 @@ export default {
         let imgResp = null
         try { imgResp = JSON.parse(imgText) } catch { imgResp = null }
         const list = imgResp && imgResp.code === 0 && Array.isArray(imgResp.data) ? imgResp.data : []
-        const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
+        const text = await getStoryboardSceneDetail({ videoId, sceneNumber: list[0].scene_number, token })
         let json
         try { json = JSON.parse(text) } catch { json = null }
         const data = json && json.data ? json.data : null
@@ -1372,6 +1372,7 @@ export default {
         let imgResp = null
         try { imgResp = JSON.parse(imgText) } catch { imgResp = null }
         const list = imgResp && imgResp.code === 0 && Array.isArray(imgResp.data) ? imgResp.data : []
+        const sceneNumber = list[0].scene_number || ''
         const obj = await getSceneVersionHistory({ videoId, sceneNumber, token })
         const arr = obj && obj.code === 0 && Array.isArray(obj.data) ? obj.data : []
         this.sceneHistory = arr
@@ -4086,23 +4087,23 @@ export default {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }; return }
+        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ } return }
         this.exportProgressVisible = true
         this.exportProgressPct = 0
         this.exportProgressDone = false
         this.exportManualUrl = ''
-        if (this._exportTimer) { try { clearInterval(this._exportTimer) } catch (e) { /* no-op */ } this._exportTimer = null }
-        this._exportTimer = setInterval(() => {
+        if (this.exportTimer) { try { clearInterval(this.exportTimer) } catch (e) { /* no-op */ } this.exportTimer = null }
+        this.exportTimer = setInterval(() => {
           if (this.exportProgressDone) return
           const next = Math.min(96, this.exportProgressPct + (Math.random() * 2.5 + 0.5))
           this.exportProgressPct = next
-          if (next >= 96) { try { clearInterval(this._exportTimer) } catch (e) { /* no-op */ } this._exportTimer = null }
+          if (next >= 96) { try { clearInterval(this.exportTimer) } catch (e) { /* no-op */ } this.exportTimer = null }
         }, 600)
         const resp = await exportWorksVideoDownload({ videoId, token })
         if (!resp || resp.status !== 200 || !resp.ok || !resp.blob) {
           this.exportProgressDone = false
           this.exportProgressVisible = false
-          if (this._exportTimer) { try { clearInterval(this._exportTimer) } catch (e) { /* no-op */ } this._exportTimer = null }
+          if (this.exportTimer) { try { clearInterval(this.exportTimer) } catch (e) { /* no-op */ } this.exportTimer = null }
           this.toastText = '导出失败'
           this.toastVisible = true
           setTimeout(() => { this.toastVisible = false }, 2000)
@@ -4136,7 +4137,7 @@ export default {
     },
     closeExportProgress() {
       this.exportProgressVisible = false
-      if (this._exportTimer) { try { clearInterval(this._exportTimer) } catch (e) { /* no-op */ } this._exportTimer = null }
+      if (this.exportTimer) { try { clearInterval(this.exportTimer) } catch (e) { /* no-op */ } this.exportTimer = null }
     },
     async startVoiceAudition() {
       try {
