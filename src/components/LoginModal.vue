@@ -343,6 +343,10 @@ export default {
         this.formData.confirmPassword = d.confirmPassword || ''
         this.formData.emailCode = d.emailCode || ''
         this.formData.invitationCode = d.invitationCode || ''
+        try {
+          const code = localStorage.getItem('app:invitationCode') || ''
+          if (code && !this.formData.invitationCode) this.formData.invitationCode = code
+        } catch (e) { /* no-op */ }
       } catch (e) { /* no-op */ }
     },
     closeModal() {
@@ -352,6 +356,12 @@ export default {
       this.closeModal()
     },
     resetForm() {
+      const existingCode = this.formData?.invitationCode || ''
+      let inviteCode = existingCode
+      try {
+        const code = localStorage.getItem('app:invitationCode') || ''
+        if (code) inviteCode = code
+      } catch (e) { /* no-op */ }
       this.formData = {
         phone: '',
         email: '',
@@ -360,7 +370,7 @@ export default {
         captcha: '',
         emailCode: '',
         phoneCode: '',
-        invitationCode: ''
+        invitationCode: inviteCode || ''
       }
       this.errors = {}
       this.loading = false
