@@ -588,6 +588,34 @@ export async function updateVisualDescription({ videoid, scene_number, text, tok
   }
 }
 
+export async function updateCameraDirection({ videoid, scene_number, text, token }) {
+  const url = `${BASE_URL}/detail/scene/updateCameraDirection`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ videoid: String(videoid), scene_number: String(scene_number), text: String(text) })
+  const requestOptions = { method: 'POST', headers, body, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
+export async function updateShotTitle({ videoid, scene_number, text, token }) {
+  const url = `${BASE_URL}/detail/scene/updateShotTitle`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ videoid: String(videoid), scene_number: String(scene_number), text: String(text) })
+  const requestOptions = { method: 'POST', headers, body, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
 export async function exportWorksVideo({ videoId, token }) {
   const url = `${BASE_URL}/detail/works/video/export?videoId=${encodeURIComponent(videoId)}`
   const requestOptions = {
@@ -806,10 +834,16 @@ export async function exportWorksVideoDownload({ videoId, token }) {
   }
   const res = await fetch(url, requestOptions)
   if (res.status === 401) {
-    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { /* no-op */ }
   }
-  const blob = await res.blob()
-  return { blob, headers: res.headers }
+  const ok = res.status === 200
+  let blob = null
+  if (ok) {
+    blob = await res.blob()
+  } else {
+    try { await res.text() } catch (e) { /* no-op */ }
+  }
+  return { ok, blob, headers: res.headers, status: res.status }
 }
 
 export async function getOrdersList({ days = 30, token }) {
@@ -1219,6 +1253,20 @@ export async function digitalhumanGenByScene({ videoId, shotId, audio, audioUrl,
   }
 }
 
+export async function updateDigitalHumanClientSubtitle({ dh_id, text, token }) {
+  const url = `${BASE_URL}/detail/digital-human/client/updateSubtitle`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ dh_id: String(dh_id), text: String(text) })
+  const requestOptions = { method: 'POST', headers, body, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
 // 邮箱登录
 export async function emailLogin({ email, password }) {
   const url = `${BASE_URL}/user/emailLogin`
@@ -1332,9 +1380,11 @@ export async function sendSmsCodeByPhone({ phone }) {
 }
 
 // 手机号登录（验证码）
-export async function phoneLogin({ phone, code }) {
+export async function phoneLogin({ phone, code, invitationCode }) {
   const url = `${BASE_URL}/user/phoneLogin`
-  const body = JSON.stringify({ phone, code })
+  const payload = { phone, code }
+  if (invitationCode) payload.invitationCode = invitationCode
+  const body = JSON.stringify(payload)
   const requestOptions = {
     method: 'POST',
     body,

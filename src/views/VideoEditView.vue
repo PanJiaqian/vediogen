@@ -146,7 +146,7 @@
               
               <!-- 图片提示词区域 -->
               <div class="prompt-section">
-                <div class="prompt-header">
+              <div class="prompt-header">
                   <div class="prompt-icon">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
@@ -154,15 +154,16 @@
                       <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
                     </svg>
                   </div>
-                  <span class="prompt-title">{{ (scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script &&
-                    scenes[activeSceneIndex].scene_script.shot_title) }}</span>
+                  <span v-if="!isEditingShotTitle" class="prompt-title" @click="editShotTitle">
+                    {{ (scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script &&
+                    scenes[activeSceneIndex].scene_script.shot_title) || '点击编辑标题' }}
+                  </span>
+                  <input v-else class="prompt-title-input" v-model="editingShotTitleText" @blur="saveShotTitle" @keyup.enter="saveShotTitle" />
                   <div class="prompt-actions">
-                    <button class="action-btn edit-btn" @click="editPrompt" title="编辑提示词">
+                    <button class="action-btn edit-btn" @click="editPrompt">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor"
-                          stroke-width="2" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor"
-                          stroke-width="2" />
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" />
                       </svg>
                     </button>
                     <button class="action-btn copy-btn" @click="copyPrompt" title="复制提示词">
@@ -190,9 +191,9 @@
                       <div style="display:flex;flex-direction:column;gap:4px;">
                         <div v-if="scenes[activeSceneIndex].scene_script.visual_description">
                           <span style="opacity:0.7;"></span>{{ scenes[activeSceneIndex].scene_script.visual_description}}
-    </div>
-  </div>
-</template>
+                </div>
+              </div>
+            </template>
                     <!-- <p v-else>{{ scenes[activeSceneIndex]?.description || '暂无描述' }}</p> -->
                   </div>
                   <!-- 编辑模式 -->
@@ -202,6 +203,43 @@
                     <div class="prompt-edit-actions">
                       <button class="prompt-edit-btn save-btn" @click="savePromptEdit">保存</button>
                       <button class="prompt-edit-btn cancel-btn" @click="cancelPromptEdit">取消</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 运镜描述区域 -->
+              <div class="prompt-section" style="margin-top: 12px;">
+                <div class="prompt-header">
+                  <div class="prompt-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                  </div>
+                  <span class="prompt-title">运镜描述</span>
+                  <div class="prompt-actions">
+                    <button class="action-btn edit-btn" @click="editCameraDirection" title="编辑运镜">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="prompt-content" v-show="isPromptExpanded">
+                  <div v-if="!isEditingCameraDirection">
+                    <div v-if="scenes[activeSceneIndex]?.scene_script?.camera_direction">
+                      <span style="opacity:0.7;"></span>{{ scenes[activeSceneIndex].scene_script.camera_direction }}
+                    </div>
+                    <div v-else style="opacity:0.6;">暂无运镜描述</div>
+                  </div>
+                  <div v-else class="prompt-edit-container">
+                    <textarea v-model="editingCameraDirectionText" class="prompt-edit-input" placeholder="请输入运镜描述..." @keyup.enter.ctrl="saveCameraDirection"></textarea>
+                    <div class="prompt-edit-actions">
+                      <button class="prompt-edit-btn save-btn" @click="saveCameraDirection">保存</button>
+                      <button class="prompt-edit-btn cancel-btn" @click="cancelCameraDirectionEdit">取消</button>
                     </div>
                   </div>
                 </div>
@@ -586,18 +624,22 @@
               替换
             </button>
             <!-- 字幕叠加层 -->
-            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script && (isEditingSubtitle || scenes[activeSceneIndex].scene_script.dialogue_or_narration)" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }" :style="subtitleOverlayStyle">
-              <div v-if="isEditingSubtitle" style="display:flex;flex-direction:column;align-items:flex-start;gap:8px;">
-                <textarea v-model="editingSubtitleText" class="subtitle-edit-input" @keyup.enter="saveSubtitleEdit"></textarea>
-                <button class="subtitle-confirm-btn" @click="saveSubtitleEdit" title="确认修改">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <polyline points="20 6 9 17 4 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
-                  </svg>
-                </button>
+            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }" :style="subtitleOverlayStyle">
+              <div
+                ref="subtitleEditor"
+                :contenteditable="isEditingSubtitle"
+                @click="startEditSubtitle"
+                @input="onSubtitleInput"
+                @keyup.enter="saveSubtitleEdit"
+                @blur="saveSubtitleEdit"
+              >
+                {{ isEditingSubtitle ? editingSubtitleText : scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
               </div>
-              <div v-else @click="startEditSubtitle">
-                {{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
-              </div>
+              <button v-if="isEditingSubtitle" class="subtitle-save-btn" @click.stop="saveSubtitleEdit">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <polyline points="20 6 9 17 4 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                </svg>
+              </button>
             </div>
           </div>
           <div class="preview-aside">
@@ -875,6 +917,43 @@
     </div>
   </div>
 
+  <div v-if="exportProgressVisible" class="success-modal-overlay" @click.stop>
+    <div class="success-modal" @click.stop>
+      <div class="export-icon" style="display:flex;align-items:center;justify-content:center;margin-bottom:10px;">
+        <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="export-folder">
+          <defs>
+            <linearGradient id="folderGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#6c6f75"/>
+              <stop offset="100%" stop-color="#3d4044"/>
+            </linearGradient>
+          </defs>
+          <g fill="none">
+            <path d="M6 22h18l4 4h26c2.209 0 4 1.791 4 4v20c0 4.418-3.582 8-8 8H12c-4.418 0-8-3.582-8-8V26c0-2.209 1.791-4 4-4Z" fill="url(#folderGrad)" />
+            <rect x="38" y="16" width="18" height="24" rx="2" fill="#f5f6f7" stroke="#d0d0d0" stroke-width="1"/>
+            <text x="10" y="16" font-size="8" fill="#cfcfcf" font-family="system-ui, -apple-system, Segoe UI, Roboto">织梦</text>
+            <circle cx="32" cy="34" r="2.3" fill="#ffffff" opacity="0.9"/>
+            <circle cx="26" cy="34" r="2.3" fill="#ffffff" opacity="0.9"/>
+            <circle cx="38" cy="34" r="2.3" fill="#ffffff" opacity="0.9"/>
+            <circle cx="32" cy="28" r="2.3" fill="#ffffff" opacity="0.9"/>
+            <circle cx="32" cy="40" r="2.3" fill="#ffffff" opacity="0.9"/>
+          </g>
+        </svg>
+      </div>
+      <div class="export-progress-text" style="text-align:center;font-size:24px;color:var(--text-primary);">
+        {{ exportProgressDone ? '导出成功' : (exportProgressPct.toFixed(1) + '%') }}
+      </div>
+      <div class="export-desc" style="text-align:center;color:var(--text-secondary);margin-top:8px;">
+        {{ exportProgressDone ? '如自动下载失败可点击手动下载' : '正在导出您的视频，请稍候' }}
+      </div>
+      <div v-if="exportProgressDone && exportManualUrl" style="text-align:center;margin-top:8px;">
+        <a :href="exportManualUrl" target="_blank" rel="noopener" style="color:var(--primary-color)">手动下载链接</a>
+      </div>
+      <div style="display:flex;justify-content:center;margin-top:16px;">
+        <button class="success-close-btn" @click="closeExportProgress">取消</button>
+      </div>
+    </div>
+  </div>
+
   <div v-if="showReplaceCropModal" class="crop-modal-overlay" @click.self="cancelReplaceCrop">
     <div class="crop-modal" @click.stop>
       <div class="crop-modal-header">裁剪图片</div>
@@ -925,7 +1004,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -990,6 +1069,10 @@ export default {
       isEditingPrompt: false,
       editingPromptText: '',
       originalPromptContent: '',
+      isEditingShotTitle: false,
+      editingShotTitleText: '',
+      isEditingCameraDirection: false,
+      editingCameraDirectionText: '',
       // 画布编辑模式
       isCanvasEditMode: false,
       // 对口型页面显示状态
@@ -998,6 +1081,11 @@ export default {
       successTitle: '',
       successPreviewUrl: '',
       successFilename: '',
+      exportProgressVisible: false,
+      exportProgressPct: 0,
+      exportProgressDone: false,
+      exportManualUrl: '',
+      _exportTimer: null,
       isConverting: false,
       isVideoConverting: false,
       sceneDetail: { reference_image_url: '', video_url: '' },
@@ -1139,6 +1227,7 @@ export default {
           this.updateTimeMarkers()
           this.sortScenesByServerOrder()
           this.ensurePreviewFromScenes()
+          this.$nextTick(() => { this.initLeftPanelScript() })
         }
       }
       // 解析原始分镜，生成包含clips的场景数据
@@ -1152,6 +1241,7 @@ export default {
           this.updateTimeMarkers()
           this.sortScenesByServerOrder()
           this.ensurePreviewFromScenes()
+          this.$nextTick(() => { this.initLeftPanelScript() })
         }
       }
       const title = localStorage.getItem(`project:prompt:${projectId}`)
@@ -1240,7 +1330,11 @@ export default {
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) return
-        const text = await getStoryboardSceneDetail({ videoId, sceneNumber: 'shot_1_1', token })
+        const imgText = await getStoryboardImagesDetail({ videoId, token })
+        let imgResp = null
+        try { imgResp = JSON.parse(imgText) } catch { imgResp = null }
+        const list = imgResp && imgResp.code === 0 && Array.isArray(imgResp.data) ? imgResp.data : []
+        const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
         let json
         try { json = JSON.parse(text) } catch { json = null }
         const data = json && json.data ? json.data : null
@@ -1274,7 +1368,11 @@ export default {
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) return
-        const obj = await getSceneVersionHistory({ videoId, sceneNumber: 'shot_1_1', token })
+        const imgText = await getStoryboardImagesDetail({ videoId, token })
+        let imgResp = null
+        try { imgResp = JSON.parse(imgText) } catch { imgResp = null }
+        const list = imgResp && imgResp.code === 0 && Array.isArray(imgResp.data) ? imgResp.data : []
+        const obj = await getSceneVersionHistory({ videoId, sceneNumber, token })
         const arr = obj && obj.code === 0 && Array.isArray(obj.data) ? obj.data : []
         this.sceneHistory = arr
           .map(x => ({ ...x, content: this.cleanUrl(x.content || ''), createdAt: x.createdAt || x.created_at }))
@@ -1668,10 +1766,18 @@ export default {
       this.startEditSubtitle()
     },
     startEditSubtitle() {
+      if (this.isEditingSubtitle) return
       const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
       const t = sc && sc.scene_script && sc.scene_script.dialogue_or_narration ? String(sc.scene_script.dialogue_or_narration) : ''
       this.editingSubtitleText = t
       this.isEditingSubtitle = true
+    },
+    onSubtitleInput(e) {
+      try {
+        const el = e && e.target
+        const val = el && el.innerText ? String(el.innerText) : ''
+        this.editingSubtitleText = val
+      } catch (err) { /* no-op */ }
     },
     cancelSubtitleEdit() {
       this.isEditingSubtitle = false
@@ -3287,9 +3393,11 @@ export default {
           const sc = this.scenes[activeIdx]
           const shotTitle = (match && match.scene_script && match.scene_script.shot_title) || match.shot_title || ''
           const visualDesc = (match && match.scene_script && match.scene_script.visual_description) || match.visual_description || ''
+          const cameraDir = (match && match.scene_script && match.scene_script.camera_direction) || match.camera_direction || ''
           const scriptObj = Object.assign({}, sc.scene_script || {})
           if (shotTitle) scriptObj.shot_title = shotTitle
           if (visualDesc) scriptObj.visual_description = visualDesc
+          if (cameraDir) scriptObj.camera_direction = cameraDir
           if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
           if (visualDesc) sc.description = visualDesc
         }
@@ -3306,6 +3414,8 @@ export default {
         const sceneNumber = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[idx] : '') || '')
         let title = ''
         let visual = ''
+        let cameraDir = ''
+        let narration = ''
         try {
           const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
           let json
@@ -3315,6 +3425,8 @@ export default {
           if (content) {
             title = String(content.shot_title || '').trim()
             visual = String(content.visual_description || '').trim()
+            cameraDir = String(content.camera_direction || '').trim()
+            narration = String(content.dialogue_or_narration || '').trim()
           }
         } catch (e) { void 0 }
         if (!title && !visual) {
@@ -3332,13 +3444,17 @@ export default {
             if (match) {
               title = String((match.scene_script && match.scene_script.shot_title) || match.shot_title || '').trim()
               visual = String((match.scene_script && match.scene_script.visual_description) || match.visual_description || '').trim()
+              cameraDir = String((match.scene_script && match.scene_script.camera_direction) || match.camera_direction || '').trim()
+              narration = String((match.scene_script && match.scene_script.dialogue_or_narration) || match.dialogue_or_narration || '').trim()
             }
           } catch (e) { void 0 }
         }
-        if (title || visual) {
+        if (title || visual || narration || cameraDir) {
           const scriptObj = Object.assign({}, sc.scene_script || {})
           if (title) scriptObj.shot_title = title
           if (visual) scriptObj.visual_description = visual
+          if (cameraDir) scriptObj.camera_direction = cameraDir
+          if (narration) scriptObj.dialogue_or_narration = narration
           if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
         }
       } catch (e) { void 0 }
@@ -3970,32 +4086,57 @@ export default {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) {
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
-          return
-        }
-        const resp = await exportWorksVideo({ videoId, token })
-        const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
-        const code = obj && typeof obj.code === 'number' ? obj.code : null
-        const msg = obj && obj.message ? String(obj.message).trim() : ''
-        const data = obj && obj.data ? obj.data : null
-        if (code === 0 && data && data.success && data.video_url) {
-          this.successTitle = '导出成功'
-          this.successPreviewUrl = String(data.video_url || '').trim()
-          this.successFilename = String(data.filename || '').trim()
-          this.successModalVisible = true
-        } else if (code === 1 && /未转换为视频/.test(msg)) {
-          try { alert('您还有分镜未转换为视频，请检查视频轨道') } catch (e) { void 0 }
-        } else {
+        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }; return }
+        this.exportProgressVisible = true
+        this.exportProgressPct = 0
+        this.exportProgressDone = false
+        this.exportManualUrl = ''
+        if (this._exportTimer) { try { clearInterval(this._exportTimer) } catch (e) { /* no-op */ } this._exportTimer = null }
+        this._exportTimer = setInterval(() => {
+          if (this.exportProgressDone) return
+          const next = Math.min(96, this.exportProgressPct + (Math.random() * 2.5 + 0.5))
+          this.exportProgressPct = next
+          if (next >= 96) { try { clearInterval(this._exportTimer) } catch (e) { /* no-op */ } this._exportTimer = null }
+        }, 600)
+        const resp = await exportWorksVideoDownload({ videoId, token })
+        if (!resp || resp.status !== 200 || !resp.ok || !resp.blob) {
+          this.exportProgressDone = false
+          this.exportProgressVisible = false
+          if (this._exportTimer) { try { clearInterval(this._exportTimer) } catch (e) { /* no-op */ } this._exportTimer = null }
           this.toastText = '导出失败'
           this.toastVisible = true
           setTimeout(() => { this.toastVisible = false }, 2000)
+          return
         }
+        const objUrl = URL.createObjectURL(resp.blob)
+        this.exportManualUrl = objUrl
+        let filename = this.successFilename || ''
+        try {
+          const headers = resp.headers
+          const cd = headers && headers.get ? headers.get('content-disposition') : ''
+          const m = cd && cd.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/)
+          const fn = (m && (m[1] || m[2])) || ''
+          if (fn) filename = fn
+        } catch (e) { /* no-op */ }
+        const a = document.createElement('a')
+        a.href = objUrl
+        a.download = filename || `work_${videoId}.mp4`
+        a.target = '_blank'
+        a.rel = 'noopener'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        this.exportProgressPct = 100
+        this.exportProgressDone = true
       } catch (e) {
         this.toastText = '导出失败'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 2000)
       }
+    },
+    closeExportProgress() {
+      this.exportProgressVisible = false
+      if (this._exportTimer) { try { clearInterval(this._exportTimer) } catch (e) { /* no-op */ } this._exportTimer = null }
     },
     async startVoiceAudition() {
       try {
@@ -4151,8 +4292,15 @@ export default {
           return
         }
         // 回退：走受保护下载接口，生成本地对象链接后触发下载
-        const { blob, headers } = await exportWorksVideoDownload({ videoId, token })
-        const url = URL.createObjectURL(blob)
+        const resp = await exportWorksVideoDownload({ videoId, token })
+        if (!resp || resp.status !== 200 || !resp.ok || !resp.blob) {
+          this.toastText = '下载失败'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
+        const headers = resp.headers
+        const url = URL.createObjectURL(resp.blob)
         try {
           const cd = headers && headers.get ? headers.get('content-disposition') : ''
           const m = cd && cd.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/)
@@ -4426,6 +4574,95 @@ export default {
         this.isEditingPrompt = false
         this.editingPromptText = ''
       }
+    },
+    editShotTitle() {
+      const sc = this.scenes[this.activeSceneIndex] || {}
+      const t = sc && sc.scene_script && sc.scene_script.shot_title ? String(sc.scene_script.shot_title) : ''
+      this.editingShotTitleText = t
+      this.isEditingShotTitle = true
+    },
+    onShotTitleInput(e) {
+      try {
+        const el = e && e.target
+        const val = el && el.innerText ? String(el.innerText) : ''
+        this.editingShotTitleText = val
+      } catch (err) { /* no-op */ }
+    },
+    cancelShotTitleEdit() {
+      this.isEditingShotTitle = false
+      this.editingShotTitleText = ''
+    },
+    saveShotTitle() {
+      const projectId = this.$route.params.id
+      const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+      const token = (this.userStore && this.userStore.token) || ''
+      const sc = this.scenes[this.activeSceneIndex] || {}
+      const sceneNumber = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
+      const text = String(this.editingShotTitleText || '').trim()
+      if (!videoId || !sceneNumber || !token) return
+      updateShotTitle({ videoid: String(videoId), scene_number: sceneNumber, text, token }).then(resp => {
+        const ok = !!(resp && resp.code === 0)
+        if (ok) {
+          if (!sc.scene_script) sc.scene_script = {}
+          sc.scene_script.shot_title = text
+          this.toastText = '标题已更新'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        } else {
+          const msg = (resp && (resp.message || resp.msg)) ? String(resp.message || resp.msg) : '更新失败'
+          this.toastText = msg
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        }
+      }).catch(() => {
+        this.toastText = '更新失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }).finally(() => {
+        this.isEditingShotTitle = false
+        this.editingShotTitleText = ''
+      })
+    },
+    editCameraDirection() {
+      const sc = this.scenes[this.activeSceneIndex] || {}
+      const t = sc && sc.scene_script && sc.scene_script.camera_direction ? String(sc.scene_script.camera_direction) : ''
+      this.editingCameraDirectionText = t
+      this.isEditingCameraDirection = true
+    },
+    cancelCameraDirectionEdit() {
+      this.isEditingCameraDirection = false
+      this.editingCameraDirectionText = ''
+    },
+    saveCameraDirection() {
+      const projectId = this.$route.params.id
+      const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+      const token = (this.userStore && this.userStore.token) || ''
+      const sc = this.scenes[this.activeSceneIndex] || {}
+      const sceneNumber = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
+      const text = String(this.editingCameraDirectionText || '').trim()
+      if (!videoId || !sceneNumber || !token) return
+      updateCameraDirection({ videoid: String(videoId), scene_number: sceneNumber, text, token }).then(resp => {
+        const ok = !!(resp && resp.code === 0)
+        if (ok) {
+          if (!sc.scene_script) sc.scene_script = {}
+          sc.scene_script.camera_direction = text
+          this.toastText = '运镜已更新'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        } else {
+          const msg = (resp && (resp.message || resp.msg)) ? String(resp.message || resp.msg) : '更新失败'
+          this.toastText = msg
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        }
+      }).catch(() => {
+        this.toastText = '更新失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }).finally(() => {
+        this.isEditingCameraDirection = false
+        this.editingCameraDirectionText = ''
+      })
     },
     async sendSceneInput() {
       try {
@@ -4792,12 +5029,25 @@ export default {
           if (key) {
             const prev = prevScenes.find(sc => String(sc.scene_number || '').trim() === key)
             thumb = this.cleanUrl((prev && prev.thumbnail) || '')
+            if (prev && prev.scene_script) it._prevSceneScript = prev.scene_script
+            if (prev && prev.description) it._prevDescription = prev.description
           }
           if (!thumb) {
             const byIndex = prevScenes[(Number(it.order_index) || (idx + 1)) - 1]
             thumb = this.cleanUrl((byIndex && byIndex.thumbnail) || '')
+            if (byIndex && byIndex.scene_script) it._prevSceneScript = byIndex.scene_script
+            if (byIndex && byIndex.description) it._prevDescription = byIndex.description
           }
-          return { id: Date.now() + idx, title, description: '分镜视频', thumbnail: thumb, clips: [{ url, durationMs: dur * 1000 }], scene_number: it.scene_number, order_index: Number(it.order_index) || idx + 1 }
+          return {
+            id: Date.now() + idx,
+            title,
+            description: it._prevDescription || '分镜视频',
+            thumbnail: thumb,
+            clips: [{ url, durationMs: dur * 1000 }],
+            scene_number: it.scene_number,
+            order_index: Number(it.order_index) || idx + 1,
+            scene_script: it._prevSceneScript ? { ...it._prevSceneScript } : undefined
+          }
         })
         this.scenes = mapped
         this.updateTimeMarkers()
@@ -6755,16 +7005,18 @@ input:checked+.slider:before {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  /* background: rgba(0, 0, 0, 0.6); */
   color: white;
   padding: 8px 16px;
   border-radius: 4px;
-  font-size: 16px;
+  font-size: 20px;
+  font-weight: 700;
   text-align: center;
   max-width: 80%;
   pointer-events: auto;
   z-index: 10;
-  text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+  text-shadow: none;
+  -webkit-text-stroke: 0.6px #000;
+  text-stroke: 0.6px #000;
   white-space: pre-wrap;
 }
 
@@ -6774,6 +7026,23 @@ input:checked+.slider:before {
 
 .subtitle-overlay.fullscreen-mode {
   font-size: clamp(24px, 3vw, 40px);
+}
+
+.subtitle-overlay [contenteditable="true"] {
+  outline: none;
+}
+
+.subtitle-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
 }
 
 .subtitle-edit-input {

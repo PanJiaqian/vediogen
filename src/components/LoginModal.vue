@@ -44,6 +44,10 @@
             </div>
             <span v-if="errors.phoneCode" class="error-text">{{ errors.phoneCode }}</span>
           </div>
+          <div v-if="!isForgot && loginType === 'phone'" class="form-group">
+            <label class="form-label">邀请码（选填）</label>
+            <input v-model="formData.invitationCode" type="text" class="form-input" placeholder="请输入邀请码（选填）" />
+          </div>
 
           <!-- 邮箱登录/注册 -->
           <div v-if="!isForgot && loginType === 'email'" class="form-group">
@@ -289,6 +293,10 @@ export default {
         this.isForgot = false
         this.generateCaptcha()
         this.resetForm()
+        try {
+          const code = localStorage.getItem('app:invitationCode') || ''
+          if (code) this.formData.invitationCode = code
+        } catch (e) { /* no-op */ }
       }
     },
     isLogin(val) {
@@ -351,7 +359,8 @@ export default {
         confirmPassword: '',
         captcha: '',
         emailCode: '',
-        phoneCode: ''
+        phoneCode: '',
+        invitationCode: ''
       }
       this.errors = {}
       this.loading = false
@@ -520,7 +529,8 @@ export default {
         else if (this.isLogin && this.loginType === 'phone') {
           const result = await phoneLogin({
             phone: this.formData.phone,
-            code: this.formData.phoneCode
+            code: this.formData.phoneCode,
+            invitationCode: this.formData.invitationCode
           })
           let data = null
           try { data = JSON.parse(result) } catch (e) { data = { message: result } }

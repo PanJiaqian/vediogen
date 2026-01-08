@@ -29,6 +29,15 @@
         <p class="project-time">创建于 {{ project.createdAt }}</p>
       </div>
       <div>
+        <h3 class="section-title">剧本摘要</h3>
+        <div v-if="isSubmitting && loadingSections.summary" class="skeleton-block">
+          <div class="skeleton-paragraph"></div>
+          <div class="skeleton-paragraph short"></div>
+        </div>
+        <div v-else-if="generated.scriptSummary" class="section-content"
+          v-html="renderMarkdown(generated.scriptSummary)">
+        </div>
+
         <h3 class="section-title">艺术指导建议</h3>
         <div v-if="isSubmitting && loadingSections.art" class="skeleton-block">
           <div class="skeleton-line"></div>
@@ -44,30 +53,6 @@
               <div v-for="(desc, key) in palette" :key="key">{{ key }}：{{ desc }}</div>
             </div>
           </div>
-        </div>
-
-        <h3 class="section-title">音乐风格</h3>
-        <div v-if="isSubmitting && loadingSections.music" class="skeleton-block">
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line"></div>
-          <div class="skeleton-line short"></div>
-        </div>
-        <div v-else-if="generated.musicStyle && generated.musicStyle.length">
-          <div v-for="(m, idx) in generated.musicStyle" :key="idx">
-            <div>音乐流派：{{ m.Music_Genre }}</div>
-            <div>情绪氛围：{{ m.Emotional_Atmosphere }}</div>
-            <div>关键乐器：{{ m.Key_Instruments }}</div>
-            <div>节奏特征：{{ m.Rhythmic_Characteristics }}</div>
-          </div>
-        </div>
-
-        <h3 class="section-title">剧本摘要</h3>
-        <div v-if="isSubmitting && loadingSections.summary" class="skeleton-block">
-          <div class="skeleton-paragraph"></div>
-          <div class="skeleton-paragraph short"></div>
-        </div>
-        <div v-else-if="generated.scriptSummary" class="section-content"
-          v-html="renderMarkdown(generated.scriptSummary)">
         </div>
 
         <h3 class="section-title">人物信息</h3>
@@ -126,6 +111,21 @@
           </div>
         </div>
 
+        <h3 class="section-title">音乐风格</h3>
+        <div v-if="isSubmitting && loadingSections.music" class="skeleton-block">
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line short"></div>
+        </div>
+        <div v-else-if="generated.musicStyle && generated.musicStyle.length">
+          <div v-for="(m, idx) in generated.musicStyle" :key="idx">
+            <div>音乐流派：{{ m.Music_Genre }}</div>
+            <div>情绪氛围：{{ m.Emotional_Atmosphere }}</div>
+            <div>关键乐器：{{ m.Key_Instruments }}</div>
+            <div>节奏特征：{{ m.Rhythmic_Characteristics }}</div>
+          </div>
+        </div>
+
         <h3 class="section-title">分镜故事板</h3>
         <div v-if="isSubmitting && loadingSections.storyboard" class="skeleton-block">
           <div v-for="n in 2" :key="'sbskel-' + n" style="margin-bottom:10px;">
@@ -164,25 +164,18 @@
         <div class="thinking-steps">
           <h3 class="section-title">思考生成步骤</h3>
           <div class="step-list">
-            <div class="step-item" :class="{ completed: artDone }" @click="scrollToSection('艺术指导建议')">
-              <div class="step-icon" :class="{ active: artDone }">{{ artDone ? '✓' : '⏳' }}</div>
-              <div class="step-content">
-                <div class="step-title">艺术指导建议</div>
-                <div class="step-description">设定整体视觉与风格方向</div>
-              </div>
-            </div>
-            <div class="step-item" :class="{ completed: musicDone }" @click="scrollToSection('音乐风格')">
-              <div class="step-icon" :class="{ active: musicDone }">{{ musicDone ? '✓' : '⏳' }}</div>
-              <div class="step-content">
-                <div class="step-title">音乐风格</div>
-                <div class="step-description">明确音乐基调与节奏</div>
-              </div>
-            </div>
             <div class="step-item" :class="{ completed: summaryDone }" @click="scrollToSection('剧本摘要')">
               <div class="step-icon" :class="{ active: summaryDone }">{{ summaryDone ? '✓' : '⏳' }}</div>
               <div class="step-content">
                 <div class="step-title">剧本摘要</div>
                 <div class="step-description">概述剧本核心内容</div>
+              </div>
+            </div>
+            <div class="step-item" :class="{ completed: artDone }" @click="scrollToSection('艺术指导建议')">
+              <div class="step-icon" :class="{ active: artDone }">{{ artDone ? '✓' : '⏳' }}</div>
+              <div class="step-content">
+                <div class="step-title">艺术指导建议</div>
+                <div class="step-description">设定整体视觉与风格方向</div>
               </div>
             </div>
             <div class="step-item" :class="{ completed: peopleDone }" @click="scrollToSection('人物信息')">
@@ -197,6 +190,13 @@
               <div class="step-content">
                 <div class="step-title">场景集合</div>
                 <div class="step-description">汇总关键场景要素</div>
+              </div>
+            </div>
+            <div class="step-item" :class="{ completed: musicDone }" @click="scrollToSection('音乐风格')">
+              <div class="step-icon" :class="{ active: musicDone }">{{ musicDone ? '✓' : '⏳' }}</div>
+              <div class="step-content">
+                <div class="step-title">音乐风格</div>
+                <div class="step-description">明确音乐基调与节奏</div>
               </div>
             </div>
             <div class="step-item" :class="{ completed: storyboardDone }" @click="scrollToSection('分镜故事板')">

@@ -422,7 +422,8 @@ export default {
   width: 90%;
   position: relative;
   z-index: 1;
-  margin-top: 48px;
+  max-height: 60vh;
+  /* margin-top: 48px; */
 }
 
 .header-section {

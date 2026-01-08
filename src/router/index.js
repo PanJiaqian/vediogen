@@ -59,6 +59,17 @@ const routes = [
     name: 'PaymentSuccess',
     component: () => import(/* webpackChunkName: "payment-success" */ '../views/PaymentSuccessView.vue'),
     meta: { hideSidebar: true }
+  },
+  {
+    path: '/invited/:code',
+    name: 'Invited',
+    beforeEnter: (to, from, next) => {
+      try { localStorage.setItem('app:invitationCode', String(to.params.code || '')) } catch (e) { /* no-op */ }
+      next({ name: 'Home' })
+      setTimeout(() => {
+        try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
+      }, 50)
+    }
   }
 ]
 

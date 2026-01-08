@@ -129,6 +129,7 @@ export default {
     return {
       loading: false,
       invitationCode: '',
+      inviteLink: '',
       stats: null,
       toastVisible: false,
       toastText: ''
@@ -136,7 +137,10 @@ export default {
   },
   computed: {
     displayCode() {
-      return this.invitationCode || '—'
+      const s = String(this.inviteLink || this.invitationCode || '').trim()
+      if (!s) return '—'
+      const m = s.match(/invited\/([^/?#]+)/i)
+      return (m && m[1]) || s
     },
     successfulInvites() {
       const d = this.stats || {}
@@ -194,7 +198,9 @@ export default {
         } catch (e) {
           codeStr = ''
         }
-        this.invitationCode = String(codeStr || '').replace(/[`]/g, '').trim()
+        const cleaned = String(codeStr || '').replace(/[`]/g, '').trim()
+        this.invitationCode = cleaned
+        this.inviteLink = /^https?:\/\//i.test(cleaned) ? cleaned : (cleaned ? `https://creator.nexafeed.cn/invited/${cleaned}` : '')
         
         try {
           this.stats = typeof statsRes === 'string' ? JSON.parse(statsRes) : statsRes
@@ -216,14 +222,14 @@ export default {
       this.$emit('close')
     },
     async copyShareLink() {
-      const code = String(this.invitationCode || '').trim()
+      const link = String(this.inviteLink || this.invitationCode || '').trim()
       try {
-        if (!code) {
+        if (!link) {
           this.showToast('复制失败')
           return
         }
-        await navigator.clipboard.writeText(code)
-        this.showToast('邀请码已复制')
+        await navigator.clipboard.writeText(link)
+        this.showToast('邀请链接已复制')
       } catch (e) {
         this.showToast('复制失败')
       }

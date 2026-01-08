@@ -30,6 +30,9 @@
             </button>
             <!-- <div class="time-display">约 0s 音频 0/240</div> -->
           </div>
+          <div class="action-buttons">
+            <button class="add-voiceover-btn" @click="updateDHSubtitle">更新字幕</button>
+          </div>
         </div>
 
         <!-- 声音音色 -->
@@ -177,7 +180,7 @@
 </template>
 
 <script>
-import { aliTtsSubmit, aliTtsQuery, digitalhumanGen, digitalhumanGenByScene, digitalhumanGenByWork } from '@/api'
+import { aliTtsSubmit, aliTtsQuery, digitalhumanGen, digitalhumanGenByScene, digitalhumanGenByWork, updateDigitalHumanClientSubtitle } from '@/api'
 import { useUserStore } from '@/stores/user'
 import ToneSelector from '@/components/ToneSelector.vue'
 
@@ -204,6 +207,10 @@ export default {
       default: ''
     }
     , workId: {
+      type: [String, Number],
+      default: ''
+    }
+    , dhId: {
       type: [String, Number],
       default: ''
     }
@@ -253,6 +260,28 @@ export default {
     } catch (e) { /* no-op */ }
   },
   methods: {
+    async updateDHSubtitle() {
+      try {
+        const token = (this.userStore && this.userStore.token) || ''
+        const dh_id = String(this.dhId || '').trim()
+        const text = String(this.textInput || '').trim()
+        if (!token || !dh_id || !text) {
+          this.toastText = '缺少参数或内容为空'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 1500)
+          return
+        }
+        const resp = await updateDigitalHumanClientSubtitle({ dh_id, text, token })
+        const ok = !!(resp && resp.code === 0)
+        this.toastText = ok ? '字幕已更新' : ((resp && (resp.message || resp.msg)) || '更新失败')
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      } catch (e) {
+        this.toastText = '更新失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }
+    },
     handleToneSelect(selected) {
       this.voiceName = selected.voiceName
       this.voiceLanguage = selected.language
