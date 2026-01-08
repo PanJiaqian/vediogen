@@ -4992,6 +4992,7 @@ export default {
           }
           this._orderIndexMap = idxMap
           this.sortScenesByServerOrder()
+          this.updateTimeMarkers()
           try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
         } catch (e) { void 0 }
       }
@@ -5030,10 +5031,10 @@ export default {
             if (prev && prev.description) it._prevDescription = prev.description
           }
           if (!thumb) {
-            const byIndex = prevScenes[(Number(it.order_index) || (idx + 1)) - 1]
-            thumb = this.cleanUrl((byIndex && byIndex.thumbnail) || '')
-            if (byIndex && byIndex.scene_script) it._prevSceneScript = byIndex.scene_script
-            if (byIndex && byIndex.description) it._prevDescription = byIndex.description
+            const source = prevScenes[index]
+            thumb = this.cleanUrl((source && source.thumbnail) || '')
+            if (source && source.scene_script) it._prevSceneScript = source.scene_script
+            if (source && source.description) it._prevDescription = source.description
           }
           return {
             id: Date.now() + idx,
@@ -5068,6 +5069,7 @@ export default {
         this.activeSceneIndex--
       }
 
+      this.updateTimeMarkers()
       console.log('删除分镜:', deletedScene.title)
     },
     async deleteSceneRemote(index) {
@@ -5095,6 +5097,7 @@ export default {
           } else if (this.activeSceneIndex > index) {
             this.activeSceneIndex--
           }
+          this.updateTimeMarkers()
           try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { /* no-op */ }
           this.toastText = '分镜已删除'
           this.toastVisible = true
