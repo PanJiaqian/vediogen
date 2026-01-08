@@ -17,7 +17,7 @@
         <div class="card-content">
           <div class="card-label">你的专属邀请码</div>
           <div class="card-code">{{ displayCode }}</div>
-          <button class="copy-btn" @click="copyShareLink">复制邀请码</button>
+          <button class="copy-btn" @click="copyShareLink">复制邀请链接</button>
         </div>
         <div class="card-decoration">
           <!-- Silver/Gold Badge Representation -->

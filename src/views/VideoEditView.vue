@@ -625,16 +625,10 @@
             </button>
             <!-- 字幕叠加层 -->
             <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }" :style="subtitleOverlayStyle">
-              <div
-                ref="subtitleEditor"
-                :contenteditable="isEditingSubtitle"
-                @click="startEditSubtitle"
-                @input="onSubtitleInput"
-                @keyup.enter="saveSubtitleEdit"
-                @blur="saveSubtitleEdit"
-              >
-                {{ isEditingSubtitle ? editingSubtitleText : scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
-              </div>
+              <span v-if="!isEditingSubtitle" @click="startEditSubtitle">
+                {{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
+              </span>
+              <input v-else ref="subtitleInput" v-model="editingSubtitleText" class="subtitle-edit-input" @keyup.enter="saveSubtitleEdit" @blur="saveSubtitleEdit" />
               <button v-if="isEditingSubtitle" class="subtitle-save-btn" @click.stop="saveSubtitleEdit">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                   <polyline points="20 6 9 17 4 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
@@ -791,14 +785,13 @@
                               stroke-width="2" />
                           </svg>
                         </button>
-                        <!-- <button class="action-btn delete-btn" @click="deleteScene(index)" title="删除分镜"
-                        v-if="scenes.length > 1">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                          <polyline points="3,6 5,6 21,6" stroke="currentColor" stroke-width="2" />
-                          <path d="M19,6v14a2,2 0,0,1-2,2H7a2,2 0,0,1-2-2V6m3,0V4a2,2 0,0,1,2-2h4a2,2 0,0,1,2,2v2"
-                            stroke="currentColor" stroke-width="2" />
-                        </svg>
-                      </button> -->
+                        <button class="action-btn delete-btn" @click="deleteSceneRemote(index)" title="删除分镜" v-if="scenes.length > 1">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <polyline points="3,6 5,6 21,6" stroke="currentColor" stroke-width="2" />
+                            <path d="M19,6v14a2,2 0,0,1-2,2H7a2,2 0,0,1-2-2V6m3,0V4a2,2 0,0,1,2-2h4a2,2 0,0,1,2,2v2"
+                              stroke="currentColor" stroke-width="2" />
+                          </svg>
+                        </button>
                       </div>
                     </div>
                     <div class="track-clips" @click="selectScene(index)">
@@ -1004,7 +997,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -1772,13 +1765,16 @@ export default {
       const t = sc && sc.scene_script && sc.scene_script.dialogue_or_narration ? String(sc.scene_script.dialogue_or_narration) : ''
       this.editingSubtitleText = t
       this.isEditingSubtitle = true
-    },
-    onSubtitleInput(e) {
-      try {
-        const el = e && e.target
-        const val = el && el.innerText ? String(el.innerText) : ''
-        this.editingSubtitleText = val
-      } catch (err) { /* no-op */ }
+      this.$nextTick(() => {
+        try {
+          const el = this.$refs && this.$refs.subtitleInput
+          if (el && el.focus) {
+            el.focus()
+            const len = String(this.editingSubtitleText || '').length
+            if (el.setSelectionRange) el.setSelectionRange(len, len)
+          }
+        } catch (e) { /* no-op */ }
+      })
     },
     cancelSubtitleEdit() {
       this.isEditingSubtitle = false
@@ -5073,6 +5069,47 @@ export default {
       }
 
       console.log('删除分镜:', deletedScene.title)
+    },
+    async deleteSceneRemote(index) {
+      try {
+        if (this.scenes.length <= 1) {
+          return
+        }
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        const sc = this.scenes[index] || {}
+        const sceneNumber = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[index] : `shot_${index + 1}`))
+        if (!videoId || !sceneNumber || !token) {
+          this.toastText = '缺少参数'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
+        const resp = await deleteStoryboardScene({ videoId, sceneNumber, token })
+        const ok = !!(resp && resp.code === 0)
+        if (ok) {
+          this.scenes.splice(index, 1)
+          if (this.activeSceneIndex === index) {
+            this.activeSceneIndex = Math.min(this.activeSceneIndex, this.scenes.length - 1)
+          } else if (this.activeSceneIndex > index) {
+            this.activeSceneIndex--
+          }
+          try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { /* no-op */ }
+          this.toastText = '分镜已删除'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        } else {
+          const msg = (resp && (resp.message || resp.msg)) ? String(resp.message || resp.msg) : '删除失败'
+          this.toastText = msg
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        }
+      } catch (e) {
+        this.toastText = '删除失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }
     }
   }
 }

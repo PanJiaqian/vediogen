@@ -95,7 +95,7 @@
             <span class="scene-number">分镜{{ (scenes && scenes[activeSceneIndex] &&
               Number(scenes[activeSceneIndex].order_index) > 0) ? Number(scenes[activeSceneIndex].order_index) : ''
               }}</span>
-            <span class="scene-type" v-if="activeTab === 'image' && !isBlankScene(scenes[activeSceneIndex])">镜头策划</span>
+            <!-- <span class="scene-type" v-if="activeTab === 'image' && !isBlankScene(scenes[activeSceneIndex])">镜头策划</span> -->
             <span class="scene-type" v-if="activeTab === 'voice'">配音编辑</span>
           </div>
         </div>
@@ -116,67 +116,7 @@
             <!-- 可滚动内容区域（空白分镜时隐藏，仅保留“分镜2”标题） -->
             <div class="scene-scrollable-content" v-if="!isBlankScene(scenes[activeSceneIndex])">
               <!-- 图片提示词区域 -->
-              <div class="prompt-section">
-                <div class="prompt-header">
-                  <div class="prompt-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
-                      <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
-                    </svg>
-                  </div>
-                  <span class="prompt-title">{{ (scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script &&
-                    scenes[activeSceneIndex].scene_script.shot_title) }}</span>
-                  <div class="prompt-actions">
-                    <button class="action-btn edit-btn" @click="editPrompt" title="编辑提示词">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor"
-                          stroke-width="2" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor"
-                          stroke-width="2" />
-                      </svg>
-                    </button>
-                    <button class="action-btn copy-btn" @click="copyPrompt" title="复制提示词">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor"
-                          stroke-width="2" />
-                      </svg>
-                    </button>
-                    <button class="action-btn more-btn" @click="togglePromptExpansion"
-                      :title="isPromptExpanded ? '收缩提示词' : '展开提示词'">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                        :style="{ transform: isPromptExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }">
-                        <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
 
-                <!-- 图片描述内容 -->
-                <div class="prompt-content" v-show="isPromptExpanded">
-                  <!-- 显示模式 -->
-                  <div v-if="!isEditingPrompt">
-                    <template v-if="scenes[activeSceneIndex]?.scene_script">
-                      <div style="display:flex;flex-direction:column;gap:4px;">
-                        <div v-if="scenes[activeSceneIndex].scene_script.visual_description">
-                          <span style="opacity:0.7;"></span>{{ scenes[activeSceneIndex].scene_script.visual_description}}
-                        </div>
-                      </div>
-                    </template>
-                    <!-- <p v-else>{{ scenes[activeSceneIndex]?.description || '暂无描述' }}</p> -->
-                  </div>
-                  <!-- 编辑模式 -->
-                  <div v-else class="prompt-edit-container">
-                    <textarea v-model="editingPromptText" class="prompt-edit-input" placeholder="请输入图片提示词..."
-                      @keyup.enter.ctrl="savePromptEdit"></textarea>
-                    <div class="prompt-edit-actions">
-                      <button class="prompt-edit-btn save-btn" @click="savePromptEdit">保存</button>
-                      <button class="prompt-edit-btn cancel-btn" @click="cancelPromptEdit">取消</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               <!-- 图片展示 -->
               <div class="image-container">
@@ -230,7 +170,7 @@
             </div>
 
             <!-- 固定的输入框区域 -->
-            <div class="input-section">
+            <!-- <div class="input-section">
               <div class="input-container">
                 <textarea v-model="sceneInput" class="scene-input" placeholder="输入你想要对当前画面修改的内容"></textarea>
                 <div class="input-actions">
@@ -239,22 +179,22 @@
                   </button>
                 </div>
               </div>
-              <div class="input-footer">
+              <div class="input-footer"> -->
                 <!-- <button class="convert-video-btn" @click="convertToVideo"
                   :disabled="entryMode === 'crop' || isVideo(currentPreviewUrl) || previewImgErrored">
                   <span>转视频</span>
                 </button> -->
-                <div class="input-footer-right">
+                <!-- <div class="input-footer-right"> -->
                   <!-- <span class="input-hint">消耗</span>
                   <span class="input-count">1</span> -->
-                  <button class="input-arrow">
+                  <!-- <button class="input-arrow">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                       <polyline points="6,9 12,15 18,9" stroke="currentColor" stroke-width="2" />
                     </svg>
                   </button>
                 </div>
               </div>
-            </div>
+            </div> -->
           </div>
 
           <!-- 配音内容 - 配音模式 -->
@@ -419,7 +359,7 @@
 
         <!-- 视频画面 -->
           <div class="video-preview">
-            <div class="video-container" ref="videoContainer">
+            <div class="video-container" ref="videoContainer" @click="handleVideoContainerClick">
               <div
               v-if="(isVideoGenerating || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending || (!sceneDetail.video_url && isActiveImageMissing)) && !isBlankScene(scenes[activeSceneIndex])"
               class="skeleton-image"></div>
@@ -436,15 +376,27 @@
               </div>
               <video v-if="isVideo(sceneDetail.video_url)" ref="previewVideo" :src="cleanUrl(sceneDetail.video_url)"
                 :poster="cleanUrl(sceneDetail.reference_image_url || '')" preload="metadata" playsinline loop
+                @loadedmetadata="updateSubtitleMaxWidth"
                 class="video-image"></video>
               <img v-else-if="sceneDetail.reference_image_url && !isPreviewPending"
                 :src="cleanUrl(sceneDetail.reference_image_url)"
                 :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image"
-                decoding="async" fetchpriority="high" @error="onPreviewImgError" />
+                decoding="async" fetchpriority="high" @error="onPreviewImgError" @load="updateSubtitleMaxWidth" />
               <div
                 v-if="!sceneDetail.video_url && previewImgErrored"
                 class="video-overlay">
                 <div class="error-banner">生成失败</div>
+              </div>
+              <div v-if="subtitleEnabled && scenes[activeSceneIndex] && (isEditingSubtitle || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))" class="subtitle-overlay" :style="subtitleOverlayStyle">
+                <span v-if="!isEditingSubtitle" @click="startEditSubtitle">
+                  {{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
+                </span>
+                <input v-else ref="subtitleInput" v-model="editingSubtitleText" class="subtitle-edit-input" @keyup.enter="saveSubtitleEdit" @blur="saveSubtitleEdit" />
+                <button v-if="isEditingSubtitle" class="subtitle-save-btn" @click.stop="saveSubtitleEdit">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <polyline points="20 6 9 17 4 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                  </svg>
+                </button>
               </div>
               </template>
               <audio ref="previewAudio" style="display:none" preload="auto"></audio>
@@ -777,7 +729,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 // import Hls from 'hls.js'
-import { getScriptDetailByVideo, regenerateImage, queryRegenerateImage, copyStoryboardVideo, reorderStoryboardScenes, clipStoryboardVideo, updateVideoTitle, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, getDigitalHumanWorksByConversation, getDigitalHumanWorkSingle, objectDetectionByScene, uploadDigitalHumanWorkImage, objectDetectionByWork, digitalhumanGenByWork, getUserBasicStatus, updateVisualDescription } from '@/api'
+import { getScriptDetailByVideo, regenerateImage, queryRegenerateImage, copyStoryboardVideo, reorderStoryboardScenes, clipStoryboardVideo, updateVideoTitle, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, getDigitalHumanWorksByConversation, getDigitalHumanWorkSingle, objectDetectionByScene, uploadDigitalHumanWorkImage, objectDetectionByWork, digitalhumanGenByWork, getUserBasicStatus, updateVisualDescription, updateSceneScript, updateDigitalHumanClientSubtitle } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -798,6 +750,9 @@ export default {
       activeTab: 'image',
       sceneInput: '',
       subtitleEnabled: true,
+      isEditingSubtitle: false,
+      editingSubtitleText: '',
+      subtitleMaxWidthPx: 0,
       activeSceneIndex: 0,
       playbackPosition: 0, // 播放进度百分比
       playbackLeftPx: 0,
@@ -1240,6 +1195,12 @@ export default {
       const hasApi = !!apiImg
       const hasThumb = !!thumb
       return !hasApi && !hasThumb
+    }
+    ,
+    subtitleOverlayStyle() {
+      const w = Math.max(0, Number(this.subtitleMaxWidthPx) || 0)
+      if (w) return { maxWidth: `${w}px` }
+      return {}
     }
   },
   watch: {
@@ -1921,6 +1882,74 @@ export default {
         }
       } catch (e) {
         console.warn('全屏切换失败:', e)
+      }
+    },
+    updateSubtitleMaxWidth() {
+      try {
+        const cont = this.$refs.videoContainer
+        const ve = this.$refs.previewVideo
+        const basis = (ve && ve.clientWidth) || (cont && cont.clientWidth) || 0
+        const pad = 48
+        const w = Math.max(0, Math.floor(basis - pad))
+        this.subtitleMaxWidthPx = w
+      } catch (e) { /* no-op */ }
+    },
+    handleVideoContainerClick(e) {
+      if (this.isEditingSubtitle) return
+      const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+      const hasText = !!(sc && sc.scene_script && sc.scene_script.dialogue_or_narration)
+      if (hasText) return
+      if (!this.subtitleEnabled) return
+      if (this.isVideoConverting || this.isVideoPendingScene(sc, this.activeSceneIndex)) return
+      const t = e && e.target
+      if (t && (t.closest && (t.closest('.replace-btn') || t.closest('.thumb-card') || t.closest('.playback-section') || t.closest('.preview-aside')))) return
+      this.startEditSubtitle()
+    },
+    startEditSubtitle() {
+      if (this.isEditingSubtitle) return
+      const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+      const t = sc && sc.scene_script && sc.scene_script.dialogue_or_narration ? String(sc.scene_script.dialogue_or_narration) : ''
+      this.editingSubtitleText = t
+      this.isEditingSubtitle = true
+      this.$nextTick(() => {
+        try {
+          const el = this.$refs && this.$refs.subtitleInput
+          if (el && el.focus) {
+            el.focus()
+            const len = String(this.editingSubtitleText || '').length
+            if (el.setSelectionRange) el.setSelectionRange(len, len)
+          }
+        } catch (e) { /* no-op */ }
+      })
+    },
+    async saveSubtitleEdit() {
+      try {
+        const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+        const token = (this.userStore && this.userStore.token) || ''
+        const text = String(this.editingSubtitleText || '').trim()
+        const dhId = String((sc && (sc.work_id || sc.workid || sc.id)) || '').trim()
+        if (!dhId || !token) return
+        const resp = await updateDigitalHumanClientSubtitle({ dh_id: dhId, text, token })
+        const ok = !!(resp && resp.code === 0)
+        if (ok) {
+          if (sc) {
+            if (!sc.scene_script) sc.scene_script = {}
+            sc.scene_script.dialogue_or_narration = text
+          }
+          this.isEditingSubtitle = false
+          this.toastText = '字幕已更新'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        } else {
+          const msg = (resp && (resp.message || resp.msg)) ? String(resp.message || resp.msg) : '更新失败'
+          this.toastText = msg
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        }
+      } catch (e) {
+        this.toastText = '更新失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
       }
     },
     playVideoSafely(el) {
@@ -4925,6 +4954,50 @@ export default {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+}
+.subtitle-overlay {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  max-width: 80%;
+  pointer-events: auto;
+  z-index: 10;
+  text-shadow: none;
+  -webkit-text-stroke: 0.6px #000;
+  text-stroke: 0.6px #000;
+  white-space: pre-wrap;
+}
+.subtitle-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.subtitle-edit-input {
+  width: 100%;
+  min-height: 60px;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 8px;
+  font-size: inherit;
+  line-height: 1.5;
+  padding: 10px 12px;
+  outline: none;
+  backdrop-filter: blur(2px);
 }
 
 .preview-aside {

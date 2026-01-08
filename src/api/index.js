@@ -616,6 +616,20 @@ export async function updateShotTitle({ videoid, scene_number, text, token }) {
   }
 }
 
+export async function deleteStoryboardScene({ videoId, sceneNumber, token }) {
+  const url = `${BASE_URL}/detail/storyboard/scene/delete`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ videoId: String(videoId), sceneNumber: String(sceneNumber) })
+  const requestOptions = { method: 'POST', headers, body, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
 export async function exportWorksVideo({ videoId, token }) {
   const url = `${BASE_URL}/detail/works/video/export?videoId=${encodeURIComponent(videoId)}`
   const requestOptions = {
@@ -1518,6 +1532,7 @@ export default {
   , copyStoryboardVideo
   , reorderStoryboardScenes
   , clipStoryboardVideo
+  , deleteStoryboardScene
   , replaceStoryboardImage
   , getSceneVersionHistory
   , applySceneVersion
