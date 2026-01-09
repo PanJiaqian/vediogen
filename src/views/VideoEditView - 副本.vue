@@ -46,7 +46,7 @@
 
     <ToneSelector v-if="showToneSelector" :visible="true" @close="showToneSelector = false" @select="handleToneSelect"
       :token="userStore.token" modelName="qwen3-TTS-Flash" />
-    
+
     <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
     <PointsModal :visible="showPointsModal" @close="showPointsModal = false" />
 
@@ -143,7 +143,7 @@
           <div class="scene-content" v-if="activeTab === 'image'">
             <!-- 可滚动内容区域 -->
             <div class="scene-scrollable-content" ref="sceneScrollable">
-              
+
               <!-- 图片提示词区域 -->
               <div class="prompt-section">
                 <div class="prompt-header">
@@ -294,7 +294,7 @@
                           </div>
                         </div>
                      </div>
-                     
+
                      <!-- Image Display inside Prompt Box -->
                      <div class="image-container" style="margin-top: 12px;">
                         <div v-if="msg.pending && !msg.imageUrl" class="skeleton-image" style="height:200px;"></div>
@@ -859,7 +859,7 @@
       </div>
     </div>
   </div>
- 
+
 </template>
 
 <script>
@@ -884,8 +884,8 @@ export default {
     CanvasEditView,
     CropStoryboardModal
   },
-    data() {
-      return {
+  data() {
+    return {
       showPointsModal: false,
       projectTitle: '',
       activeTab: 'image',
@@ -1045,7 +1045,7 @@ export default {
       const aspect = localStorage.getItem(`project:aspectRatio:${projectId}`)
       if (aspect) this.aspectRatio = aspect
     } catch (e) { void 0 }
-    
+
     try {
       const mode = localStorage.getItem(`video-edit:entryMode:${projectId}`)
       if (mode === 'crop' || mode === 'canvas') this.entryMode = mode
@@ -1129,10 +1129,10 @@ export default {
         const idx = Number(q.sceneIndex)
         if (tid && Number.isFinite(idx)) {
           this.$nextTick(() => {
-             if (this.scenes && this.scenes[idx]) {
-                this.activeSceneIndex = idx
-                this.onLipSyncTaskCreated(tid)
-             }
+            if (this.scenes && this.scenes[idx]) {
+              this.activeSceneIndex = idx
+              this.onLipSyncTaskCreated(tid)
+            }
           })
           this.$router.replace({ name: 'VideoEdit', params: { id: projectId }, query: {} })
         }
@@ -1150,7 +1150,7 @@ export default {
     if (!this._entryIsGenerate) { this.pollImagesActive = true; this.pollStoryboardImagesDetail() }
     this.precacheSceneThumbnails()
     // this.$nextTick(() => { this.tryAttachHls() })
-    Promise.resolve().then(async () => {
+    Promise.resolve().then(async() => {
       try {
         const token = (this.userStore && this.userStore.token) || ''
         if (token) {
@@ -1163,7 +1163,7 @@ export default {
         }
       } catch (e) { /* no-op */ }
     })
-    Promise.resolve().then(async () => {
+    Promise.resolve().then(async() => {
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -1184,7 +1184,7 @@ export default {
         }
       } catch (e) { void 0 }
     })
-    Promise.resolve().then(async () => {
+    Promise.resolve().then(async() => {
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -1292,7 +1292,7 @@ export default {
       const y = Math.round(this.replaceCropSelY || 0)
       const w = Math.max(0, Math.round(this.replaceCropSelW || 0))
       const h = Math.max(0, Math.round(this.replaceCropSelH || 0))
-      return { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px', position: 'absolute' }
+      return { left: `${x  }px`, top: `${y  }px`, width: `${w  }px`, height: `${h  }px`, position: 'absolute' }
     }
   },
   watch: {
@@ -1765,7 +1765,7 @@ export default {
             this.toastVisible = true
             setTimeout(() => { this.toastVisible = false }, 2000)
           } else {
-            this.toastText = '修改失败: ' + (obj ? (obj.message || obj.msg) : '未知错误')
+            this.toastText = `修改失败: ${  obj ? (obj.message || obj.msg) : '未知错误'}`
             this.toastVisible = true
             setTimeout(() => { this.toastVisible = false }, 2000)
           }
@@ -1792,7 +1792,7 @@ export default {
     },
     async tryAttachHls() {
       /* HLS相关逻辑已停用 */
-      return
+
     },
     initTimelineSync() {
       const tracks = this.$refs.timelineTracks
@@ -1923,9 +1923,9 @@ export default {
     },
     getSceneKey(scene, index) {
       const sn = String((scene && scene.scene_number) || '').trim()
-      if (sn) return 'sn:' + sn
+      if (sn) return `sn:${  sn}`
       const id = String((scene && scene.id) || index)
-      return 'id:' + id
+      return `id:${  id}`
     },
     isSceneUpdating(scene, index) {
       const set = this.updatingKeySet instanceof Set ? this.updatingKeySet : null
@@ -2259,8 +2259,8 @@ export default {
           if (audioUrl) {
             if (this.$set) this.$set(scene, 'audio_url', audioUrl); else scene.audio_url = audioUrl
             if (idx === this.activeSceneIndex) {
-               this.sceneDetail = Object.assign({}, this.sceneDetail, { audio_url: audioUrl })
-               this.syncPreviewPlayback()
+              this.sceneDetail = Object.assign({}, this.sceneDetail, { audio_url: audioUrl })
+              this.syncPreviewPlayback()
             }
           }
           const duration = Number(item.duration) ? Number(item.duration) * 1000 : undefined
@@ -2349,13 +2349,13 @@ export default {
       const clips = this.getSceneClips(scene)
       const total = clips.reduce((sum, c) => sum + (Number(c.durationMs) || 5000), 0) || 1
       const widthPct = Math.max(2, Math.round(((Number(clip.durationMs) || 5000) / total) * 100))
-      return { width: widthPct + '%', minWidth: '28px' }
+      return { width: `${widthPct  }%`, minWidth: '28px' }
     },
     onPreviewImgError() {
       this.previewImgErrored = true
     },
     getClipKey(index, cidx) {
-      return String(index) + ':' + String(cidx)
+      return `${String(index)  }:${  String(cidx)}`
     },
     isClipImgErrored(index, cidx) {
       const k = this.getClipKey(index, cidx)
@@ -2528,7 +2528,7 @@ export default {
       let absolutePx = relX - tracks.offsetLeft + tracks.scrollLeft
       if (!Number.isFinite(absolutePx)) absolutePx = 0
       const totalSeconds = this.getTotalSeconds()
-      let elapsedSec = Math.max(0, Math.min(totalSeconds, absolutePx / pxPerSecond))
+      const elapsedSec = Math.max(0, Math.min(totalSeconds, absolutePx / pxPerSecond))
       this.playbackPosition = totalSeconds > 0 ? (elapsedSec / totalSeconds) * 100 : 0
       this.playbackLeftPx = tracks.offsetLeft + (elapsedSec * pxPerSecond) - tracks.scrollLeft
       let idx = 0
@@ -2573,7 +2573,7 @@ export default {
             console.log(target,333333)
             if (refImg) target.thumbnail = refImg
             target.audio_url = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
-           console.log(target.audio_url,555)
+            console.log(target.audio_url,555)
             if (vurl) {
               const first = (target && Array.isArray(target.clips) && target.clips[0]) || null
               const existingVid = this.cleanUrl((target && target.video_url) || (first && first.url) || '')
@@ -2626,7 +2626,7 @@ export default {
           console.log(vurl)
           console.log(targetVid)
           console.log(clipUrl)
-     
+
           // const nextVideo = vlocal || vurl || (this.isVideo(targetVid) ? targetVid : (this.isVideo(clipUrl) ? clipUrl : ''))
           const nextVideo = (vlocal || vurl) || null
           const sdAudio = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
@@ -2674,11 +2674,11 @@ export default {
             const refImg = this.cleanUrl(item.reference_image_url || sc.thumbnail || '')
             const vurl = this.cleanUrl(item.fallback_mp4 || '')
             if (item.audio_url) {
-               if (this.$set) this.$set(sc, 'audio_url', this.cleanUrl(item.audio_url)); else sc.audio_url = this.cleanUrl(item.audio_url)
-               if (idx === this.activeSceneIndex) {
-                  this.sceneDetail = { reference_image_url: sc.thumbnail, video_url: sc.video_url, audio_url: sc.audio_url }
-                  this.syncPreviewPlayback()
-               }
+              if (this.$set) this.$set(sc, 'audio_url', this.cleanUrl(item.audio_url)); else sc.audio_url = this.cleanUrl(item.audio_url)
+              if (idx === this.activeSceneIndex) {
+                this.sceneDetail = { reference_image_url: sc.thumbnail, video_url: sc.video_url, audio_url: sc.audio_url }
+                this.syncPreviewPlayback()
+              }
             }
             const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
             const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
@@ -3013,7 +3013,7 @@ export default {
     clearClipErrorsForIndex(i) {
       try {
         const keys = Object.keys(this.clipImgErrorMap || {})
-        const prefix = String(i) + ':'
+        const prefix = `${String(i)  }:`
         for (const k of keys) { if (k.indexOf(prefix) === 0) { if (this.$delete) this.$delete(this.clipImgErrorMap, k); else delete this.clipImgErrorMap[k] } }
       } catch (e) { void 0 }
     },
@@ -3486,7 +3486,7 @@ export default {
         this.pollStoryboardImagesDetail()
         // 每30秒轮询一次分镜视频生成状态（localhost）
         if (this._storyboardQueryInterval) clearInterval(this._storyboardQueryInterval)
-        this._storyboardQueryInterval = setInterval(async () => {
+        this._storyboardQueryInterval = setInterval(async() => {
           try {
             const statusText = await queryStoryboardVideoStatus({ videoId, token })
             let statusJson = null
@@ -3623,7 +3623,7 @@ export default {
         if (!taskId) { this.isVoiceLoading = false; this.toastText = '语音任务创建失败'; this.toastVisible = true; setTimeout(() => { this.toastVisible = false }, 2000); return }
         this.voiceAuditionTaskId = taskId
         if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { void 0 } this.voicePollTimer = null }
-        this.voicePollTimer = setInterval(async () => {
+        this.voicePollTimer = setInterval(async() => {
           try {
             const q = await aliTtsQuery({ taskId, token })
             const obj = typeof q === 'string' ? (() => { try { return JSON.parse(q) } catch { return null } })() : q
@@ -3884,7 +3884,7 @@ export default {
           this.activeSceneIndex = idx
           this.syncPreviewPlayback()
         }
-        
+
         // Audio sync
         const audioEl = this.$refs.previewAudio
         if (audioEl && audioEl.src) {
@@ -3892,18 +3892,18 @@ export default {
           const actualMs = Math.round(this.getActualSceneSeconds(scene) * 1000)
           const sceneElapsedMs = clamped - acc
           if (Number(actualMs) > 0 && sceneElapsedMs >= actualMs) {
-             try { audioEl.pause() } catch (e) { void 0 }
+            try { audioEl.pause() } catch (e) { void 0 }
           } else {
-             const t = Math.max(0, sceneElapsedMs / 1000)
-             if (Math.abs(audioEl.currentTime - t) > 0.3) {
-                try { audioEl.currentTime = t } catch(e) { void 0 }
-             }
-             if (audioEl.paused && this.isPlaying) {
-                try { 
-                  const p = audioEl.play() 
-                  if (p && p.catch) p.catch(() => {})
-                } catch(e) { void 0 }
-             }
+            const t = Math.max(0, sceneElapsedMs / 1000)
+            if (Math.abs(audioEl.currentTime - t) > 0.3) {
+              try { audioEl.currentTime = t } catch (e) { void 0 }
+            }
+            if (audioEl.paused && this.isPlaying) {
+              try {
+                const p = audioEl.play()
+                if (p && p.catch) p.catch(() => {})
+              } catch (e) { void 0 }
+            }
           }
         }
 
@@ -3961,11 +3961,11 @@ export default {
         cancelAnimationFrame(this._rafId)
         this._rafId = null
       }
-      
+
       // Reset audio when playback stops naturally
       const audioEl = this.$refs.previewAudio
       if (audioEl) {
-        try { 
+        try {
           audioEl.pause()
           audioEl.currentTime = 0
         } catch (e) { void 0 }
@@ -4044,25 +4044,25 @@ export default {
         this.subtitleEnabledPrev = this.subtitleEnabled
         this.subtitleEnabled = false
         const msgIdPending = Date.now() + 1
-        
+
         // Capture current scene script data for the prompt box
         const currentScript = sc.scene_script || {}
         const promptData = {
           shot_title: currentScript.shot_title || '',
-          visual_description: currentScript.visual_description || '',
+          visual_description: currentScript.visual_description || ''
           // Add other fields if necessary
         }
-        
-        this.leftChatMessages.push({ 
-          id: msgIdPending, 
-          text: '', 
-          side: 'left', 
+
+        this.leftChatMessages.push({
+          id: msgIdPending,
+          text: '',
+          side: 'left',
           pending: true,
           type: 'prompt_box',
           data: promptData
         })
         this.$nextTick(() => { this.scrollLeftToBottom() })
-        
+
         this._updateSceneCtrl = new AbortController()
         updateSceneStream({
           videoId, shotId, prompt: text, type, modelname, token,
@@ -4085,7 +4085,7 @@ export default {
               const script = (obj && obj.scene_script) || {}
               const title = String(script.shot_title || '').trim()
               const visual = String(script.visual_description || '').trim()
-              const summary = (title && visual) ? (title + '：' + visual) : (title || visual || String(obj && obj.message || '分镜修改结果已更新').trim())
+              const summary = (title && visual) ? (`${title  }：${  visual}`) : (title || visual || String(obj && obj.message || '分镜修改结果已更新').trim())
               const aidx = this.activeSceneIndex
               const target = this.scenes[aidx] || {}
               if (imageUrl) {
@@ -4101,17 +4101,17 @@ export default {
                 target.description = parts.join('：')
               }
               if (idx >= 0) {
-                 // Update the message with new image and script data if needed
-                 // User requested "original image prompt content unchanged", so we might NOT update msg.data.visual_description
-                 // But we MUST update imageUrl
-                 this.leftChatMessages[idx] = { 
-                   ...this.leftChatMessages[idx], 
-                   text: summary, 
-                   imageUrl: imageUrl, 
-                   pending: true,
-                   // data: { ...this.leftChatMessages[idx].data, ...script } // Uncomment if we want to update text
-                 }
-                 this.$nextTick(() => { this.scrollLeftToBottom() })
+                // Update the message with new image and script data if needed
+                // User requested "original image prompt content unchanged", so we might NOT update msg.data.visual_description
+                // But we MUST update imageUrl
+                this.leftChatMessages[idx] = {
+                  ...this.leftChatMessages[idx],
+                  text: summary,
+                  imageUrl: imageUrl,
+                  pending: true
+                  // data: { ...this.leftChatMessages[idx].data, ...script } // Uncomment if we want to update text
+                }
+                this.$nextTick(() => { this.scrollLeftToBottom() })
               }
               return
             }
@@ -4194,7 +4194,7 @@ export default {
         this.lipSyncWorkId = ''
 
         if (videoId && shotId && token) {
-          Promise.resolve().then(async () => {
+          Promise.resolve().then(async() => {
             try {
               const detResp = await objectDetectionByScene({ videoId, shotId, token })
               const obj = typeof detResp === 'string' ? (() => { try { return JSON.parse(detResp) } catch { return null } })() : detResp
@@ -4209,18 +4209,18 @@ export default {
       try { if (this.digitalVideoQueryInterval) { clearInterval(this.digitalVideoQueryInterval); this.digitalVideoQueryInterval = null } } catch (e) { void 0 }
       if (!taskId) return
       this.showLipSyncView = false
-      
+
       // Setup skeleton state
       this.isVideoGenerating = true
       const idx = this.activeSceneIndex
       const sc = this.scenes[idx] || {}
       const key = this.getSceneKey(sc, idx)
-          if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
-          this.pendingVideoSet.add(key)
-          this.pendingVideoSet = new Set(this.pendingVideoSet)
-          
-          const token = (this.userStore && this.userStore.token) || ''
-      const poll = async () => {
+      if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
+      this.pendingVideoSet.add(key)
+      this.pendingVideoSet = new Set(this.pendingVideoSet)
+
+      const token = (this.userStore && this.userStore.token) || ''
+      const poll = async() => {
         try {
           const resp = await digitalhumanQuery({ taskId, token })
           const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
@@ -4230,7 +4230,7 @@ export default {
           const img = data && data.image_url
           const aud = data && data.audio_url
           const s = String(status || '').toLowerCase()
-          
+
           const finish = (isSuccess) => {
             if (this.digitalVideoQueryInterval) { try { clearInterval(this.digitalVideoQueryInterval) } catch (e) { void 0 } this.digitalVideoQueryInterval = null }
             if (this.pendingVideoSet instanceof Set) {
@@ -4253,7 +4253,7 @@ export default {
             const clipUrl = videoUrl || imageUrl
             let durMs = 5000
             if (videoUrl) { try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 } }
-            
+
             const targetSc = this.scenes[idx] || {}
             targetSc.thumbnail = imageUrl || targetSc.thumbnail || clipUrl
             targetSc.video_url = clipUrl
@@ -4261,7 +4261,7 @@ export default {
             targetSc.audio_url = audioUrl
             targetSc.clips = [{ url: clipUrl, durationMs: durMs }]
             try { if (!(this.durationMap instanceof Map)) this.durationMap = new Map(); if (clipUrl) this.durationMap.set(clipUrl, durMs); if (videoUrl && clipUrl !== videoUrl) this.durationMap.set(videoUrl, durMs) } catch (e) { void 0 }
-            
+
             // Only update sceneDetail if we are still on the same scene
             if (this.activeSceneIndex === idx) {
               this.sceneDetail = { reference_image_url: imageUrl || '', video_url: clipUrl, audio_url: audioUrl }
@@ -4269,7 +4269,7 @@ export default {
               this.ensurePreviewFromScenes && this.ensurePreviewFromScenes()
               this.$nextTick(() => { this.tryAttachHls && this.tryAttachHls() })
             }
-            
+
             finish(true)
           }
         } catch (e) { void 0 }
@@ -6205,7 +6205,6 @@ input:checked+.slider:before {
   min-width: 40px;
   text-align: right;
 }
-
 
 
 /* 应用修改按钮 */

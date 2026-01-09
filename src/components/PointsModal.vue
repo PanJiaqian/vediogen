@@ -27,16 +27,16 @@
           </div>
         </div>
       </div>
-      
+
       <div class="modal-footer-note">
         ① 积分不可兑换会员，不可转赠或提现；充值后有效期为2年，不支持退换或反向兑换成人民币。
       </div>
 
-      <PaymentModal 
-        :visible="showPayment" 
-        :plan="selectedPlan" 
-        :user-info="userInfo" 
-        @close="showPayment = false" 
+      <PaymentModal
+        :visible="showPayment"
+        :plan="selectedPlan"
+        :user-info="userInfo"
+        @close="showPayment = false"
         @success="close"
       />
     </div>
@@ -97,10 +97,10 @@ export default {
           orderType: 'RECHARGE',
           packageId: plan.id
         })
-        
+
         if (res.code === 0) {
           this.selectedPlan = {
-            name: (plan.pointsAmount || plan.points) + '积分',
+            name: `${plan.pointsAmount || plan.points  }积分`,
             price: this.calcActualPay(plan),
             points: plan.pointsAmount || plan.points,
             orderNo: res.data.orderNo
@@ -162,7 +162,7 @@ export default {
 
 [data-theme="dark"] .modal-content {
   background: linear-gradient(to bottom, #001529 0%, #001f3d 20%, #141414 40%);
-  color: #e0e0e0;
+  color: #fff;
 }
 
 .close-btn {
@@ -183,7 +183,7 @@ export default {
 }
 
 [data-theme="dark"] .close-btn {
-  color: #ccc;
+  color: #fff;
 }
 
 [data-theme="dark"] .close-btn:hover {
@@ -202,18 +202,14 @@ export default {
   font-weight: 600;
 }
 
-[data-theme="dark"] .title {
-  color: #fff;
-}
+[data-theme="dark"] .title { color: #fff; }
 
 .subtitle {
   color: #666;
   font-size: 14px;
 }
 
-[data-theme="dark"] .subtitle {
-  color: #aaa;
-}
+[data-theme="dark"] .subtitle { color: #fff; }
 
 .plans-container {
   display: grid;
@@ -255,6 +251,7 @@ export default {
   color: #333; /* Greenish teal */
   margin-bottom: 12px;
 }
+[data-theme="dark"] .points-amount { color: #fff; }
 
 .plan-desc {
   font-size: 13px;
@@ -264,9 +261,7 @@ export default {
   flex: 1;
 }
 
-[data-theme="dark"] .plan-desc {
-  color: #aaa;
-}
+[data-theme="dark"] .plan-desc { color: #fff; }
 
 .plan-footer {
   display: flex;
@@ -278,10 +273,11 @@ export default {
 .plan-price .actual { font-size: 20px; font-weight: 700; color: #000000; }
 .plan-price .original { font-size: 12px; color: #999; text-decoration: line-through; }
 
-
 [data-theme="dark"] .plan-price {
   color: #fff;
 }
+[data-theme="dark"] .plan-price .actual { color: #fff; }
+[data-theme="dark"] .plan-price .original { color: #fff; }
 
 .discount-badge {
   position: absolute;
@@ -314,7 +310,7 @@ export default {
 [data-theme="dark"] .buy-btn {
   background: #333;
   border-color: #444;
-  color: #ccc;
+  color: #fff;
 }
 
 .buy-btn:hover {
@@ -333,4 +329,5 @@ export default {
   color: #bbb;
   margin-top: 20px;
 }
+[data-theme="dark"] .modal-footer-note { color: #fff; }
 </style>

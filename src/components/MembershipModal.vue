@@ -146,11 +146,11 @@
           </div>
         </div>
       </div>
-      <PaymentModal 
-        :visible="alipayVisible" 
-        :plan="currentPlan" 
-        :user-info="userInfo" 
-        @close="closeAlipay" 
+      <PaymentModal
+        :visible="alipayVisible"
+        :plan="currentPlan"
+        :user-info="userInfo"
+        @close="closeAlipay"
         @success="close"
       />
     </div>
@@ -211,7 +211,7 @@ export default {
     async openAlipay(plan) {
       this.currentPlan = plan || null
       this.paymentChecked = false
-      
+
       try {
         const userStore = useUserStore()
         const res = await createOrderByPackage({
@@ -219,7 +219,7 @@ export default {
           orderType: 'SUBSCRIPTION',
           packageId: plan && plan.packageId
         })
-        
+
         if (res.code === 0) {
           this.currentPlan = {
             ...this.currentPlan,

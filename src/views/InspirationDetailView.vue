@@ -13,8 +13,8 @@
       <!-- 左侧视频区域 -->
       <div class="video-section">
         <div class="video-container">
-          <video 
-            :src="inspirationData.videoUrl" 
+          <video
+            :src="inspirationData.videoUrl"
             :poster="inspirationData.thumbnail"
             controls
             class="video-player"
@@ -29,7 +29,7 @@
         <div class="info-content">
           <!-- 标题 -->
           <h1 class="title">{{ inspirationData.title }}</h1>
-          
+
           <!-- 作者信息 -->
           <div class="author-info">
             <div class="author-avatar">
@@ -48,9 +48,9 @@
 
           <!-- 标签 -->
           <div class="tags">
-            <span 
-              v-for="tag in inspirationData.tags" 
-              :key="tag" 
+            <span
+              v-for="tag in inspirationData.tags"
+              :key="tag"
               class="tag"
             >
               {{ tag }}
@@ -132,14 +132,14 @@ export default {
     async loadInspirationData(id) {
       // 这里可以根据ID加载具体的灵感数据
       console.log('Loading inspiration data for ID:', id)
-      
+
       try {
         // 接口不需要 token
         const result = await getCreativeWorkById({ id })
         const data = JSON.parse(result)
-        
+
         console.log('获取作品详情响应:', data)
-        
+
         if (data.code === 0 && data.data) {
           const item = data.data
           // 更新页面数据
@@ -150,7 +150,7 @@ export default {
             thumbnail: item.coverImageUrl || '/api/placeholder/600/400',
             description: item.description,
             author: {
-              name: '用户' + item.userId,
+              name: `用户${  item.userId}`,
               avatar: '/logo.png'
             },
             publishTime: item.createTime,
@@ -162,7 +162,7 @@ export default {
         } else {
           console.error('获取作品详情失败:', data.message)
         }
-        
+
       } catch (error) {
         console.error('获取作品详情失败:', error)
         // 保持使用模拟数据
@@ -175,7 +175,7 @@ export default {
     generateSimilarVideo() {
       // 创建基于当前灵感的新项目
       const newProjectId = Date.now() // 简单的ID生成
-      
+
       // 这里可以调用API创建新项目，传递当前灵感的相关信息
       const projectData = {
         id: newProjectId,
@@ -183,9 +183,9 @@ export default {
         template: this.inspirationData.id,
         createdAt: new Date().toISOString()
       }
-      
+
       console.log('Creating new project based on inspiration:', projectData)
-      
+
       // 跳转到生成步骤页面
       this.$router.push(`/generation-steps/${newProjectId}`)
     }
@@ -376,7 +376,7 @@ export default {
     flex-direction: column;
     gap: 20px;
   }
-  
+
   .info-section {
     flex: none;
   }

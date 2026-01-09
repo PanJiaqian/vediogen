@@ -2,7 +2,7 @@
   <div v-if="visible" class="payment-modal-overlay" @click.self="close">
     <div class="payment-modal">
       <button class="close-btn" @click="close">×</button>
-      
+
       <div class="pay-summary" v-if="plan">
         <div class="summary-line">
           <span class="label">购买项目：</span>
@@ -13,7 +13,7 @@
           <span class="value">¥{{ plan.price }}</span>
         </div>
       </div>
-      
+
       <div class="pay-summary" v-if="userInfo">
         <div class="summary-line">
           <span class="label">用户昵称:</span>
@@ -26,7 +26,7 @@
           </span>
         </div>
       </div>
-      
+
       <div class="pay-title">请选择支付方式</div>
       <div class="pay-option-card selected">
         <div class="option-left">
@@ -84,24 +84,24 @@ export default {
         console.error('No order number found')
         return
       }
-      
+
       try {
         const userStore = useUserStore()
         const res = await initiateAlipayPayment({
           token: userStore.token,
           orderNo: this.plan.orderNo
         })
-        
+
         if (res.code === 0 && res.data && res.data.html) {
-           const div = document.createElement('div');
-           div.innerHTML = res.data.html;
-           document.body.appendChild(div);
-           
-           const form = div.querySelector('form');
-           if (form) {
-             form.submit();
-           }
-           this.startPollingStatus()
+          const div = document.createElement('div')
+          div.innerHTML = res.data.html
+          document.body.appendChild(div)
+
+          const form = div.querySelector('form')
+          if (form) {
+            form.submit()
+          }
+          this.startPollingStatus()
         } else {
           this.handlePayFail(res && res.message ? String(res.message) : '发起支付失败')
         }
@@ -147,7 +147,7 @@ export default {
     handlePayFail(msg) {
       this.$router.push('/')
       try { window.dispatchEvent(new CustomEvent('open-center-prompt', { detail: { text: String(msg || '支付失败，请重试') } })) } catch (e) { void 0 }
-    },
+    }
   }
 }
 </script>
@@ -306,16 +306,16 @@ export default {
     background: #1f1f1f;
     color: #e0e0e0;
   }
-  
+
   .pay-summary {
     background: #141414;
   }
-  
+
   .pay-option-card {
     background: #1f1f1f;
     border-color: #333;
   }
-  
+
   .cn {
     color: #e0e0e0;
   }

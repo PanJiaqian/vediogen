@@ -20,7 +20,7 @@
         </div> -->
         <p class="project-time" v-if="project.createdAt">创建于 {{ project.createdAt }}</p>
       </div>
-      
+
       <!-- 标题和描述 -->
       <div class="header-section">
         <div class="loading-icon">
@@ -34,12 +34,12 @@
 
       <!-- 步骤列表 -->
       <div class="steps-container">
-        <div 
-          v-for="(step, index) in steps" 
+        <div
+          v-for="(step, index) in steps"
           :key="index"
           class="step-item"
-          :class="{ 
-            'active': currentStep === index, 
+          :class="{
+            'active': currentStep === index,
             'completed': currentStep > index,
             'pending': currentStep < index
           }"
@@ -171,7 +171,7 @@ export default {
         if (!token) return
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-        
+
         const cachedTitle = localStorage.getItem(`project:prompt:${projectId}`)
         if (cachedTitle) this.project.title = cachedTitle
 
@@ -353,7 +353,7 @@ export default {
       return positions[index - 1] || {}
     }
   }
-  
+
 }
 </script>
 
@@ -584,21 +584,21 @@ export default {
     padding: 24px;
     margin: 20px;
   }
-  
+
   .main-title {
     font-size: 20px;
   }
-  
+
   .step-item {
     padding: 12px;
     gap: 12px;
   }
-  
+
   .step-icon {
     width: 36px;
     height: 36px;
   }
-  
+
   .step-title {
     font-size: 15px;
   }

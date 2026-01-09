@@ -171,8 +171,8 @@
     </div>
 
     <!-- 创建新主体弹窗 -->
-    <CreateSubjectModal 
-      :visible="showCreateModal" 
+    <CreateSubjectModal
+      :visible="showCreateModal"
       @close="closeCreateModal"
       @submit="handleSubjectSubmit"
     />
@@ -258,7 +258,7 @@ export default {
     handleSubjectSubmit(subjectData) {
       // 处理从CreateSubjectModal组件提交的数据
       console.log('提交新主体:', subjectData)
-      
+
       // 关闭弹窗
       this.closeCreateModal()
 
@@ -267,7 +267,7 @@ export default {
         this.loadPersonalMaterials()
       }
     },
-    
+
     // 获取个人素材列表
     async loadPersonalMaterials() {
       try {

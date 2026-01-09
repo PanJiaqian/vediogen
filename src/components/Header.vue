@@ -117,6 +117,7 @@
                     </svg>
                   </div>
                   <span class="vip-text">{{ userBasicInfo.vipStatus === 'ACTIVE' ? 'VIP会员' : '免费会员' }}</span>
+                  <span v-if="userBasicInfo.vipStatus === 'ACTIVE' && userBasicInfo.vipExpireTime" class="vip-expire" style="margin-left: 20px;">至{{ formatDateTime(userBasicInfo.vipExpireTime) }}</span>
                 </div>
                 <div class="vip-divider"></div>
                 <div class="points-info">
@@ -175,7 +176,6 @@
     <UserProfileEditModal :visible="editProfileModalVisible" :userInfo="{ ...currentUser, ...userBasicInfo }" @close="editProfileModalVisible = false" @save="handleProfileUpdate" />
     <InviteModal :visible="showInviteModal" @close="showInviteModal = false" :token="userStore.token" />
     <OrderRecordsModal :visible="showOrderRecordsModal" @close="showOrderRecordsModal = false" />
-
 
 
     <div v-if="centerPromptVisible" class="center-prompt-overlay" @click="closeCenterPrompt">
@@ -445,7 +445,7 @@ export default {
         const d = new Date(String(s || '').replace('T', ' '))
         if (Number.isFinite(d.getTime())) {
           const pad = n => String(n).padStart(2, '0')
-          return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+          return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
         }
         return String(s || '')
       } catch (e) {
@@ -583,7 +583,7 @@ export default {
       if (!v) return '无'
       const digits = v.replace(/\D+/g, '')
       if (digits.length < 7) return v
-      return digits.slice(0, 6) + 'xxxx'
+      return `${digits.slice(0, 6)  }xxxx`
     },
     maskEmail(s) {
       let v = ''
@@ -595,7 +595,7 @@ export default {
       if (at <= 1) return v
       const head = v.slice(0, Math.min(3, at))
       const tail = v.slice(at)
-      return head + '***' + tail
+      return `${head  }***${  tail}`
     },
     // 显示登录弹窗
     showLoginModal() {
@@ -608,26 +608,26 @@ export default {
     },
 
     // 登录成功处理
-  handleLoginSuccess(payload) {
-    const user = payload?.user || payload || {}
-    const name = user.name || user.phone || user.email
-    this.userStore.setUser({
-      id: user.id || Date.now(),
-      name,
-      email: user.email || '',
-      phone: user.phone || '',
-      avatar: user.avatar || '/logo.png'
-    })
-    if (user.token) {
-      this.userStore.setToken(user.token)
-    }
-    this.hideLoginModal()
-    const t = String(payload && payload.type || '').toLowerCase()
-    this.openCenterPrompt(t === 'register' ? '注册成功！' : '登录成功！')
-    if (this.userStore && this.userStore.token) {
-      this.fetchUserBasicStatus()
-    }
-  },
+    handleLoginSuccess(payload) {
+      const user = payload?.user || payload || {}
+      const name = user.name || user.phone || user.email
+      this.userStore.setUser({
+        id: user.id || Date.now(),
+        name,
+        email: user.email || '',
+        phone: user.phone || '',
+        avatar: user.avatar || '/logo.png'
+      })
+      if (user.token) {
+        this.userStore.setToken(user.token)
+      }
+      this.hideLoginModal()
+      const t = String(payload && payload.type || '').toLowerCase()
+      this.openCenterPrompt(t === 'register' ? '注册成功！' : '登录成功！')
+      if (this.userStore && this.userStore.token) {
+        this.fetchUserBasicStatus()
+      }
+    },
 
     // 第三方登录处理
     handleSocialLogin(provider, userData) {
@@ -683,7 +683,7 @@ export default {
     async handleAvatarChange(e) {
       const file = e.target.files[0]
       if (!file) return
-      
+
       const token = this.userStore.token
       try {
         const res = await updateAvatarAndNickname({
@@ -833,18 +833,18 @@ export default {
       const token = this.userStore.token
       try {
         if (avatarFile) {
-           const res = await updateAvatarAndNickname({ token, imageFile: avatarFile })
-           if (res && res.code === 0 && res.data) {
-             this.userBasicInfo.avatar = res.data.avatar
-             this.userStore.setUser({ ...this.currentUser, avatar: res.data.avatar })
-           }
+          const res = await updateAvatarAndNickname({ token, imageFile: avatarFile })
+          if (res && res.code === 0 && res.data) {
+            this.userBasicInfo.avatar = res.data.avatar
+            this.userStore.setUser({ ...this.currentUser, avatar: res.data.avatar })
+          }
         }
         if (nickname && nickname !== (this.userBasicInfo.nickname || this.currentUser.name)) {
-           const res = await updateAvatarAndNickname({ token, nickname })
-           if (res && res.code === 0 && res.data) {
-             this.userBasicInfo.nickname = res.data.nickname
-             this.userStore.setUser({ ...this.currentUser, name: res.data.nickname })
-           }
+          const res = await updateAvatarAndNickname({ token, nickname })
+          if (res && res.code === 0 && res.data) {
+            this.userBasicInfo.nickname = res.data.nickname
+            this.userStore.setUser({ ...this.currentUser, name: res.data.nickname })
+          }
         }
         this.openCenterPrompt('更新成功')
         this.editProfileModalVisible = false

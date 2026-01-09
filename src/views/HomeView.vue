@@ -359,7 +359,7 @@ export default {
     },
     truncateText(text, maxLen = 12) {
       const s = String(text || '')
-      return s.length > maxLen ? (s.slice(0, maxLen) + '…') : s
+      return s.length > maxLen ? (`${s.slice(0, maxLen)  }…`) : s
     },
     truncateSuggestion(suggestion) {
       const base = (suggestion && (suggestion.text || suggestion.prompt || suggestion.narration)) || ''
@@ -554,7 +554,7 @@ export default {
             videoUrl: item.videoUrl,
             description: item.description,
             author: {
-              name: '用户' + item.userId,
+              name: `用户${  item.userId}`,
               avatar: '/logo.png'
             },
             publishTime: item.createTime,

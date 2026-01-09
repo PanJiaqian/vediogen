@@ -113,7 +113,7 @@
           </div>
           <input type="file" accept=".mp3,.wav" style="display:none" ref="fileInput" @change="onUploadFileSelected">
         </div>
-        
+
         <div v-if="!uploadAudioUrl" class="upload-note">
           <span class="info-icon">ⓘ</span> 上传配音暂不支持生成字幕
         </div>
@@ -175,7 +175,7 @@
     <div v-if="toastVisible" class="floating-toast">{{ toastText }}</div>
     <ToneSelector v-if="showToneSelector" :visible="true" @close="showToneSelector = false" @select="handleToneSelect"
       :token="userStore.token" modelName="qwen3-TTS-Flash" />
-    
+
   </div>
 </template>
 
@@ -349,7 +349,7 @@ export default {
         const taskId = (submit && submit.task_id) || (submit && submit.data && submit.data.task_id) || (typeof submit === 'string' ? (() => { try { const o = JSON.parse(submit); return o && (o.task_id || (o.data && o.data.task_id)) } catch { return '' } })() : '')
         if (!taskId) { this.isVoiceLoading = false; return }
         if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { void e } this.voicePollTimer = null }
-        this.voicePollTimer = setInterval(async () => {
+        this.voicePollTimer = setInterval(async() => {
           try {
             const q = await aliTtsQuery({ taskId, token })
             const obj = typeof q === 'string' ? (() => { try { return JSON.parse(q) } catch { return null } })() : q
@@ -369,7 +369,7 @@ export default {
             }
           } catch (e) { void e }
         }, 3000)
-      } catch (e) { this.isVoiceLoading = false; /* no-op */ }
+      } catch (e) { this.isVoiceLoading = false /* no-op */ }
     },
     async handleGenerateVideo() {
       try {

@@ -53,7 +53,7 @@
             </div>
           </div>
         </div>
-        
+
         <div class="stats-row">
           <div class="stat-item">
             <div class="stat-label">累计邀请 {{ totalInvites }}</div>
@@ -139,8 +139,10 @@ export default {
     displayCode() {
       const s = String(this.inviteLink || this.invitationCode || '').trim()
       if (!s) return '—'
-      const m = s.match(/invited\/([^/?#]+)/i)
-      return (m && m[1]) || s
+      const m1 = s.match(/[?&]invited=([^&]+)/i)
+      if (m1 && m1[1]) return decodeURIComponent(m1[1])
+      const m2 = s.match(/invited\/([^/?#]+)/i)
+      return (m2 && m2[1]) || s
     },
     successfulInvites() {
       const d = this.stats || {}
@@ -190,7 +192,7 @@ export default {
         try { codeRes = await getInvitationCode({ token: this.token }) } catch (e) { codeRes = null }
         let statsRes = null
         try { statsRes = await getInvitationStats({ token: this.token }) } catch (e) { statsRes = null }
-        
+
         let codeStr = ''
         try {
           const obj = typeof codeRes === 'string' ? JSON.parse(codeRes) : codeRes
@@ -201,7 +203,7 @@ export default {
         const cleaned = String(codeStr || '').replace(/[`]/g, '').trim()
         this.invitationCode = cleaned
         this.inviteLink = /^https?:\/\//i.test(cleaned) ? cleaned : (cleaned ? `https://creator.nexafeed.cn/invited/${cleaned}` : '')
-        
+
         try {
           this.stats = typeof statsRes === 'string' ? JSON.parse(statsRes) : statsRes
         } catch (e) {

@@ -9,18 +9,18 @@
           </svg>
         </button>
       </div>
-      
+
       <div class="filter-bar">
         <div class="tabs">
-          <!-- <div 
-            class="tab-item" 
+          <!-- <div
+            class="tab-item"
             :class="{ active: activeTab === 'all' }"
             @click="activeTab = 'all'"
           >
             所有音色
           </div> -->
-          <!-- <div 
-            class="tab-item" 
+          <!-- <div
+            class="tab-item"
             :class="{ active: activeTab === 'favorites' }"
             @click="activeTab = 'favorites'"
           >
@@ -61,7 +61,7 @@
           </div> -->
         </div>
       </div>
-      
+
       <div class="modal-body">
         <div v-if="loading" class="loading-state">
           <div class="spinner"></div>
@@ -71,9 +71,9 @@
           {{ error }}
         </div>
         <div v-else class="tone-grid">
-          <div 
-            v-for="tone in filteredTones" 
-            :key="tone.voiceName" 
+          <div
+            v-for="tone in filteredTones"
+            :key="tone.voiceName"
             class="tone-card"
             :class="{ selected: selectedToneId === tone.voiceName }"
             @click="selectToneLocal(tone)"
@@ -192,14 +192,14 @@ export default {
         const matchGender = !this.selectedGender || tone.gender === this.selectedGender
         const age = tone.ageTag || tone.ageGroup
         const matchAge = !this.selectedAge || age === this.selectedAge
-        
+
         let matchLang = !this.selectedLanguageFilter
         if (!matchLang) {
-           if (tone.supportedLanguages && Array.isArray(tone.supportedLanguages)) {
-               matchLang = tone.supportedLanguages.includes(this.selectedLanguageFilter)
-           } else {
-               matchLang = tone.language === this.selectedLanguageFilter
-           }
+          if (tone.supportedLanguages && Array.isArray(tone.supportedLanguages)) {
+            matchLang = tone.supportedLanguages.includes(this.selectedLanguageFilter)
+          } else {
+            matchLang = tone.language === this.selectedLanguageFilter
+          }
         }
         return matchGender && matchAge && matchLang
       })
@@ -265,13 +265,13 @@ export default {
         try {
           data = JSON.parse(res)
         } catch (e) {
-          data = res 
+          data = res
         }
-        
+
         if (data && (data.code === 200 || data.code === 0)) {
-             this.tones = Array.isArray(data.data) ? data.data : []
+          this.tones = Array.isArray(data.data) ? data.data : []
         } else {
-             this.error = (data && data.message) || '获取音色列表失败'
+          this.error = (data && data.message) || '获取音色列表失败'
         }
       } catch (e) {
         console.error(e)
@@ -285,10 +285,10 @@ export default {
         this.stopPlayback()
         return
       }
-      
+
       this.stopPlayback()
       const url = tone.sampleAudioUrl || tone.sampleUrl || tone.previewUrl || tone.url
-      if (url) { 
+      if (url) {
         this.audioPlayer = new Audio(url)
         this.audioPlayer.onended = () => {
           this.currentPlaying = null
@@ -313,7 +313,7 @@ export default {
         const tone = this.selectedToneData
         const languages = Array.isArray(tone.supportedLanguages) ? tone.supportedLanguages : []
         const lang = languages.length > 0 ? languages[0] : (tone.language || 'Chinese')
-        
+
         this.$emit('select', {
           voiceName: tone.voiceName,
           language: lang,

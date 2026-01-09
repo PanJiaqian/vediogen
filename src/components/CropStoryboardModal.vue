@@ -82,13 +82,13 @@ export default {
     selectionStyle() {
       const left = this.startPct
       const width = Math.max(0, this.endPct - this.startPct)
-      return { left: left + '%', width: width + '%' }
+      return { left: `${left  }%`, width: `${width  }%` }
     },
     startStyle() {
-      return { left: this.startPct + '%' }
+      return { left: `${this.startPct  }%` }
     },
     endStyle() {
-      return { left: this.endPct + '%' }
+      return { left: `${this.endPct  }%` }
     },
     selectedMs() {
       const total = Math.max(1, Number(this.durationMs) || 5000)

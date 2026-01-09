@@ -59,8 +59,8 @@ export const useUserStore = defineStore('user', {
     logout() {
       this.isLoggedIn = false
       this.token = ''
-       this.tokenSetAt = 0
-       this.clearAutoLogoutTimer()
+      this.tokenSetAt = 0
+      this.clearAutoLogoutTimer()
       this.userInfo = {
         id: null,
         name: '',

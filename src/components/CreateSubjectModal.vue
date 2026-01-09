@@ -187,15 +187,15 @@ export default {
         }
 
         const formdata = new FormData()
-        formdata.append("name", this.newSubject.name)
-        formdata.append("category", this.newSubject.category)
-        formdata.append("gender", this.newSubject.gender === '男性' ? '男' : '女')
-        formdata.append("ageRange", this.newSubject.age)
-        formdata.append("themeDescription", this.newSubject.description || '')
+        formdata.append('name', this.newSubject.name)
+        formdata.append('category', this.newSubject.category)
+        formdata.append('gender', this.newSubject.gender === '男性' ? '男' : '女')
+        formdata.append('ageRange', this.newSubject.age)
+        formdata.append('themeDescription', this.newSubject.description || '')
 
         // 如果有图片文件，添加到formdata
         if (this.imageFile) {
-          formdata.append("imagefile", this.imageFile)
+          formdata.append('imagefile', this.imageFile)
         }
 
         // 使用统一 API 上传素材
@@ -211,7 +211,7 @@ export default {
           // 关闭弹窗
           this.closeModal()
         } else {
-          this.showMessage('上传失败: ' + data.message, 'error')
+          this.showMessage(`上传失败: ${  data.message}`, 'error')
         }
 
       } catch (error) {

@@ -67,7 +67,7 @@ export default {
     handleAvatarChange(e) {
       const file = e.target.files[0]
       if (!file) return
-      
+
       this.avatarFile = file
       this.avatarPreview = URL.createObjectURL(file)
     },

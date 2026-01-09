@@ -6,7 +6,7 @@
           <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
-      
+
       <div class="modal-header">
         <h3 class="modal-title">积分明细</h3>
         <!-- <span class="points-rules" @click="openRules">积分规则</span> -->
@@ -26,8 +26,8 @@
 
         <!-- 标签页切换 -->
         <div class="tabs">
-          <div 
-            v-for="tab in tabs" 
+          <div
+            v-for="tab in tabs"
             :key="tab.id"
             class="tab-item"
             :class="{ active: activeTab === tab.id }"
@@ -43,7 +43,7 @@
             <div class="spinner"></div>
             <span>加载中...</span>
           </div>
-          
+
           <div v-else-if="!filteredOrders || filteredOrders.length === 0" class="empty-state">
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-icon">
                <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
@@ -103,21 +103,21 @@ export default {
   computed: {
     filteredOrders() {
       if (!this.orders) return []
-      
+
       return this.orders.filter(order => {
         if (this.activeTab === 'all') return true
-        
+
         const categoryCn = String(order.category || '').trim()
         const title = String(order.title || '').toLowerCase()
         const type = String(order.orderType || '').toUpperCase()
         if (this.activeTab === 'consumption') {
-            return categoryCn === '消耗' || type === 'CONSUMPTION' || title.includes('消费') || title.includes('扣除') || title.includes('使用')
+          return categoryCn === '消耗' || type === 'CONSUMPTION' || title.includes('消费') || title.includes('扣除') || title.includes('使用')
         }
         if (this.activeTab === 'subscription') {
-            return categoryCn === '订阅' || type === 'SUBSCRIPTION' || title.includes('会员') || title.includes('订阅')
+          return categoryCn === '订阅' || type === 'SUBSCRIPTION' || title.includes('会员') || title.includes('订阅')
         }
         if (this.activeTab === 'recharge') {
-            return categoryCn === '充值' || type === 'RECHARGE' || title.includes('充值') || title.includes('积分')
+          return categoryCn === '充值' || type === 'RECHARGE' || title.includes('充值') || title.includes('积分')
         }
         return true
       })
@@ -183,17 +183,17 @@ export default {
       }
     },
     isPositive(order) {
-        const amt = String(order && order.amount || '').trim()
-        if (amt.startsWith('-')) return false
-        const cat = String(order && order.category || '').trim()
-        if (cat === '消耗') return false
-        return true
+      const amt = String(order && order.amount || '').trim()
+      if (amt.startsWith('-')) return false
+      const cat = String(order && order.category || '').trim()
+      if (cat === '消耗') return false
+      return true
     },
     openMembership() {
       // 触发全局事件打开会员弹窗
       window.dispatchEvent(new CustomEvent('open-membership-modal'))
       // 可选：关闭当前弹窗
-      // this.close() 
+      // this.close()
     }
     // openRules() {
     //   alert('积分规则：\n1. 充值可获得积分\n2. 订阅会员每月赠送积分\n3. 生成视频消耗积分')

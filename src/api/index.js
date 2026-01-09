@@ -13,7 +13,6 @@ function buildSSEHeaders(token) {
 }
 
 
-
 // 流式读取剧本修改 SSE，逐步返回事件
 export async function scriptModifyStream({ modificationSuggestions, videoId, token, onEvent, signal }) {
   const url = `${BASE_URL}/api/agent/Script_modify?modificationSuggestions=${encodeURIComponent(modificationSuggestions)}&videoId=${encodeURIComponent(videoId)}`
@@ -273,7 +272,7 @@ export async function queryRegenerateImage({ videoId, type, name, generateUuid, 
     headers: buildAuthHeaders(token),
     redirect: 'follow'
   }
-  const requestOnce = async () => {
+  const requestOnce = async() => {
     const res = await fetch(url, requestOptions)
     if (res.status === 401) {
       try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
@@ -428,8 +427,8 @@ export async function getScriptDetailByVideo({ videoId, token }) {
 export async function updateVideoTitle({ videoId, newTitle, token }) {
   const myHeaders = buildAuthHeaders(token)
   const formdata = new FormData()
-  formdata.append("videoId", videoId)
-  formdata.append("newtitle", newTitle)
+  formdata.append('videoId', videoId)
+  formdata.append('newtitle', newTitle)
 
   const requestOptions = {
     method: 'POST',
@@ -652,9 +651,9 @@ export async function exportWorksVideo({ videoId, token }) {
 export async function createSubscriptionOrder({ token, amount, membershipLevel }) {
   const myHeaders = buildAuthHeaders(token)
   const formdata = new FormData()
-  formdata.append("orderType", "SUBSCRIPTION")
-  formdata.append("amount", amount)
-  formdata.append("membershipLevel", membershipLevel)
+  formdata.append('orderType', 'SUBSCRIPTION')
+  formdata.append('amount', amount)
+  formdata.append('membershipLevel', membershipLevel)
 
   const requestOptions = {
     method: 'POST',
@@ -671,9 +670,9 @@ export async function createSubscriptionOrder({ token, amount, membershipLevel }
 export async function createRechargeOrder({ token, amount, rechargePoints }) {
   const myHeaders = buildAuthHeaders(token)
   const formdata = new FormData()
-  formdata.append("orderType", "RECHARGE")
-  formdata.append("amount", amount)
-  formdata.append("rechargePoints", rechargePoints)
+  formdata.append('orderType', 'RECHARGE')
+  formdata.append('amount', amount)
+  formdata.append('rechargePoints', rechargePoints)
 
   const requestOptions = {
     method: 'POST',
@@ -767,35 +766,35 @@ export async function getPaymentOrderStatus({ token, orderNo }) {
 
 // POST 支付宝回调-失败用例(验签不通过)
 export async function alipayNotifyFailure({ app_id, orderNo_sub }) {
-  const myHeaders = new Headers();
-  myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
+  const myHeaders = new Headers()
+  myHeaders.append('Content-Type', 'application/x-www-form-urlencoded')
 
-  const urlencoded = new URLSearchParams();
-  urlencoded.append("notify_time", "2025-12-16 12:00:00");
-  urlencoded.append("notify_type", "trade_status_sync");
-  urlencoded.append("notify_id", "fake-notify-id-001");
-  urlencoded.append("app_id", app_id);
-  urlencoded.append("charset", "UTF-8");
-  urlencoded.append("version", "1.0");
-  urlencoded.append("sign_type", "RSA2");
-  urlencoded.append("sign", "invalid-sign");
-  urlencoded.append("out_trade_no", orderNo_sub);
-  urlencoded.append("subject", "会员订阅");
-  urlencoded.append("trade_no", "2025121600000000");
-  urlencoded.append("trade_status", "TRADE_SUCCESS");
-  urlencoded.append("buyer_id", "2088102122524333");
-  urlencoded.append("seller_id", "2088102122524334");
-  urlencoded.append("total_amount", "9.90");
-  urlencoded.append("receipt_amount", "9.90");
-  urlencoded.append("gmt_create", "2025-12-16 11:59:00");
-  urlencoded.append("gmt_payment", "2025-12-16 12:00:00");
+  const urlencoded = new URLSearchParams()
+  urlencoded.append('notify_time', '2025-12-16 12:00:00')
+  urlencoded.append('notify_type', 'trade_status_sync')
+  urlencoded.append('notify_id', 'fake-notify-id-001')
+  urlencoded.append('app_id', app_id)
+  urlencoded.append('charset', 'UTF-8')
+  urlencoded.append('version', '1.0')
+  urlencoded.append('sign_type', 'RSA2')
+  urlencoded.append('sign', 'invalid-sign')
+  urlencoded.append('out_trade_no', orderNo_sub)
+  urlencoded.append('subject', '会员订阅')
+  urlencoded.append('trade_no', '2025121600000000')
+  urlencoded.append('trade_status', 'TRADE_SUCCESS')
+  urlencoded.append('buyer_id', '2088102122524333')
+  urlencoded.append('seller_id', '2088102122524334')
+  urlencoded.append('total_amount', '9.90')
+  urlencoded.append('receipt_amount', '9.90')
+  urlencoded.append('gmt_create', '2025-12-16 11:59:00')
+  urlencoded.append('gmt_payment', '2025-12-16 12:00:00')
 
   const requestOptions = {
     method: 'POST',
     headers: myHeaders,
     body: urlencoded,
     redirect: 'follow'
-  };
+  }
 
   const res = await fetch(`${BASE_URL}/api/payment/alipay/notify`, requestOptions)
   return res.text()
@@ -803,36 +802,36 @@ export async function alipayNotifyFailure({ app_id, orderNo_sub }) {
 
 // POST 支付宝回调-成功用例(需真实签名)
 export async function alipayNotifySuccess({ app_id, sign, orderNo_sub, trade_no }) {
-   const myHeaders = new Headers();
-   myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
+  const myHeaders = new Headers()
+  myHeaders.append('Content-Type', 'application/x-www-form-urlencoded')
 
-   const urlencoded = new URLSearchParams();
-   urlencoded.append("notify_time", "2025-12-16 12:00:00");
-   urlencoded.append("notify_type", "trade_status_sync");
-   urlencoded.append("notify_id", "valid-notify-id-001");
-   urlencoded.append("app_id", app_id);
-   urlencoded.append("charset", "UTF-8");
-   urlencoded.append("version", "1.0");
-   urlencoded.append("sign_type", "RSA2");
-   urlencoded.append("sign", sign);
-   urlencoded.append("out_trade_no", orderNo_sub);
-   urlencoded.append("subject", "会员订阅");
-   urlencoded.append("trade_no", trade_no);
-   urlencoded.append("trade_status", "TRADE_SUCCESS");
-   urlencoded.append("buyer_id", "2088102122524333");
-   urlencoded.append("seller_id", "2088102122524334");
-   urlencoded.append("total_amount", "9.90");
-   urlencoded.append("receipt_amount", "9.90");
-   urlencoded.append("gmt_create", "2025-12-16 11:59:00");
-   urlencoded.append("gmt_payment", "2025-12-16 12:00:00");
+  const urlencoded = new URLSearchParams()
+  urlencoded.append('notify_time', '2025-12-16 12:00:00')
+  urlencoded.append('notify_type', 'trade_status_sync')
+  urlencoded.append('notify_id', 'valid-notify-id-001')
+  urlencoded.append('app_id', app_id)
+  urlencoded.append('charset', 'UTF-8')
+  urlencoded.append('version', '1.0')
+  urlencoded.append('sign_type', 'RSA2')
+  urlencoded.append('sign', sign)
+  urlencoded.append('out_trade_no', orderNo_sub)
+  urlencoded.append('subject', '会员订阅')
+  urlencoded.append('trade_no', trade_no)
+  urlencoded.append('trade_status', 'TRADE_SUCCESS')
+  urlencoded.append('buyer_id', '2088102122524333')
+  urlencoded.append('seller_id', '2088102122524334')
+  urlencoded.append('total_amount', '9.90')
+  urlencoded.append('receipt_amount', '9.90')
+  urlencoded.append('gmt_create', '2025-12-16 11:59:00')
+  urlencoded.append('gmt_payment', '2025-12-16 12:00:00')
 
-   const requestOptions = {
+  const requestOptions = {
     method: 'POST',
     headers: myHeaders,
     body: urlencoded,
     redirect: 'follow'
-  };
-  
+  }
+
   const res = await fetch(`${BASE_URL}/api/payment/alipay/notify`, requestOptions)
   return res.text()
 }
@@ -1117,7 +1116,7 @@ export async function updateAvatarAndNickname({ token, imageFile, nickname }) {
   const formdata = new FormData()
   if (imageFile) formdata.append('imageFile', imageFile)
   if (nickname) formdata.append('nickname', nickname)
-  
+
   const requestOptions = {
     method: 'POST',
     headers,
@@ -1506,6 +1505,41 @@ export async function deleteConversation({ conversationId, token }) {
   return res.text()
 }
 
+export async function uploadBackgroundMusic({ videoId, musicFile, filename, token }) {
+  const url = `${BASE_URL}/detail/upload/background-music`
+  const headers = buildAuthHeaders(token)
+  const form = new FormData()
+  form.append('videoId', String(videoId))
+  if (filename) {
+    form.append('musicFile', musicFile, String(filename))
+  } else {
+    form.append('musicFile', musicFile)
+  }
+  const requestOptions = { method: 'POST', headers, body: form, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
+// 查询-视频作品详情（GET
+export async function getWorksVideoDetail({ id, token }) {
+  const url = `${BASE_URL}/detail/works/video/detail?id=${encodeURIComponent(id)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
 export default {
   scriptModifyStream,
   storyboardPictureGenStream,
@@ -1548,6 +1582,8 @@ export default {
   , objectDetectionByWork
   , digitalhumanGenByWork
   , uploadStoryboardVoiceoverAudio
+  , uploadBackgroundMusic
+  , getWorksVideoDetail
   , getBillingEstimate
   , updateSceneStream
   , getNotificationsList

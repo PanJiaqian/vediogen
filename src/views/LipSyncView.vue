@@ -390,7 +390,7 @@ export default {
   .right-panel {
     width: 350px;
   }
-  
+
   .left-panel {
     padding: 30px;
   }
@@ -400,7 +400,7 @@ export default {
   .right-panel {
     width: 320px;
   }
-  
+
   .scene-preview {
     max-width: 500px;
   }
@@ -410,7 +410,7 @@ export default {
   .main-content {
     flex-direction: column;
   }
-  
+
   .left-panel {
     flex: none;
     height: 50vh;
@@ -418,20 +418,20 @@ export default {
     border-bottom: 1px solid var(--border-secondary);
     padding: 20px;
   }
-  
+
   .right-panel {
     width: 100%;
     flex: 1;
   }
-  
+
   .scene-preview {
     max-width: 350px;
   }
-  
+
   .scene-title {
     font-size: 20px;
   }
-  
+
   .scene-description {
     font-size: 14px;
   }
@@ -442,23 +442,23 @@ export default {
     padding: 15px;
     height: 45vh;
   }
-  
+
   .scene-preview {
     max-width: 280px;
   }
-  
+
   .scene-title {
     font-size: 18px;
   }
-  
+
   .scene-description {
     font-size: 13px;
   }
-  
+
   .top-navbar {
     padding: 0 15px;
   }
-  
+
   .navbar-btn {
     padding: 6px 12px;
     font-size: 13px;

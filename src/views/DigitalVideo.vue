@@ -1,7 +1,7 @@
 <template>
   <div v-if="isSceneLipSyncMode" class="lip-sync-full-page" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:var(--bg-primary);">
-    <LipSyncView 
-      @close="goBack" 
+    <LipSyncView
+      @close="goBack"
       @task-created="onLipSyncTaskCreated"
       :imageUrl="lipSyncImageUrl"
       :sceneTitle="$route.query.sceneTitle || ''"
@@ -56,7 +56,7 @@
 
     <ToneSelector v-if="showToneSelector" :visible="true" @close="showToneSelector = false" @select="handleToneSelect"
       :token="userStore.token" modelName="qwen3-TTS-Flash" />
-    
+
     <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
     <PointsModal :visible="showPointsModal" :userInfo="mergedUserInfo" @close="showPointsModal = false" />
     <InviteModal :visible="showInviteModal" @close="showInviteModal = false" :token="userStore.token" />
@@ -633,14 +633,14 @@
                   </div>
                 </div>
                 <div class="tracks-row bgm-row">
-                  <button class="audio-btn bgm-button" :style="getBgmTrackStyle()">
+                  <!-- <button class="audio-btn bgm-button" :style="getBgmTrackStyle()">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                       <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
                       <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
                         stroke-width="2" />
                     </svg>
                     背景音乐
-                  </button>
+                  </button> -->
                 </div>
               </div>
               <!-- 播放进度指示器 -->
@@ -660,7 +660,7 @@
       :imageUrl="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
       :durationMs="(scenes[activeSceneIndex] && scenes[activeSceneIndex].clips && scenes[activeSceneIndex].clips[0] && Number(scenes[activeSceneIndex].clips[0].durationMs)) || 5000"
       @close="closeCropModal" @apply="applyCropSelection" />
-      
+
     <input ref="digitalHumanImageInput" type="file" accept="image/*" style="display:none" @change="handleDigitalHumanImageSelected" />
 
     <div v-if="showImageCropModal" class="crop-modal-overlay" @click.self="cancelImageCrop">
@@ -717,7 +717,7 @@
     </div>
   </div>
 
-  
+
 </template>
 
 <script>
@@ -904,8 +904,8 @@ export default {
       if (this.lipSyncVideoId && this.lipSyncShotId && token) {
         objectDetectionByScene({ videoId: this.lipSyncVideoId, shotId: this.lipSyncShotId, token })
           .then(detResp => {
-             const obj = typeof detResp === 'string' ? (() => { try { return JSON.parse(detResp) } catch { return null } })() : detResp
-             this.lipSyncDetection = obj || null
+            const obj = typeof detResp === 'string' ? (() => { try { return JSON.parse(detResp) } catch { return null } })() : detResp
+            this.lipSyncDetection = obj || null
           })
           .catch(() => { this.lipSyncDetection = null })
       }
@@ -928,7 +928,7 @@ export default {
       this.isVideoGenerating = true
       this.sceneDetail = { reference_image_url: '', video_url: '', audio_url: '' }
       const token = (this.userStore && this.userStore.token) || ''
-      const poll = async () => {
+      const poll = async() => {
         try {
           const resp = await digitalhumanQuery({ taskId, token })
           const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
@@ -950,7 +950,7 @@ export default {
             const imageUrl = this.cleanUrl(String(img || ''))
             const audioUrl = this.cleanUrl(String(aud || ''))
             this.sceneDetail = { reference_image_url: imageUrl, video_url: videoUrl, audio_url: audioUrl }
-            let clipUrl = videoUrl || imageUrl
+            const clipUrl = videoUrl || imageUrl
             let durMs = 5000
             if (videoUrl) {
               try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 }
@@ -1222,7 +1222,7 @@ export default {
       this.isVideoGenerating = true
       this.sceneDetail = { reference_image_url: '', video_url: '', audio_url: '' }
       const token = (this.userStore && this.userStore.token) || ''
-      const poll = async () => {
+      const poll = async() => {
         try {
           const resp = await digitalhumanQuery({ taskId, token })
           const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
@@ -1246,7 +1246,7 @@ export default {
             const imageUrl = this.cleanUrl(String(img || ''))
             const audioUrl = this.cleanUrl(String(aud || ''))
             this.sceneDetail = { reference_image_url: imageUrl, video_url: videoUrl, audio_url: audioUrl }
-            let clipUrl = videoUrl || imageUrl
+            const clipUrl = videoUrl || imageUrl
             let durMs = 5000
             if (videoUrl) {
               try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 }
@@ -1297,7 +1297,7 @@ export default {
       this.isVideoGenerating = true
       this.sceneDetail = { reference_image_url: '', video_url: '', audio_url: '' }
       const token = (this.userStore && this.userStore.token) || ''
-      const poll = async () => {
+      const poll = async() => {
         try {
           const resp = await digitalhumanQuery({ taskId, token })
           const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
@@ -1321,7 +1321,7 @@ export default {
             const imageUrl = this.cleanUrl(String(img || ''))
             const audioUrl = this.cleanUrl(String(aud || ''))
             this.sceneDetail = { reference_image_url: imageUrl, video_url: videoUrl, audio_url: audioUrl }
-            let clipUrl = videoUrl || imageUrl
+            const clipUrl = videoUrl || imageUrl
             let durMs = 5000
             if (videoUrl) {
               try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 }
@@ -1456,7 +1456,7 @@ export default {
           }
           let durMs = 5000
           if (hasVideo && videoUrl) { try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 } }
-          const scene = { id: i + 1, title: '分镜' + (i + 1), description: '数字人视频', thumbnail: img || clipUrl, clips: [{ url: clipUrl, durationMs: durMs }], video_url: videoUrl, hasVideo, order_index: i + 1, audio_url: aud, work_id: wid }
+          const scene = { id: i + 1, title: `分镜${  i + 1}`, description: '数字人视频', thumbnail: img || clipUrl, clips: [{ url: clipUrl, durationMs: durMs }], video_url: videoUrl, hasVideo, order_index: i + 1, audio_url: aud, work_id: wid }
           scenes.push(scene)
           try {
             if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
@@ -1493,7 +1493,7 @@ export default {
         if (this._digitalHumanWorksPollInterval) { clearInterval(this._digitalHumanWorksPollInterval); this._digitalHumanWorksPollInterval = null }
       } catch (e) { /* no-op */ }
       let remaining = 60
-      const tick = async () => {
+      const tick = async() => {
         try {
           if (!Array.isArray(this.scenes) || this.scenes.length === 0) return
           const token = (this.userStore && this.userStore.token) || ''
@@ -1562,7 +1562,7 @@ export default {
       try {
         if (this.digitalHumanConversationInterval) { clearInterval(this.digitalHumanConversationInterval); this.digitalHumanConversationInterval = null }
       } catch (e) { /* no-op */ }
-      const poll = async () => {
+      const poll = async() => {
         try {
           const token = (this.userStore && this.userStore.token) || ''
           const text = await getDigitalHumanWorksByConversation({ conversationId, token })
@@ -1590,31 +1590,31 @@ export default {
             const img = this.cleanUrl(String(it.image_url || ''))
             const aud = this.cleanUrl(String(it.audio_url || ''))
             let videoUrl = ''
-          let hasVideo = false
-          let clipUrl = ''
-          if (isExplicitNull) {
-            videoUrl = null
-            hasVideo = false
-            clipUrl = img
-            anyPending = true
-          } else if (isNoVideo) {
-            videoUrl = ''
-            hasVideo = false
-            clipUrl = img
-          } else if (vClean) {
-            videoUrl = vClean
-            hasVideo = true
-            clipUrl = vClean
-          } else {
-            videoUrl = ''
-            hasVideo = false
-            clipUrl = img
-            anyPending = true
-          }
-          let durMs = 5000
-          if (hasVideo && videoUrl) { try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 } }
-          sc.thumbnail = img || sc.thumbnail || clipUrl
-          sc.video_url = videoUrl
+            let hasVideo = false
+            let clipUrl = ''
+            if (isExplicitNull) {
+              videoUrl = null
+              hasVideo = false
+              clipUrl = img
+              anyPending = true
+            } else if (isNoVideo) {
+              videoUrl = ''
+              hasVideo = false
+              clipUrl = img
+            } else if (vClean) {
+              videoUrl = vClean
+              hasVideo = true
+              clipUrl = vClean
+            } else {
+              videoUrl = ''
+              hasVideo = false
+              clipUrl = img
+              anyPending = true
+            }
+            let durMs = 5000
+            if (hasVideo && videoUrl) { try { durMs = await this.measureVideoDurationMs(videoUrl) } catch (e) { durMs = 5000 } }
+            sc.thumbnail = img || sc.thumbnail || clipUrl
+            sc.video_url = videoUrl
             sc.hasVideo = !!hasVideo
             sc.audio_url = aud
             sc.clips = [{ url: clipUrl || img, durationMs: durMs }]
@@ -1622,13 +1622,13 @@ export default {
               if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
               if (clipUrl) this.durationMap.set(clipUrl, durMs)
               if (hasVideo && videoUrl && clipUrl !== videoUrl) this.durationMap.set(videoUrl, durMs)
-          } catch (e) { /* no-op */ }
-          const k = this.getSceneKey(sc, idx)
-          if (isExplicitNull || (!isNoVideo && !vClean)) {
-            if (this.pendingVideoSet instanceof Set) { this.pendingVideoSet.add(k); this.pendingVideoSet = new Set(this.pendingVideoSet) }
-          } else {
-            if (this.pendingVideoSet instanceof Set) { this.pendingVideoSet.delete(k); this.pendingVideoSet = new Set(this.pendingVideoSet) }
-          }
+            } catch (e) { /* no-op */ }
+            const k = this.getSceneKey(sc, idx)
+            if (isExplicitNull || (!isNoVideo && !vClean)) {
+              if (this.pendingVideoSet instanceof Set) { this.pendingVideoSet.add(k); this.pendingVideoSet = new Set(this.pendingVideoSet) }
+            } else {
+              if (this.pendingVideoSet instanceof Set) { this.pendingVideoSet.delete(k); this.pendingVideoSet = new Set(this.pendingVideoSet) }
+            }
             if (this.activeSceneIndex === idx) {
               const v = videoUrl === null ? '' : videoUrl
               const ref = img || clipUrl || ''
@@ -1713,7 +1713,7 @@ export default {
             this.toastVisible = true
             setTimeout(() => { this.toastVisible = false }, 2000)
           } else {
-            this.toastText = '修改失败: ' + (obj ? (obj.message || obj.msg) : '未知错误')
+            this.toastText = `修改失败: ${  obj ? (obj.message || obj.msg) : '未知错误'}`
             this.toastVisible = true
             setTimeout(() => { this.toastVisible = false }, 2000)
           }
@@ -1736,7 +1736,7 @@ export default {
       return null
     },
     async tryAttachHls() {
-      return
+
     },
     initTimelineSync() {
       const tracks = this.$refs.timelineTracks
@@ -1835,9 +1835,9 @@ export default {
     },
     getSceneKey(scene, index) {
       const sn = String((scene && scene.scene_number) || '').trim()
-      if (sn) return 'sn:' + sn
+      if (sn) return `sn:${  sn}`
       const id = String((scene && scene.id) || index)
-      return 'id:' + id
+      return `id:${  id}`
     },
     isSceneUpdating(scene, index) {
       const set = this.updatingKeySet instanceof Set ? this.updatingKeySet : null
@@ -2259,8 +2259,8 @@ export default {
           if (audioUrl) {
             if (this.$set) this.$set(scene, 'audio_url', audioUrl); else scene.audio_url = audioUrl
             if (idx === this.activeSceneIndex) {
-               this.sceneDetail = Object.assign({}, this.sceneDetail, { audio_url: audioUrl })
-               this.syncPreviewPlayback()
+              this.sceneDetail = Object.assign({}, this.sceneDetail, { audio_url: audioUrl })
+              this.syncPreviewPlayback()
             }
           }
           const duration = Number(item.duration) ? Number(item.duration) * 1000 : undefined
@@ -2348,13 +2348,13 @@ export default {
       const clips = this.getSceneClips(scene)
       const total = clips.reduce((sum, c) => sum + (Number(c.durationMs) || 5000), 0) || 1
       const widthPct = Math.max(2, Math.round(((Number(clip.durationMs) || 5000) / total) * 100))
-      return { width: widthPct + '%', minWidth: '28px' }
+      return { width: `${widthPct  }%`, minWidth: '28px' }
     },
     onPreviewImgError() {
       this.previewImgErrored = true
     },
     getClipKey(index, cidx) {
-      return String(index) + ':' + String(cidx)
+      return `${String(index)  }:${  String(cidx)}`
     },
     isClipImgErrored(index, cidx) {
       const k = this.getClipKey(index, cidx)
@@ -2525,7 +2525,7 @@ export default {
       let absolutePx = relX - tracks.offsetLeft + tracks.scrollLeft
       if (!Number.isFinite(absolutePx)) absolutePx = 0
       const totalSeconds = this.getTotalSeconds()
-      let elapsedSec = Math.max(0, Math.min(totalSeconds, absolutePx / pxPerSecond))
+      const elapsedSec = Math.max(0, Math.min(totalSeconds, absolutePx / pxPerSecond))
       this.playbackPosition = totalSeconds > 0 ? (elapsedSec / totalSeconds) * 100 : 0
       this.playbackLeftPx = tracks.offsetLeft + (elapsedSec * pxPerSecond) - tracks.scrollLeft
       let idx = 0
@@ -2663,7 +2663,7 @@ export default {
     clearClipErrorsForIndex(i) {
       try {
         const keys = Object.keys(this.clipImgErrorMap || {})
-        const prefix = String(i) + ':'
+        const prefix = `${String(i)  }:`
         for (const k of keys) { if (k.indexOf(prefix) === 0) { if (this.$delete) this.$delete(this.clipImgErrorMap, k); else delete this.clipImgErrorMap[k] } }
       } catch (e) { void 0 }
     },
@@ -3016,7 +3016,7 @@ export default {
         if (!taskId) { this.isVoiceLoading = false; this.toastText = '语音任务创建失败'; this.toastVisible = true; setTimeout(() => { this.toastVisible = false }, 2000); return }
         this.voiceAuditionTaskId = taskId
         if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { void 0 } this.voicePollTimer = null }
-        this.voicePollTimer = setInterval(async () => {
+        this.voicePollTimer = setInterval(async() => {
           try {
             const q = await aliTtsQuery({ taskId, token })
             const obj = typeof q === 'string' ? (() => { try { return JSON.parse(q) } catch { return null } })() : q
@@ -3207,7 +3207,7 @@ export default {
       if (audioUrl) {
         const aUrl = this.cleanUrl(audioUrl)
         if (sc) {
-           if (this.$set) this.$set(sc, 'audio_url', aUrl); else sc.audio_url = aUrl
+          if (this.$set) this.$set(sc, 'audio_url', aUrl); else sc.audio_url = aUrl
         }
         this.sceneDetail = Object.assign({}, this.sceneDetail, { audio_url: aUrl })
         this.$nextTick(() => { this.syncPreviewPlayback() })
@@ -3218,7 +3218,7 @@ export default {
       this.pendingVideoSet = new Set(this.pendingVideoSet)
       const token = (this.userStore && this.userStore.token) || ''
       let remaining = 20
-      const poll = async () => {
+      const poll = async() => {
         try {
           const resp = await digitalhumanQuery({ taskId, token })
           const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
@@ -3255,15 +3255,15 @@ export default {
                   sc.hasVideo = false
                 }
                 // 保留 audio_url (可能用户刚上传的)
+              }
+              this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: '', reference_image_url: img })
+              this.$nextTick(() => { this.syncPreviewPlayback() })
             }
-            this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: '', reference_image_url: img })
-            this.$nextTick(() => { this.syncPreviewPlayback() })
-          }
-          this.toastText = '生成失败'
-          this.toastVisible = true
-          this.previewImgErrored = true
-          setTimeout(() => { this.toastVisible = false }, 2000)
-        } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
+            this.toastText = '生成失败'
+            this.toastVisible = true
+            this.previewImgErrored = true
+            setTimeout(() => { this.toastVisible = false }, 2000)
+          } else if ((s === 'succeeded' || s === 'completed') && (vid || img)) {
             const videoUrl = this.cleanUrl(String(vid || ''))
             const imageUrl = this.cleanUrl(String(img || ''))
             const audioUrl = this.cleanUrl(String(aud || ''))
@@ -3649,22 +3649,22 @@ export default {
         const conversationId = (this.$route.query && this.$route.query.conversationId) || '286'
         const res = await uploadDigitalHumanWorkImage({ conversationId, imageFile: file, token })
         if (res && res.code === 0 && res.data && res.data.success) {
-           const imageUrl = this.cleanUrl(res.data.image_url)
-           const workId = res.data.work_id
-           const sc = this.scenes[this.activeSceneIndex]
-           if (sc) {
-             sc.isBlank = false
-             sc.thumbnail = imageUrl
-             sc.work_id = workId
-             sc.clips = [{ url: imageUrl, durationMs: 5000 }]
-             this.sceneDetail = Object.assign({}, this.sceneDetail, { reference_image_url: imageUrl, video_url: '' })
-             this.ensurePreviewFromScenes()
-           }
-           this.showImageCropModal = false
-           this.toastText = '上传成功'
-           setTimeout(() => { this.toastVisible = false }, 1500)
+          const imageUrl = this.cleanUrl(res.data.image_url)
+          const workId = res.data.work_id
+          const sc = this.scenes[this.activeSceneIndex]
+          if (sc) {
+            sc.isBlank = false
+            sc.thumbnail = imageUrl
+            sc.work_id = workId
+            sc.clips = [{ url: imageUrl, durationMs: 5000 }]
+            this.sceneDetail = Object.assign({}, this.sceneDetail, { reference_image_url: imageUrl, video_url: '' })
+            this.ensurePreviewFromScenes()
+          }
+          this.showImageCropModal = false
+          this.toastText = '上传成功'
+          setTimeout(() => { this.toastVisible = false }, 1500)
         } else {
-           throw new Error((res && res.message) || 'Upload failed')
+          throw new Error((res && res.message) || 'Upload failed')
         }
       } catch (e) {
         console.error(e)
@@ -3680,10 +3680,10 @@ export default {
         const conversationId = (this.$route.query && this.$route.query.conversationId) || '286'
         const res = await objectDetectionByWork({ conversationId, workId, token })
         if (res && res.success) {
-           const sc = this.scenes[this.activeSceneIndex]
-           if (sc) {
-             sc.mask_url = res.maskurl
-           }
+          const sc = this.scenes[this.activeSceneIndex]
+          if (sc) {
+            sc.mask_url = res.maskurl
+          }
         }
       } catch (e) {
         console.error('Object detection error:', e)
@@ -3713,24 +3713,24 @@ export default {
         const workId = sc.work_id
         const audioUrl = sc.audio_url
         if (!sc.mask_url) {
-           await this.triggerObjectDetection(workId)
+          await this.triggerObjectDetection(workId)
         }
         const finalMaskUrl = sc.mask_url || sc.thumbnail
         const res = await digitalhumanGenByWork({ conversationId, workId, audioUrl, maskUrls: finalMaskUrl, maskUrlsAlt: 'source', token })
         if (res && res.success === false) {
-           this.toastText = String(res.message || '生成失败')
-           this.toastVisible = true
-           setTimeout(() => { this.toastVisible = false }, 2000)
-           return
+          this.toastText = String(res.message || '生成失败')
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
         }
         if (res && res.success) {
-           this.toastText = '视频生成任务已提交'
-           setTimeout(() => { this.toastVisible = false }, 1500)
-           if (res.task_id) {
-             this.onLipSyncTaskCreated(res.task_id)
-           }
+          this.toastText = '视频生成任务已提交'
+          setTimeout(() => { this.toastVisible = false }, 1500)
+          if (res.task_id) {
+            this.onLipSyncTaskCreated(res.task_id)
+          }
         } else {
-           throw new Error((res && res.message) || 'Generation failed')
+          throw new Error((res && res.message) || 'Generation failed')
         }
       } catch (e) {
         console.error(e)
@@ -3798,20 +3798,20 @@ export default {
             const t0 = Math.max(0, (priorMs - acc0) / 1000)
             try { audioEl.currentTime = t0 } catch (e) { void 0 }
             try { audioEl.muted = false; audioEl.volume = 1 } catch (e) { void 0 }
-            
-            const readyPlay = () => { 
-              try { 
+
+            const readyPlay = () => {
+              try {
                 const p = audioEl.play()
-                if (p && p.catch) p.catch(() => {}) 
-              } catch (e) { void 0 } 
+                if (p && p.catch) p.catch(() => {})
+              } catch (e) { void 0 }
             }
 
             if (audioEl.readyState >= 2) {
               readyPlay()
             } else {
-              const onCanPlay = () => { 
-                try { audioEl.removeEventListener('canplay', onCanPlay) } catch(e) { void 0 }
-                readyPlay() 
+              const onCanPlay = () => {
+                try { audioEl.removeEventListener('canplay', onCanPlay) } catch (e) { void 0 }
+                readyPlay()
               }
               try { audioEl.addEventListener('canplay', onCanPlay, { once: true }) } catch (e) { void 0 }
               // 备用：如果 canplay 不触发（已加载完毕?），尝试直接播放
@@ -3822,11 +3822,11 @@ export default {
       } catch (e) { console.warn('Audio start error:', e) }
 
       this.syncPreviewPlayback()
-      
+
       const start = performance.now() - priorMs
       if (this._playbackInterval) clearInterval(this._playbackInterval)
       if (this._rafId) cancelAnimationFrame(this._rafId)
-      
+
       const el = this.$refs.previewVideo
       if (el && this.isVideo(this.currentPreviewUrl)) {
         // 如果视频源正确，尝试播放；否则由 tick 循环处理
@@ -3861,7 +3861,7 @@ export default {
           }
           this.maybeLoadDigitalHumanForScene(idx)
         }
-        
+
         // Audio sync
         const audioEl = this.$refs.previewAudio
         if (audioEl && audioEl.src) {
@@ -3869,18 +3869,18 @@ export default {
           const actualMs = Math.round(this.getActualSceneSeconds(scene) * 1000)
           const sceneElapsedMs = clamped - acc
           if (Number(actualMs) > 0 && sceneElapsedMs >= actualMs) {
-             try { audioEl.pause() } catch (e) { void 0 }
+            try { audioEl.pause() } catch (e) { void 0 }
           } else {
-             const t = Math.max(0, sceneElapsedMs / 1000)
-             if (Math.abs(audioEl.currentTime - t) > 0.3) {
-                try { audioEl.currentTime = t } catch(e) { void 0 }
-             }
-             if (audioEl.paused && this.isPlaying) {
-                try { 
-                  const p = audioEl.play() 
-                  if (p && p.catch) p.catch(() => {})
-                } catch(e) { void 0 }
-             }
+            const t = Math.max(0, sceneElapsedMs / 1000)
+            if (Math.abs(audioEl.currentTime - t) > 0.3) {
+              try { audioEl.currentTime = t } catch (e) { void 0 }
+            }
+            if (audioEl.paused && this.isPlaying) {
+              try {
+                const p = audioEl.play()
+                if (p && p.catch) p.catch(() => {})
+              } catch (e) { void 0 }
+            }
           }
         }
 
@@ -3938,11 +3938,11 @@ export default {
         cancelAnimationFrame(this._rafId)
         this._rafId = null
       }
-      
+
       // Reset audio when playback stops naturally
       const audioEl = this.$refs.previewAudio
       if (audioEl) {
-        try { 
+        try {
           audioEl.pause()
           audioEl.currentTime = 0
         } catch (e) { void 0 }
@@ -4058,7 +4058,7 @@ export default {
           this.lipSyncShotId = shotId
           this.lipSyncWorkId = ''
           if (videoId && shotId && token) {
-            Promise.resolve().then(async () => {
+            Promise.resolve().then(async() => {
               try {
                 const detResp = await objectDetectionByScene({ videoId, shotId, token })
                 const obj = typeof detResp === 'string' ? (() => { try { return JSON.parse(detResp) } catch { return null } })() : detResp
@@ -5899,7 +5899,6 @@ input:checked+.slider:before {
   min-width: 40px;
   text-align: right;
 }
-
 
 
 /* 应用修改按钮 */

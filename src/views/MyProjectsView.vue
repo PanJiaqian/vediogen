@@ -72,7 +72,7 @@ export default {
       activeTab: 'story',
       tabs: [
         { id: 'story', name: '故事' },
-        { id: 'avatar', name: '数字人' }
+        // { id: 'avatar', name: '数字人' }
       ],
       storyProjects: [],
       avatarProjects: [],
