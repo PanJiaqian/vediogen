@@ -1,11 +1,17 @@
 export function cleanUrl(u) {
-  const str = (u || '').toString().trim()
-  return str
+  let str = (u || '').toString().trim()
+  str = str
     .replace(/^`+|`+$/g, '')
     .replace(/\\`/g, '')
     .replace(/"/g, '')
     .replace(/'/g, '')
     .trim()
+  str = str.replace(/^(https?|wss?|ws|ftp):\/(?!\/)/i, m => m.slice(0, -1) + '//')
+  str = str.replace(/^(https?|wss?|ws|ftp):\/\/+/i, (_, p1) => `${p1}://`)
+  if (typeof window !== 'undefined' && window.location && window.location.protocol === 'https:' && /^http:\/\//i.test(str)) {
+    str = str.replace(/^http:\/\//i, 'https://')
+  }
+  return str
 }
 
 export function isGenerateFailed(u) {

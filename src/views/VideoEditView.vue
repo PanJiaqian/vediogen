@@ -1450,6 +1450,7 @@ export default {
           this.musicAudioUrl = url
           this.musicAudioName = '背景音乐'
           const el = new Audio(url)
+          try { el.crossOrigin = 'anonymous' } catch (e) { void 0 }
           el.addEventListener('loadedmetadata', () => { this.musicAudioDuration = Number(el.duration) || 0 })
           el.addEventListener('timeupdate', () => { this.musicCurrentTime = Number(el.currentTime) || 0 })
           el.addEventListener('ended', () => { this.musicPlaying = false })
@@ -1978,6 +1979,7 @@ export default {
         this.musicAudioUrl = url
         this.musicAudioName = String(f.name || '音乐')
         const el = new Audio(url)
+        try { el.crossOrigin = 'anonymous' } catch (e) { void 0 }
         el.addEventListener('loadedmetadata', () => { this.musicAudioDuration = Number(el.duration) || 0 })
         el.addEventListener('timeupdate', () => { this.musicCurrentTime = Number(el.currentTime) || 0 })
         el.addEventListener('ended', () => { this.musicPlaying = false })
