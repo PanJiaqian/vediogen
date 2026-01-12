@@ -3,61 +3,61 @@ export const ART_STYLES = [
     id: 1,
     name: '2D日漫风格',
     description: '典型的日本二维动画风格，具有鲜明的线条、大眼睛、鲜艳配色和赛璐璐着色（cel shading），常见于电视动画和漫画插画。',
-    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/2D日漫风格.png'
+    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/2D日漫风格.webp'
   },
   {
     id: 2,
     name: '3D动画风格',
     description: '采用三维建模并以卡通渲染（如三渲二）呈现的角色风格，兼具立体感与动漫美感，代表作品包括《原神》《蜘蛛侠：平行宇宙》。',
-    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/3D动画风格.png'
+    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/3D动画风格.webp'
   },
   {
     id: 3,
     name: '都市写实风格',
     description: '以真实城市环境为背景的写实人像风格，强调自然光影、皮肤质感和现代服饰，接近摄影效果但带有电影感构图。',
-    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/都市写实风格.png'
+    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/都市写实风格.webp'
   },
   {
     id: 4,
     name: '复古手绘风格',
     description: '模仿20世纪80-90年代手绘动画的质感，带有胶片颗粒、有限色板和粗手绘线稿，如《新世纪福音战士》《猫眼三姐妹》。',
-    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/复古手绘风格.png'
+    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/复古手绘风格.webp'
   },
   {
     id: 5,
     name: '吉卜力风格',
     description: '日本吉卜力工作室特有的手绘动画风格，色彩柔和、背景细腻、充满自然光影与童话氛围，如《千与千寻》《龙猫》。',
-    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/吉卜力风格.png'
+    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/吉卜力风格.webp'
   },
   {
     id: 6,
     name: '赛博朋克',
     description: '未来都市题材，融合霓虹灯光、雨夜街道、高科技低生活氛围，主色调为紫、蓝、青、粉，强调科技与人性冲突。',
-    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/赛博朋克.png'
+    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/赛博朋克.webp'
   },
   {
     id: 7,
     name: '水墨画',
     description: '中国传统水墨风格，以墨色浓淡表现意境，强调留白、笔触流动与写意精神，常用于山水或文人肖像。',
-    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/水墨画.png'
+    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/水墨画.webp'
   },
   {
     id: 8,
     name: '古代风格',
     description: '中国古典人物形象，身着汉服或古装，背景多为庭院、山水或宫殿，融合历史服饰与东方美学，兼具写实与诗意。',
-    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/古代风格.png'
+    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/古代风格.webp'
   },
   {
     id: 9,
     name: '写实生活人像',
     description: '高度逼真的人物肖像，置于咖啡馆、街头、厨房等日常场景中，强调自然光线、真实皮肤质感与生活化动作，追求摄影级细节与沉浸感。',
-    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/写实风格.png'
+    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/写实风格.webp'
   },
   {
     id: 10,
     name: '复古胶片人像',
     description: '画面带有颗粒感、泛黄褪色色调、柔和对比与轻微漏光，结合阳台修收音机、老街杂货店等怀旧生活场景，营造真实而富有年代感的纪实氛围。',
-    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/胶片风格.png'
+    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/胶片风格.webp'
   }
 ]
 

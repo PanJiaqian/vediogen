@@ -670,19 +670,24 @@
                 <div class="voice-setting-content">
                   <div class="subtitle-style-row">
                     <label class="subtitle-style-label">字体</label>
-                    <input v-model="subtitleStyleFamily" class="subtitle-style-input" placeholder="fontFamily">
+                    <select v-model="subtitleStyleFamily" class="subtitle-style-input">
+                      <option v-for="opt in fontFamilyOptions" :key="opt.value || 'default-fam'" :value="opt.value">{{ opt.label }}</option>
+                    </select>
                   </div>
                   <div class="subtitle-style-row">
                     <label class="subtitle-style-label">字重</label>
-                    <input v-model="subtitleStyleFormat" class="subtitle-style-input" placeholder="fontFormat">
+                    <select v-model="subtitleStyleFormat" class="subtitle-style-input">
+                      <option v-for="opt in fontWeightOptions" :key="opt || 'default-wt'" :value="opt">{{ opt || '默认' }}</option>
+                    </select>
                   </div>
                   <div class="subtitle-style-row">
                     <label class="subtitle-style-label">字号</label>
-                    <input v-model="subtitleStyleSize" class="subtitle-style-input" placeholder="如 20px">
+                    <input type="range" min="12" max="80" step="1" :value="parseInt(subtitleStyleSize) || 20" @input="subtitleStyleSize = ($event.target.value + 'px')" class="subtitle-style-input">
+                    <!-- <span style="min-width:44px;text-align:right;">{{ parseInt(subtitleStyleSize) || 20 }}</span> -->
                   </div>
                   <div class="subtitle-style-row">
                     <label class="subtitle-style-label">颜色</label>
-                    <input v-model="subtitleStyleColor" class="subtitle-style-input" placeholder="#ffffff">
+                    <input type="color" v-model="subtitleStyleColor" class="subtitle-style-input">
                   </div>
                 </div>
               </div>
@@ -1287,6 +1292,22 @@ export default {
       , subtitleStateLoading: false
       , subtitleStyleFromApi: false
       , subtitleStyleSaving: false
+      , fontFamilyOptions: [
+        { value: '', label: '默认' },
+        { value: 'PingFang SC', label: '苹方' },
+        { value: 'Microsoft YaHei', label: '微软雅黑' },
+        { value: 'Noto Sans SC', label: '思源黑体' },
+        { value: 'SimHei', label: '黑体' },
+        { value: 'SimSun', label: '宋体' },
+        { value: 'KaiTi', label: '楷体' },
+        { value: 'FangSong', label: '仿宋' },
+        { value: 'Arial', label: 'Arial' },
+        { value: 'Roboto', label: 'Roboto' },
+        { value: 'Times New Roman', label: 'Times New Roman' },
+        { value: 'Georgia', label: 'Georgia' }
+      ]
+      , fontWeightOptions: ['', 'normal', 'bold', '500', '600', '700']
+      , fontSizeOptions: ['16px', '18px', '20px', '24px', '28px', '32px', '36px', '40px', '50px']
       , voiceSceneAudioEl: null
       , voiceSceneAudioUrl: ''
       , voiceSceneAudioDuration: 0
