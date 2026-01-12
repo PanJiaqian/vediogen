@@ -1294,7 +1294,7 @@ export default {
       , subtitleStyleSaving: false
       , fontFamilyOptions: [
         { value: '', label: '默认' },
-        { value: 'PingFang SC', label: '苹方' },
+        // { value: 'PingFang SC', label: '苹方' },
         { value: 'Microsoft YaHei', label: '微软雅黑' },
         { value: 'Noto Sans SC', label: '思源黑体' },
         { value: 'SimHei', label: '黑体' },
