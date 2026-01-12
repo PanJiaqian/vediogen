@@ -35,12 +35,12 @@ export const ART_STYLES = [
     description: '未来都市题材，融合霓虹灯光、雨夜街道、高科技低生活氛围，主色调为紫、蓝、青、粉，强调科技与人性冲突。',
     image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/赛博朋克.webp'
   },
-  {
-    id: 7,
-    name: '水墨画',
-    description: '中国传统水墨风格，以墨色浓淡表现意境，强调留白、笔触流动与写意精神，常用于山水或文人肖像。',
-    image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/水墨画.webp'
-  },
+  // {
+  //   id: 7,
+  //   name: '水墨画',
+  //   description: '中国传统水墨风格，以墨色浓淡表现意境，强调留白、笔触流动与写意精神，常用于山水或文人肖像。',
+  //   image: 'https://www.xydriftcraft.com:1770/uploadfile/artstyle/水墨画.webp'
+  // },
   {
     id: 8,
     name: '古代风格',
