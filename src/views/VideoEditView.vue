@@ -677,7 +677,7 @@
                   <div class="subtitle-style-row">
                     <label class="subtitle-style-label">字重</label>
                     <select v-model="subtitleStyleFormat" class="subtitle-style-input">
-                      <option v-for="opt in fontWeightOptions" :key="opt || 'default-wt'" :value="opt">{{ opt || '默认' }}</option>
+                      <option v-for="opt in fontWeightOptions" :key="opt.value || 'default-wt'" :value="opt.value">{{ opt.label }}</option>
                     </select>
                   </div>
                   <div class="subtitle-style-row">
@@ -758,9 +758,9 @@
               替换
             </button>
             <!-- 字幕叠加层 -->
-            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }" :style="subtitleOverlayStyle">
-              <span v-if="!isEditingSubtitle" @click="startEditSubtitle">
-                {{ scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
+            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || subtitleText || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }" :style="subtitleOverlayStyle">
+              <span v-if="!isEditingSubtitle">
+                {{ subtitleText || scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
               </span>
               <input v-else ref="subtitleInput" v-model="editingSubtitleText" class="subtitle-edit-input" @keyup.enter="saveSubtitleEdit" @blur="saveSubtitleEdit" />
               <button v-if="isEditingSubtitle" class="subtitle-save-btn" @click.stop="saveSubtitleEdit">
@@ -1306,7 +1306,12 @@ export default {
         { value: 'Times New Roman', label: 'Times New Roman' },
         { value: 'Georgia', label: 'Georgia' }
       ]
-      , fontWeightOptions: ['', 'normal', 'bold', '500', '600', '700']
+      , fontWeightOptions: [
+        { value: '', label: '默认' },
+        { value: 'bold', label: '粗' },
+        { value: '500', label: '中' },
+        { value: '300', label: '细' }
+      ]
       , fontSizeOptions: ['16px', '18px', '20px', '24px', '28px', '32px', '36px', '40px', '50px']
       , voiceSceneAudioEl: null
       , voiceSceneAudioUrl: ''
@@ -1647,20 +1652,16 @@ export default {
     },
     subtitleOverlayStyle() {
       const w = Math.max(0, Number(this.subtitleMaxWidthPx) || 0)
-      const base = w ? { maxWidth: w + 'px' } : {}
-      if (this.subtitleStyleFromApi) {
-        const s = { ...base }
-        const fam = String(this.subtitleStyleFamily || '').trim()
-        const fmt = String(this.subtitleStyleFormat || '').trim()
-        const size = String(this.subtitleStyleSize || '').trim()
-        const color = String(this.subtitleStyleColor || '').trim()
-        if (fam) s.fontFamily = fam
-        if (fmt) s.fontWeight = fmt
-        if (size) s.fontSize = size
-        if (color) s.color = color
-        return s
-      }
-      return base
+      const s = w ? { maxWidth: w + 'px' } : {}
+      const fam = String(this.subtitleStyleFamily || '').trim()
+      const fmt = String(this.subtitleStyleFormat || '').trim()
+      const size = String(this.subtitleStyleSize || '').trim()
+      const color = String(this.subtitleStyleColor || '').trim()
+      if (fam) s.fontFamily = fam
+      if (fmt) s.fontWeight = fmt
+      if (size) s.fontSize = size
+      if (color) s.color = color
+      return s
     },
     sortedSceneHistory() {
       const arr = Array.isArray(this.sceneHistory) ? [...this.sceneHistory] : []
@@ -2214,16 +2215,8 @@ export default {
       this.versionPreviewVisible = false
       this.versionPreviewUrl = ''
     },
-    handleVideoContainerClick(e) {
-      if (this.isEditingSubtitle) return
-      const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
-      const hasText = !!(sc && sc.scene_script && sc.scene_script.dialogue_or_narration)
-      if (hasText) return
-      if (!this.subtitleEnabled) return
-      if (this.isVideoConverting || this.isVideoPendingScene(sc, this.activeSceneIndex)) return
-      const t = e && e.target
-      if (t && (t.closest && (t.closest('.replace-btn') || t.closest('.thumb-card') || t.closest('.playback-section') || t.closest('.preview-aside')))) return
-      this.startEditSubtitle()
+    handleVideoContainerClick() {
+      return
     },
     startEditSubtitle() {
       if (this.isEditingSubtitle) return
