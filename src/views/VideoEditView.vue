@@ -562,7 +562,6 @@
                   </button>
                 </div>
               </div>
-              <div v-else class="no-audio-hint">当前分镜暂无配音</div>
 
               <!-- 声音音量区域（已注释） -->
               <!--
