@@ -122,6 +122,15 @@
           </div>
           <span class="tab-label">音乐</span>
         </div>
+        <div class="tab-item" :class="{ active: activeTab === 'subtitle' }" @click="activeTab = 'subtitle'">
+          <div class="tab-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="2"/>
+              <path d="M6 10h12M8 14h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <span class="tab-label">字幕</span>
+        </div>
       </div>
 
       <!-- 左侧区域 -->
@@ -135,6 +144,7 @@
             <span class="scene-type" v-if="activeTab === 'image'">镜头策划</span>
             <span class="scene-type" v-if="activeTab === 'voice'">配音编辑</span>
             <span class="scene-type" v-if="activeTab === 'music'">音乐编辑</span>
+            <span class="scene-type" v-if="activeTab === 'subtitle'">字幕编辑</span>
           </div>
         </div>
 
@@ -529,6 +539,30 @@
                   </svg>
                 </div>
               </div>
+              <div v-if="voiceSceneAudioUrl" class="uploaded-audio-card" style="margin-top:12px;">
+                <button class="audio-icon-btn" @click.stop="toggleVoiceSceneAudio">
+                  <svg v-if="!voiceScenePlaying" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                  <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
+                  </svg>
+                </button>
+                <div class="audio-main">
+                  <div class="audio-title">配音音频</div>
+                  <input class="audio-slider" type="range" min="0" :max="Math.max(1, Math.floor(voiceSceneAudioDuration || 1))" :value="Math.floor(voiceSceneCurrentTime || 0)" @input="seekVoiceSceneAudio">
+                </div>
+                <div class="audio-actions">
+                  <span class="audio-time">{{ formatSec(voiceSceneCurrentTime) }}/{{ formatSec(voiceSceneAudioDuration) }}</span>
+                  <button class="delete-audio-btn" @click.stop="deleteVoiceover">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 6h18M8 6v12m8-12v12M5 6l1-3h12l1 3" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div v-else class="no-audio-hint">当前分镜暂无配音</div>
 
               <!-- 声音音量区域（已注释） -->
               <!--
@@ -605,7 +639,7 @@
                 </div>
                 <div class="audio-actions">
                   <span class="audio-time">{{ formatSec(musicCurrentTime) }}/{{ formatSec(musicAudioDuration) }}</span>
-                  <button class="delete-audio-btn" @click.stop="removeMusicAudio">
+                  <button class="delete-audio-btn" @click.stop="deleteBackgroundMusicByApi">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M3 6h18M8 6v14m8-14v14M10 6l1-2h2l1 2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
@@ -615,6 +649,46 @@
             </div>
             <div class="music-apply-section" v-if="musicAudioUrl">
               <button class="music-apply-btn" @click="uploadBackgroundMusic">上传背景音乐</button>
+            </div>
+          </div>
+
+          <!-- 字幕内容 - 字幕模式 -->
+          <div class="subtitle-content" v-if="activeTab === 'subtitle'">
+            <div class="subtitle-scrollable-content">
+              <div class="voice-setting-item">
+                <div class="voice-setting-header">
+                  <span class="voice-setting-title">字幕文本</span>
+                </div>
+                <div class="voice-setting-content">
+                  <textarea v-model="subtitleText" class="subtitle-textarea" rows="4" placeholder="请输入字幕文本"></textarea>
+                </div>
+              </div>
+              <div class="voice-setting-item" style="margin-top: 16px;">
+                <div class="voice-setting-header">
+                  <span class="voice-setting-title">字幕样式</span>
+                </div>
+                <div class="voice-setting-content">
+                  <div class="subtitle-style-row">
+                    <label class="subtitle-style-label">字体</label>
+                    <input v-model="subtitleStyleFamily" class="subtitle-style-input" placeholder="fontFamily">
+                  </div>
+                  <div class="subtitle-style-row">
+                    <label class="subtitle-style-label">字重</label>
+                    <input v-model="subtitleStyleFormat" class="subtitle-style-input" placeholder="fontFormat">
+                  </div>
+                  <div class="subtitle-style-row">
+                    <label class="subtitle-style-label">字号</label>
+                    <input v-model="subtitleStyleSize" class="subtitle-style-input" placeholder="如 20px">
+                  </div>
+                  <div class="subtitle-style-row">
+                    <label class="subtitle-style-label">颜色</label>
+                    <input v-model="subtitleStyleColor" class="subtitle-style-input" placeholder="#ffffff">
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="voice-apply-section">
+              <button class="voice-apply-btn" @click="applySubtitleText">应用修改</button>
             </div>
           </div>
         </template>
@@ -911,10 +985,14 @@
                 </div>
                 <div class="tracks-row bgm-row">
                   <button class="audio-btn bgm-button" :style="getBgmTrackStyle()">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                    <svg v-if="!musicAudioUrl" width="12" height="12" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                      <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="2" />
+                      <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none">
                       <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
-                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
-                        stroke-width="2" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" />
                     </svg>
                     背景音乐
                   </button>
@@ -1052,7 +1130,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene, uploadBackgroundMusic as uploadBackgroundMusicApi, getWorksVideoDetail } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene, uploadBackgroundMusic as uploadBackgroundMusicApi, getWorksVideoDetail, getSubtitleState, updateSubtitleState, deleteBackgroundMusic as deleteBackgroundMusicApi, deleteAliTts } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -1201,6 +1279,19 @@ export default {
       , musicAudioDuration: 0
       , musicCurrentTime: 0
       , musicPlaying: false
+      , subtitleText: ''
+      , subtitleStyleFamily: ''
+      , subtitleStyleFormat: ''
+      , subtitleStyleSize: '20px'
+      , subtitleStyleColor: '#ffffff'
+      , subtitleStateLoading: false
+      , subtitleStyleFromApi: false
+      , subtitleStyleSaving: false
+      , voiceSceneAudioEl: null
+      , voiceSceneAudioUrl: ''
+      , voiceSceneAudioDuration: 0
+      , voiceSceneCurrentTime: 0
+      , voiceScenePlaying: false
     }
   },
   beforeUnmount() {
@@ -1282,6 +1373,7 @@ export default {
           this.updateTimeMarkers()
           this.sortScenesByServerOrder()
           this.ensurePreviewFromScenes()
+          this.loadSubtitleState()
           this.$nextTick(() => { this.initLeftPanelScript() })
         }
       }
@@ -1296,6 +1388,7 @@ export default {
           this.updateTimeMarkers()
           this.sortScenesByServerOrder()
           this.ensurePreviewFromScenes()
+          this.loadSubtitleState()
           this.$nextTick(() => { this.initLeftPanelScript() })
         }
       }
@@ -1533,7 +1626,20 @@ export default {
     },
     subtitleOverlayStyle() {
       const w = Math.max(0, Number(this.subtitleMaxWidthPx) || 0)
-      return w ? { maxWidth: w + 'px' } : {}
+      const base = w ? { maxWidth: w + 'px' } : {}
+      if (this.subtitleStyleFromApi) {
+        const s = { ...base }
+        const fam = String(this.subtitleStyleFamily || '').trim()
+        const fmt = String(this.subtitleStyleFormat || '').trim()
+        const size = String(this.subtitleStyleSize || '').trim()
+        const color = String(this.subtitleStyleColor || '').trim()
+        if (fam) s.fontFamily = fam
+        if (fmt) s.fontWeight = fmt
+        if (size) s.fontSize = size
+        if (color) s.color = color
+        return s
+      }
+      return base
     },
     sortedSceneHistory() {
       const arr = Array.isArray(this.sceneHistory) ? [...this.sceneHistory] : []
@@ -1708,6 +1814,10 @@ export default {
         const vid = (rawVid === null || this.isModifyingStatus(rawVid)) ? null : this.cleanUrl(rawVid || '')
         const audio = this.cleanUrl((sc && sc.audio_url) || '')
         this.sceneDetail = { reference_image_url: ref, video_url: vid, audio_url: audio }
+        try {
+          const t = sc && sc.scene_script && sc.scene_script.dialogue_or_narration ? String(sc.scene_script.dialogue_or_narration) : ''
+          this.subtitleText = t
+        } catch (e) { void 0 }
         this.syncPreviewPlayback()
       } catch (e) { void 0 }
       // this.$nextTick(() => { this.tryAttachHls() })
@@ -1735,8 +1845,40 @@ export default {
       this.$nextTick(() => { this.updateActiveSceneDurationFromVideo() })
       this.$nextTick(() => { this.updateSubtitleMaxWidth() })
     },
+    'sceneDetail.audio_url'(val) {
+      try {
+        const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+        const explicitNull = ((this.sceneDetail && this.sceneDetail.audio_url === null) || (sc && sc.audio_url === null))
+        const url = explicitNull ? '' : this.cleanUrl((val != null ? val : (sc && sc.audio_url)) || '')
+        if (this.voiceSceneAudioEl) { try { this.voiceSceneAudioEl.pause() } catch (e) { void 0 } this.voiceSceneAudioEl = null }
+        this.voiceSceneAudioUrl = ''
+        this.voiceScenePlaying = false
+        this.voiceSceneAudioDuration = 0
+        this.voiceSceneCurrentTime = 0
+        if (url && !explicitNull) {
+          this.voiceSceneAudioUrl = url
+          const el = new Audio(url)
+          try { el.crossOrigin = 'anonymous' } catch (e) { void 0 }
+          el.addEventListener('loadedmetadata', () => { this.voiceSceneAudioDuration = Number(el.duration) || 0 })
+          el.addEventListener('timeupdate', () => { this.voiceSceneCurrentTime = Number(el.currentTime) || 0 })
+          el.addEventListener('ended', () => { this.voiceScenePlaying = false })
+          this.voiceSceneAudioEl = el
+          this.voiceScenePlaying = false
+        }
+      } catch (e) { void 0 }
+    },
     isConverting(val) {
       if (!val) this.$nextTick(() => { this.initTimelineSync() })
+    },
+    activeTab(val) {
+      if (val === 'subtitle') {
+        try {
+          const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+          const t = sc && sc.scene_script && sc.scene_script.dialogue_or_narration ? String(sc.scene_script.dialogue_or_narration) : ''
+          this.subtitleText = t
+        } catch (e) { void 0 }
+        this.loadSubtitleState()
+      }
     },
     scenes: {
       deep: true,
@@ -1759,6 +1901,158 @@ export default {
     }
   },
   methods: {
+    applySubtitleText() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+        const sceneNumber = String((sc && sc.scene_number) || '').trim()
+        const token = (this.userStore && this.userStore.token) || ''
+        const text = String(this.subtitleText || '').trim()
+        if (!videoId || !sceneNumber || !token) return
+        const p1 = updateSubtitleState({
+          token, workId: String(videoId), sceneNumber, workType: 'script_creation',
+          fontFamily: this.subtitleStyleFamily || '', fontFormat: this.subtitleStyleFormat || '', fontSize: this.subtitleStyleSize || '20px', fontColor: this.subtitleStyleColor || '#ffffff'
+        })
+        const p2 = updateSceneScript({ videoid: String(videoId), scene_number: sceneNumber, text, token })
+        Promise.all([p1, p2]).then(([resp1, resp2]) => {
+          const ok1 = !!(resp1 && ((resp1.code === 0) || resp1.success === true))
+          const ok2 = !!(resp2 && resp2.code === 0)
+          if (ok2 && sc) {
+            if (!sc.scene_script) sc.scene_script = {}
+            sc.scene_script.dialogue_or_narration = text
+          }
+          const ok = ok1 && ok2
+          this.toastText = ok ? '应用成功' : '更新失败'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        }).catch(() => {
+          this.toastText = '更新失败'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+        })
+      } catch (e) { void 0 }
+    },
+    async loadSubtitleState() {
+      try {
+        this.subtitleStateLoading = true
+        this.subtitleStyleFromApi = false
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+        const sceneNumber = String((sc && sc.scene_number) || '').trim()
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!videoId || !sceneNumber || !token) { this.subtitleStateLoading = false; return }
+        const resp = await getSubtitleState({ token, workId: String(videoId), workType: 'script_creation', sceneNumber })
+        const data = resp && resp.code === 0 ? (resp.data || null) : null
+        if (data && typeof data === 'object') {
+          this.subtitleStyleFamily = String(data.fontFamily || this.subtitleStyleFamily || '')
+          this.subtitleStyleFormat = String(data.fontFormat || this.subtitleStyleFormat || '')
+          this.subtitleStyleSize = String(data.fontSize || this.subtitleStyleSize || '20px')
+          this.subtitleStyleColor = String(data.fontColor || this.subtitleStyleColor || '#ffffff')
+          this.subtitleStyleFromApi = true
+        } else {
+          // 返回为 null 时恢复为默认样式
+          this.subtitleStyleFamily = ''
+          this.subtitleStyleFormat = ''
+          this.subtitleStyleSize = '20px'
+          this.subtitleStyleColor = '#ffffff'
+          this.subtitleStyleFromApi = false
+        }
+      } catch (e) { void 0 } finally { this.subtitleStateLoading = false }
+    },
+    async updateSubtitleStyle() {
+      try {
+        this.subtitleStyleSaving = true
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+        const sceneNumber = String((sc && sc.scene_number) || '').trim()
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!videoId || !sceneNumber || !token) { this.subtitleStyleSaving = false; return }
+        const resp = await updateSubtitleState({
+          token, workId: String(videoId), sceneNumber, workType: 'script_creation',
+          fontFamily: this.subtitleStyleFamily || '', fontFormat: this.subtitleStyleFormat || '', fontSize: this.subtitleStyleSize || '20px', fontColor: this.subtitleStyleColor || '#ffffff'
+        })
+        const ok = !!(resp && ((resp.code === 0) || resp.success === true))
+        this.toastText = ok ? '字幕样式已更新' : ((resp && (resp.message || resp.msg)) || '更新失败')
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+        if (ok) this.subtitleStyleFromApi = true
+      } catch (e) {
+        this.toastText = '更新失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      } finally {
+        this.subtitleStyleSaving = false
+      }
+    },
+    toggleVoiceSceneAudio() {
+      const el = this.voiceSceneAudioEl
+      if (!el) return
+      if (this.voiceScenePlaying) {
+        try { el.pause() } catch (e) { void 0 }
+        this.voiceScenePlaying = false
+      } else {
+        try { el.currentTime = Math.max(0, this.voiceSceneCurrentTime || 0) } catch (e) { void 0 }
+        const p = el.play()
+        if (p && p.then) p.then(() => { this.voiceScenePlaying = true }).catch(() => { this.voiceScenePlaying = false })
+        else this.voiceScenePlaying = true
+      }
+    },
+    seekVoiceSceneAudio(e) {
+      try {
+        const v = Number(e && e.target && e.target.value) || 0
+        this.voiceSceneCurrentTime = Math.max(0, Math.min(v, Number(this.voiceSceneAudioDuration) || v))
+        const el = this.voiceSceneAudioEl
+        if (el) { try { el.currentTime = this.voiceSceneCurrentTime } catch (err) { void 0 } }
+      } catch (err) { void 0 }
+    },
+    async deleteBackgroundMusicByApi() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!videoId || !token) return
+        const resp = await deleteBackgroundMusicApi({ token, videoId })
+        const ok = !!(resp && ((resp.code === 0) || resp.success === true))
+        if (ok) { this.removeMusicAudio() }
+        this.toastText = ok ? '背景音乐已删除' : ((resp && (resp.message || resp.msg)) || '删除失败')
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      } catch (e) {
+        this.toastText = '删除失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }
+    },
+    async deleteVoiceover() {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+        const sceneNumber = String((sc && sc.scene_number) || '').trim()
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!videoId || !sceneNumber || !token) return
+        const resp = await deleteAliTts({ token, videoId: String(videoId), shotId: sceneNumber })
+        const ok = !!(resp && ((resp.code === 0) || resp.success === true))
+        if (ok) {
+          try { if (this.voiceSceneAudioEl) { try { this.voiceSceneAudioEl.pause() } catch (e) { void 0 } this.voiceSceneAudioEl = null } } catch (e) { void 0 }
+          this.voiceSceneAudioUrl = ''
+          this.voiceScenePlaying = false
+          this.voiceSceneAudioDuration = 0
+          this.voiceSceneCurrentTime = 0
+          if (sc) sc.audio_url = ''
+        }
+        this.toastText = ok ? '配音已删除' : ((resp && (resp.message || resp.msg)) || '删除失败')
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      } catch (e) {
+        this.toastText = '删除失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }
+    },
     isModifyingStatus(v) {
       const s = String(v || '').trim().toLowerCase()
       return s === 'modifying'
@@ -3373,6 +3667,7 @@ export default {
               if (content.dialogue_or_narration) scriptObj.dialogue_or_narration = content.dialogue_or_narration
               if (content.camera_direction) scriptObj.camera_direction = content.camera_direction
               if (this.$set) this.$set(target, 'scene_script', scriptObj); else target.scene_script = scriptObj
+              try { this.subtitleText = String(content.dialogue_or_narration || '') } catch (e) { /* no-op */ }
               if (content.visual_description) target.description = content.visual_description
               if (!target.scene_number) target.scene_number = incomingKey || content.shot_id || undefined
             }
@@ -4424,10 +4719,10 @@ export default {
         if (this.exportTimer) { try { clearInterval(this.exportTimer) } catch (e) { /* no-op */ } this.exportTimer = null }
         this.exportTimer = setInterval(() => {
           if (this.exportProgressDone) return
-          const next = Math.min(96, this.exportProgressPct + (Math.random() * 2.5 + 0.5))
+          const next = Math.min(96, this.exportProgressPct + (Math.random() * 1.6 + 0.8))
           this.exportProgressPct = next
           if (next >= 96) { try { clearInterval(this.exportTimer) } catch (e) { /* no-op */ } this.exportTimer = null }
-        }, 600)
+        }, 1000)
         const resp = await exportWorksVideoDownload({ videoId, token })
         if (!resp || resp.status !== 200 || !resp.ok || !resp.blob) {
           this.exportProgressDone = false
@@ -4704,6 +4999,7 @@ export default {
       }
       // 仅在用户点击分镜时请求分镜详情（查看态左侧依赖 getStoryboardSceneDetail）
       this.fetchCurrentSceneDetail()
+      try { this.loadSubtitleState() } catch (e) { /* no-op */ }
       if (this.isPlaying) {
         this.$nextTick(() => {
           this.syncPreviewPlayback()
@@ -4807,6 +5103,7 @@ export default {
         if (idx !== this.activeSceneIndex) {
           this.activeSceneIndex = idx
           this.syncPreviewPlayback()
+          try { this.loadSubtitleState() } catch (e) { /* no-op */ }
         }
         
         // Audio sync
@@ -5776,6 +6073,90 @@ export default {
 .tab-item.active {
   background: var(--bg-tertiary);
   color: var(--primary-hover);
+}
+
+.subtitle-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.subtitle-scrollable-content {
+  flex: 1;
+  padding: 20px;
+  padding-bottom: 200px;
+  overflow-y: auto;
+  height: 0;
+  min-height: 0;
+  content-visibility: auto;
+}
+
+.subtitle-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  background: var(--bg-tertiary);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.subtitle-textarea:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.subtitle-style-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.subtitle-style-label {
+  width: 64px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.subtitle-style-input {
+  flex: 1;
+  height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 13px;
+  outline: none;
+}
+
+.subtitle-style-input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.voice-small-btn {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.voice-small-btn:hover {
+  background: var(--bg-quaternary);
 }
 
 .tab-icon {

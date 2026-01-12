@@ -573,6 +573,47 @@ export async function updateSceneScript({ videoid, scene_number, text, token }) 
   }
 }
 
+// GET 获取字幕状态
+export async function getSubtitleState({ token, workId, workType, sceneNumber }) {
+  const url = `${BASE_URL}/subtitle-state/getSubtitleState?workId=${encodeURIComponent(workId)}&workType=${encodeURIComponent(workType)}&sceneNumber=${encodeURIComponent(sceneNumber)}`
+  const requestOptions = { method: 'GET', headers: buildAuthHeaders(token), redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try { return await res.json() } catch (e) { try { return JSON.parse(await res.text()) } catch { return null } }
+}
+
+// POST 更新字幕样式
+export async function updateSubtitleState({ token, workId, sceneNumber, workType, fontFamily = '', fontFormat = '', fontSize = '20px', fontColor = '#ffffff' }) {
+  const url = `${BASE_URL}/subtitle-state/updateSubtitleState`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ workId: String(workId), sceneNumber: String(sceneNumber), workType: String(workType), fontFamily, fontFormat, fontSize, fontColor })
+  const requestOptions = { method: 'POST', headers, body, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try { return await res.json() } catch (e) { try { return JSON.parse(await res.text()) } catch { return null } }
+}
+
+// POST 删除背景音乐
+export async function deleteBackgroundMusic({ token, videoId }) {
+  const url = `${BASE_URL}/detail/background-music/delete`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ videoId: String(videoId) })
+  const requestOptions = { method: 'POST', headers, body, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try { return await res.json() } catch (e) { try { return JSON.parse(await res.text()) } catch { return null } }
+}
+
+// POST 删除配音
+export async function deleteAliTts({ token, videoId, shotId }) {
+  const url = `${BASE_URL}/api/ali-tts/delete`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const body = JSON.stringify({ videoId: String(videoId), shotId: String(shotId) })
+  const requestOptions = { method: 'POST', headers, body, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try { return await res.json() } catch (e) { try { return JSON.parse(await res.text()) } catch { return null } }
+}
+
 export async function updateVisualDescription({ videoid, scene_number, text, token }) {
   const url = `${BASE_URL}/detail/scene/updateVisualDescription`
   const headers = buildAuthHeaders(token)
