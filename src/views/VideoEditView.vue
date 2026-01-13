@@ -757,7 +757,7 @@
               替换
             </button>
             <!-- 字幕叠加层 -->
-            <div v-if="subtitleEnabled && !isVideo(sceneDetail.video_url) && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || subtitleText || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }" :style="subtitleOverlayStyle">
+            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || subtitleText || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }" :style="subtitleOverlayStyle">
               <span v-if="!isEditingSubtitle">
                 {{ subtitleText || scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
               </span>
@@ -1175,7 +1175,7 @@ export default {
       voiceGender: '女性',
       voiceAge: '青年',
       voiceStyle: '普通话',
-      voiceName: 'cherry',
+      voiceName: '芊悦',
       voiceLanguage: 'Chinese', // 默认为 Chinese
       supportedLanguages: [],
       showLanguageSelector: false,
@@ -4835,7 +4835,7 @@ export default {
       }
     },
     handleToneSelect(selected) {
-      this.voiceName = selected.voiceName
+      this.voiceName = selected.name || selected.voiceName
       this.voiceLanguage = selected.language
       this.supportedLanguages = Array.isArray(selected.supportedLanguages) ? selected.supportedLanguages : ((selected.language && [selected.language]) || [])
       this.voiceGender = this.toZhGender(selected.gender) || this.voiceGender
@@ -4902,14 +4902,6 @@ export default {
               if (this.$set) this.$set(sc, 'audio_url', appliedAudio); else sc.audio_url = appliedAudio
               const sd = this.sceneDetail || {}
               this.sceneDetail = Object.assign({}, sd, { audio_url: appliedAudio })
-              this.voiceSceneAudioUrl = appliedAudio
-              const el = new Audio(appliedAudio)
-              try { el.crossOrigin = 'anonymous' } catch (e) { void 0 }
-              el.addEventListener('loadedmetadata', () => { this.voiceSceneAudioDuration = Number(el.duration) || 0 })
-              el.addEventListener('timeupdate', () => { this.voiceSceneCurrentTime = Number(el.currentTime) || 0 })
-              el.addEventListener('ended', () => { this.voiceScenePlaying = false })
-              this.voiceSceneAudioEl = el
-              this.voiceScenePlaying = false
             }
           } catch (e) { void 0 }
           try {

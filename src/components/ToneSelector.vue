@@ -315,6 +315,7 @@ export default {
         const lang = languages.length > 0 ? languages[0] : (tone.language || 'Chinese')
 
         this.$emit('select', {
+          name: tone.name || tone.voiceName,
           voiceName: tone.voiceName,
           language: lang,
           gender: tone.gender,

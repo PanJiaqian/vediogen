@@ -770,7 +770,7 @@ export default {
       voiceGender: '女性',
       voiceAge: '中年',
       voiceStyle: '普通话',
-      voiceName: 'cherry', // 默认音色
+      voiceName: '芊悦', // 默认音色
       voiceLanguage: 'Chinese', // 默认为 Chinese
       supportedLanguages: [],
       showLanguageSelector: false,

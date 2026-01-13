@@ -283,7 +283,7 @@ export default {
       }
     },
     handleToneSelect(selected) {
-      this.voiceName = selected.voiceName
+      this.voiceName = selected.name || selected.voiceName
       this.voiceLanguage = selected.language
       this.supportedLanguages = Array.isArray(selected.supportedLanguages) ? selected.supportedLanguages : ((selected.language && [selected.language]) || [])
       this.voiceGender = this.toZhGender(selected.gender) || this.voiceGender
