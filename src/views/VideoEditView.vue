@@ -757,7 +757,7 @@
               替换
             </button>
             <!-- 字幕叠加层 -->
-            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || subtitleText || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }" :style="subtitleOverlayStyle">
+            <div v-if="subtitleEnabled && !isVideo(sceneDetail.video_url) && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || subtitleText || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }" :style="subtitleOverlayStyle">
               <span v-if="!isEditingSubtitle">
                 {{ subtitleText || scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
               </span>
@@ -1827,6 +1827,7 @@ export default {
   watch: {
     activeSceneIndex() {
       this.previewImgErrored = false
+      this.voiceScript = ''
       try {
         const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
         const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
@@ -4901,6 +4902,14 @@ export default {
               if (this.$set) this.$set(sc, 'audio_url', appliedAudio); else sc.audio_url = appliedAudio
               const sd = this.sceneDetail || {}
               this.sceneDetail = Object.assign({}, sd, { audio_url: appliedAudio })
+              this.voiceSceneAudioUrl = appliedAudio
+              const el = new Audio(appliedAudio)
+              try { el.crossOrigin = 'anonymous' } catch (e) { void 0 }
+              el.addEventListener('loadedmetadata', () => { this.voiceSceneAudioDuration = Number(el.duration) || 0 })
+              el.addEventListener('timeupdate', () => { this.voiceSceneCurrentTime = Number(el.currentTime) || 0 })
+              el.addEventListener('ended', () => { this.voiceScenePlaying = false })
+              this.voiceSceneAudioEl = el
+              this.voiceScenePlaying = false
             }
           } catch (e) { void 0 }
           try {
