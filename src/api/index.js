@@ -323,6 +323,21 @@ export async function getCreativeWorkById({ id }) {
   return res.text()
 }
 
+export async function addCreativeWork({ token, formData }) {
+  const url = `${BASE_URL}/creativeWork/addcreativework`
+  const requestOptions = {
+    method: 'POST',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow',
+    body: formData
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { /* no-op */ }
+  }
+  return res.text()
+}
+
 export async function getVideoVersionsByConversation({ conversationId, token }) {
   const url = `${BASE_URL}/detail/works/video/versions/byConversation?conversationId=${encodeURIComponent(conversationId)}`
   const requestOptions = {

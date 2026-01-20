@@ -143,7 +143,10 @@
 
     <!-- 推荐内容 -->
     <div class="recommendations-section">
-      <h2 class="recommendations-title">灵感广场</h2>
+      <div class="recommendations-header">
+        <h2 class="recommendations-title">灵感广场</h2>
+        <button class="upload-work-btn" @click="openUploadModal">发布作品</button>
+      </div>
 
       <div class="recommendations-grid">
         <div v-for="item in recommendations" :key="item.id" class="recommendation-card"
@@ -155,6 +158,74 @@
         </div>
       </div>
     </div>
+    <div v-if="uploadModalVisible" class="upload-overlay" @click.self="closeUploadModal">
+      <div class="upload-modal">
+        <div class="upload-modal-header">
+          <div class="upload-modal-title">发布作品</div>
+          <button class="upload-close-btn" @click="closeUploadModal">×</button>
+        </div>
+        <div class="upload-modal-body">
+          <div class="upload-left">
+            <div class="upload-drop-zone" @dragover.prevent @drop.prevent="onUploadDrop">
+              <template v-if="uploadVideoPreview">
+                <video :src="uploadVideoPreview" controls class="upload-video-preview" @click="openUploadPreview('video')"></video>
+                <button class="upload-delete-btn" title="删除视频" @click="clearUploadVideo">×</button>
+              </template>
+              <template v-else>
+                <div class="upload-placeholder">
+                  <div class="upload-placeholder-icon">🎬</div>
+                  <div class="upload-placeholder-text">点击或拖拽上传视频</div>
+                  <button class="upload-select-btn" @click="triggerVideoSelect">选择视频</button>
+                </div>
+              </template>
+            </div>
+          </div>
+          <div class="upload-right">
+            <div class="upload-field">
+              <div class="upload-label">标题</div>
+              <input class="upload-input" v-model="uploadTitle" maxlength="26" placeholder="为你的作品起个标题" />
+              <div class="upload-counter">{{ (uploadTitle || '').length }}/26</div>
+            </div>
+            <div class="upload-field">
+              <div class="upload-label">作品简介</div>
+              <textarea class="upload-textarea" v-model="uploadDescription" maxlength="500" placeholder="简单介绍一下你的作品"></textarea>
+              <div class="upload-counter">{{ (uploadDescription || '').length }}/500</div>
+            </div>
+            <div class="upload-field">
+              <div class="upload-label">剧本描述</div>
+              <textarea class="upload-textarea" v-model="uploadScriptContent" maxlength="200" placeholder="描述一下你的剧本提示词"></textarea>
+            </div>
+            <div class="upload-field">
+              <div class="upload-label">封面图</div>
+              <div class="cover-row">
+                <div class="cover-preview" v-if="uploadCoverPreview">
+                  <img :src="uploadCoverPreview" alt="封面预览" @click="openUploadPreview('image')" />
+                  <button class="upload-delete-btn" title="删除封面" @click="clearUploadCover">×</button>
+                </div>
+                <button class="upload-select-btn" v-if="!uploadCoverPreview" @click="triggerCoverSelect">选择封面</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="upload-modal-footer">
+          <input ref="videoInput" type="file" accept="video/*" style="display:none" @change="onVideoSelected" />
+          <input ref="coverInput" type="file" accept="image/*" style="display:none" @change="onCoverSelected" />
+          <button class="upload-submit-btn" :disabled="uploadSubmitting" @click="submitUpload">发布作品</button>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="uploadPreviewVisible" class="upload-preview-overlay" @click.self="closeUploadPreview">
+      <div class="upload-preview-content">
+        <button class="upload-preview-close" @click="closeUploadPreview">×</button>
+        <template v-if="uploadPreviewType === 'video'">
+          <video :src="uploadPreviewSrc" controls autoplay></video>
+        </template>
+        <template v-else>
+          <img :src="uploadPreviewSrc" alt="预览图片" />
+        </template>
+      </div>
+    </div>
 
     <!-- 创建新主体弹窗 -->
     <CreateSubjectModal :visible="showCreateModal" @close="closeCreateModal" @submit="handleSubjectSubmit" />
@@ -162,7 +233,7 @@
 </template>
 
 <script>
-import { getCreativeWorkList, getMaterialsList } from '@/api'
+import { getCreativeWorkList, getMaterialsList, addCreativeWork } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { projectPlaceholders } from '@/utils/placeholder'
 import { ART_STYLES, SCRIPT_SUGGESTIONS, NARRATION_SUGGESTIONS } from '@/utils/homeData'
@@ -205,7 +276,19 @@ export default {
         show: false,
         text: '',
         type: 'success'
-      }
+      },
+      uploadModalVisible: false,
+      uploadTitle: '',
+      uploadDescription: '',
+      uploadScriptContent: '',
+      uploadCoverFile: null,
+      uploadVideoFile: null,
+      uploadCoverPreview: '',
+      uploadVideoPreview: '',
+      uploadSubmitting: false,
+      uploadPreviewVisible: false,
+      uploadPreviewType: '',
+      uploadPreviewSrc: ''
     }
   },
   computed: {
@@ -260,6 +343,106 @@ export default {
     }
   },
   methods: {
+    openUploadModal() {
+      this.uploadModalVisible = true
+    },
+    closeUploadModal() {
+      this.uploadModalVisible = false
+      this.uploadTitle = ''
+      this.uploadDescription = ''
+      this.uploadScriptContent = ''
+      this.uploadCoverFile = null
+      this.uploadVideoFile = null
+      this.uploadCoverPreview = ''
+      this.uploadVideoPreview = ''
+      this.uploadSubmitting = false
+    },
+    triggerVideoSelect() {
+      const el = this.$refs.videoInput
+      if (el) { try { el.value = null } catch (e) { /* no-op */ } el.click() }
+    },
+    triggerCoverSelect() {
+      const el = this.$refs.coverInput
+      if (el) el.click()
+    },
+    onVideoSelected(e) {
+      const f = e && e.target && e.target.files && e.target.files[0]
+      if (!f) return
+      this.uploadVideoFile = f
+      try { this.uploadVideoPreview = URL.createObjectURL(f) } catch (e2) { this.uploadVideoPreview = '' }
+    },
+    onCoverSelected(e) {
+      const f = e && e.target && e.target.files && e.target.files[0]
+      if (!f) return
+      this.uploadCoverFile = f
+      try { this.uploadCoverPreview = URL.createObjectURL(f) } catch (e2) { this.uploadCoverPreview = '' }
+    },
+    onUploadDrop(ev) {
+      const files = ev && ev.dataTransfer && ev.dataTransfer.files
+      if (!files || !files.length) return
+      const f = files[0]
+      if (/video\//i.test(f.type)) {
+        this.uploadVideoFile = f
+        try { this.uploadVideoPreview = URL.createObjectURL(f) } catch (e2) { this.uploadVideoPreview = '' }
+      } else if (/image\//i.test(f.type)) {
+        this.uploadCoverFile = f
+        try { this.uploadCoverPreview = URL.createObjectURL(f) } catch (e2) { this.uploadCoverPreview = '' }
+      }
+    },
+    openUploadPreview(type) {
+      this.uploadPreviewVisible = true
+      this.uploadPreviewType = type
+      this.uploadPreviewSrc = type === 'video' ? this.uploadVideoPreview : this.uploadCoverPreview
+    },
+    closeUploadPreview() {
+      this.uploadPreviewVisible = false
+      this.uploadPreviewSrc = ''
+      this.uploadPreviewType = ''
+    },
+    clearUploadVideo() {
+      try { if (this.uploadVideoPreview) URL.revokeObjectURL(this.uploadVideoPreview) } catch (e) { /* no-op */ }
+      this.uploadVideoFile = null
+      this.uploadVideoPreview = ''
+      try { const el = this.$refs.videoInput; if (el) el.value = null } catch (e) { /* no-op */ }
+    },
+    clearUploadCover() {
+      try { if (this.uploadCoverPreview) URL.revokeObjectURL(this.uploadCoverPreview) } catch (e) { /* no-op */ }
+      this.uploadCoverFile = null
+      this.uploadCoverPreview = ''
+    },
+    async submitUpload() {
+      if (!this.userStore?.isLoggedIn) {
+        window.dispatchEvent(new CustomEvent('open-login-modal'))
+        return
+      }
+      const title = String(this.uploadTitle || '').trim()
+      if (!title) { this.showMessage('请输入标题', 'error'); return }
+      if (!this.uploadVideoFile) { this.showMessage('请选择视频文件', 'error'); return }
+      const form = new FormData()
+      form.append('title', title)
+      form.append('description', String(this.uploadDescription || ''))
+      form.append('scriptContent', String(this.uploadScriptContent || ''))
+      if (this.uploadCoverFile) form.append('coverImage', this.uploadCoverFile)
+      form.append('video', this.uploadVideoFile)
+      form.append('videoProjectId', '')
+      this.uploadSubmitting = true
+      try {
+        const token = this.userStore?.token || ''
+        const text = await addCreativeWork({ token, formData: form })
+        let resp = null
+        try { resp = JSON.parse(text) } catch (e) { resp = null }
+        const ok = !!(resp && resp.code === 0 && resp.data && resp.data.id)
+        this.showMessage(ok ? '发布成功' : ((resp && resp.message) || '发布失败'), ok ? 'success' : 'error')
+        if (ok) {
+          this.closeUploadModal()
+          this.loadCreativeWorks()
+        }
+      } catch (e) {
+        this.showMessage('发布失败', 'error')
+      } finally {
+        this.uploadSubmitting = false
+      }
+    },
     refreshSuggestions() {
       if (this.activeFeature === 'script') {
         const items = this.pickRandomItems(this.scriptSuggestionPool, 3)
@@ -546,8 +729,9 @@ export default {
         console.log('获取作品列表响应:', data)
 
         if (data.code === 0 && data.data) {
-          // 将API数据转换为推荐卡片格式
-          this.recommendations = data.data.map(item => ({
+          // 过滤掉不公开的作品，并转换为推荐卡片格式
+          const list = Array.isArray(data.data) ? data.data.filter(item => item && item.isPublic !== false) : []
+          this.recommendations = list.map(item => ({
             id: item.id,
             title: item.title,
             image: item.coverImageUrl || '/api/placeholder/300/200',
@@ -587,7 +771,7 @@ export default {
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 500;
-  z-index: 2000;
+  z-index: 5000;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
@@ -902,6 +1086,20 @@ export default {
   margin-bottom: 1.5rem;
   text-align: left;
 }
+.recommendations-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.upload-work-btn {
+  padding: 8px 12px;
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 8px;
+  cursor: pointer;
+}
 
 .recommendations-grid {
   display: flex;
@@ -949,6 +1147,215 @@ export default {
   text-align: left;
   margin: 0;
   line-height: 1.3;
+}
+
+.upload-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(4px);
+}
+.upload-modal {
+  width: 900px;
+  max-height: 90vh;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.upload-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 8px;
+}
+.upload-modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.upload-close-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+}
+.upload-modal-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 16px 20px;
+}
+.upload-left {
+  display: flex;
+}
+.upload-drop-zone {
+  flex: 1;
+  height: 480px;
+  max-height: 70vh;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1px dashed var(--border-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-tertiary);
+}
+.upload-select-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.upload-video-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+}
+.upload-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.upload-field {
+  position: relative;
+}
+.upload-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.upload-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  color: var(--text-primary);
+  outline: none;
+}
+.upload-textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  color: var(--text-primary);
+  outline: none;
+  resize: vertical;
+}
+.upload-counter {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  font-size: 12px;
+  color: var(--text-quaternary);
+}
+.cover-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cover-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  position: relative;
+}
+.cover-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: zoom-in;
+}
+.upload-delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+.upload-delete-btn:hover {
+  color: #ef4444;
+}
+.upload-video-preview {
+  cursor: zoom-in;
+}
+
+.upload-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+.upload-preview-content {
+  position: relative;
+  max-width: 80vw;
+  max-height: 80vh;
+}
+.upload-preview-content img,
+.upload-preview-content video {
+  max-width: 80vw;
+  max-height: 80vh;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+}
+.upload-preview-close {
+  position: absolute;
+  top: -28px;
+  right: 0;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+}
+.upload-modal-footer {
+  padding: 12px 20px 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.upload-submit-btn {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary-color);
+  color: #fff;
+  cursor: pointer;
+}
+.upload-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* 下拉框样式 */
