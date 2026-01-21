@@ -234,7 +234,6 @@ export default {
         token = store && store.token || ''
       } catch (e) { token = '' }
       if (!token) {
-        try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { console.warn('打开登录弹窗失败:', e) }
         return
       }
       let attempts = 0
@@ -422,19 +421,28 @@ export default {
   width: 90%;
   position: relative;
   z-index: 1;
-  max-height: 60vh;
+  height: calc(100vh - var(--header-height) - 34px - 20px);
+  min-height: 0 !important;
+  margin-top: 64px;
+  margin-bottom: 20px;
+  /* margin-bottom: 64px; */
   /* margin-top: 48px; */
 }
 
 .header-section {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 24px;
 }
 
 .loading-icon {
   color: var(--primary-color);
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   animation: pulse 2s ease-in-out infinite;
+}
+
+.loading-icon svg {
+  width: 40px;
+  height: 40px;
 }
 
 @keyframes pulse {
@@ -443,7 +451,7 @@ export default {
 }
 
 .main-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
@@ -452,14 +460,14 @@ export default {
 .steps-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 }
 
 .step-item {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px;
+  gap: 12px;
+  padding: 12px;
   border-radius: 12px;
   transition: all 0.3s ease;
   border: 2px solid transparent;
@@ -482,8 +490,8 @@ export default {
 }
 
 .step-icon {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -509,7 +517,7 @@ export default {
 }
 
 .step-number {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -526,13 +534,13 @@ export default {
 }
 
 .step-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   margin-bottom: 4px;
 }
 
 .step-status {
-  font-size: 14px;
+  font-size: 12px;
   opacity: 0.8;
 }
 
@@ -578,7 +586,6 @@ export default {
   margin-bottom: 12px;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .main-content {
     padding: 24px;
@@ -586,21 +593,23 @@ export default {
   }
 
   .main-title {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .step-item {
-    padding: 12px;
-    gap: 12px;
+    padding: 10px;
+    gap: 10px;
   }
 
   .step-icon {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
   }
 
   .step-title {
-    font-size: 15px;
+    font-size: 13px;
   }
 }
+
+ 
 </style>

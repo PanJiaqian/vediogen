@@ -663,8 +663,9 @@ export default {
           // 更新 store
           this.userStore.setUser({
             ...this.currentUser,
+            id: res.data.id ?? this.currentUser.id,
             name: res.data.nickname || this.currentUser.name,
-            avatar: res.data.avatar || this.currentUser.avatar,
+            avatar: String(res.data.avatar || this.currentUser.avatar).trim().replace(/^`+|`+$/g, ''),
             vipStatus: res.data.vipStatus || this.currentUser.vipStatus,
             pointsBalance: (res.data && typeof res.data.pointsBalance !== 'undefined')
               ? Number(res.data.pointsBalance) || 0
@@ -810,8 +811,7 @@ export default {
     ,
     // 处理 401 未授权提示
     handleAuth401() {
-      this.openCenterPrompt('请重新登录')
-      this.showLoginModal()
+      return
     }
     ,
     openCenterPrompt(text) {

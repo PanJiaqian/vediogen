@@ -163,7 +163,7 @@
         <!-- 思考生成步骤 -->
         <div class="thinking-steps">
           <h3 class="section-title">思考生成步骤</h3>
-          <div class="step-list">
+          <div class="step-list" :class="{ waiting: isSubmitting }">
             <div class="step-item" :class="{ completed: summaryDone }" @click="scrollToSection('剧本摘要')">
               <div class="step-icon" :class="{ active: summaryDone }">{{ summaryDone ? '✓' : '⏳' }}</div>
               <div class="step-content">
@@ -628,7 +628,6 @@ export default {
         const projectId = this.$route.params.id
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
           return
         }
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -700,7 +699,6 @@ export default {
       const token = (this.userStore && this.userStore.token) || ''
       if (!token) {
         console.warn('未登录，无法生成分镜图片')
-        try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
         return
       }
       try { localStorage.setItem(`project:aspectRatio:${projectId}`, String((this.project && this.project.aspectRatio) || '16:9')) } catch (e) { void 0 }
@@ -888,7 +886,6 @@ export default {
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
           console.warn('未登录，无法重新生成场景图片')
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
           this.toastText = '生成失败'
           setTimeout(() => { this.toastVisible = false }, 2000)
           return
@@ -966,7 +963,6 @@ export default {
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
           console.warn('未登录，无法重新生成人物图片')
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
           this.toastText = '生成失败'
           setTimeout(() => { this.toastVisible = false }, 2000)
           return
@@ -1794,6 +1790,25 @@ export default {
   width: 2px;
   height: calc(100% - 24px);
   background: var(--border-secondary);
+}
+
+.step-list.waiting .step-item::after {
+  background: linear-gradient(to bottom, var(--border-secondary) 0%, var(--primary-color) 50%, var(--border-secondary) 100%);
+  background-size: 100% 200%;
+  animation: flowLine 2s linear infinite;
+}
+
+/* 顺序延迟，让流水效果从第一个点依次向下循环 */
+.step-list.waiting .step-item:nth-child(1)::after { animation-delay: 0s; }
+.step-list.waiting .step-item:nth-child(2)::after { animation-delay: 0.25s; }
+.step-list.waiting .step-item:nth-child(3)::after { animation-delay: 0.5s; }
+.step-list.waiting .step-item:nth-child(4)::after { animation-delay: 0.75s; }
+.step-list.waiting .step-item:nth-child(5)::after { animation-delay: 1s; }
+.step-list.waiting .step-item:nth-child(6)::after { animation-delay: 1.25s; }
+
+@keyframes flowLine {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100%; }
 }
 
 .step-item:last-child::after {

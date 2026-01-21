@@ -4453,7 +4453,6 @@ export default {
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
           console.warn('未登录，无法重新生成分镜图片')
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
           this.toastText = '生成失败'
           setTimeout(() => { this.toastVisible = false }, 2000)
           return
@@ -4550,7 +4549,7 @@ export default {
       const token = (this.userStore && this.userStore.token) || ''
       const modelName = 'wan2.2-i2v-flash'
       try {
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ } return }
+        if (!token) { return }
         let balance = 0
         try {
           const status = await getUserBasicStatus(token)
@@ -4677,7 +4676,7 @@ export default {
     async openConvertConfirmModal() {
       try {
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 } return }
+        if (!token) { return }
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const modelName = this.selectedConvertModelName
@@ -4725,7 +4724,7 @@ export default {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ } return }
+        if (!token) { return }
         this.exportProgressVisible = true
         this.exportProgressPct = 0
         this.exportProgressDone = false
@@ -4781,7 +4780,7 @@ export default {
       try {
         if (this.isVoiceAuditionPlaying) { this.stopVoiceAudition(); return }
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 } return }
+        if (!token) { return }
         this.toastText = '收到，正在准备'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 1500)
@@ -4882,7 +4881,7 @@ export default {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 } return }
+        if (!token) { return }
         const sc = this.scenes[this.activeSceneIndex] || {}
         const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
         const audioUrl = this.cleanUrl(this.voiceAudioUrl || '')
@@ -4938,7 +4937,7 @@ export default {
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
+          /* no-op */
           return
         }
         // 优先使用后端返回的可公开访问地址，借助浏览器原生下载条目
@@ -5369,7 +5368,7 @@ export default {
         const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
         const type = this.determineSceneType(sc)
         const modelname = type === 'video' ? 'wan2.2-i2v-flash' : 'doubao-seedream-4-0-250828'
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ } return }
+        if (!token) { return }
         const k = this.getSceneKey(sc, this.activeSceneIndex)
         if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
         this.updatingKeySet.add(k)
@@ -5795,7 +5794,7 @@ export default {
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
+          /* no-op */
           return
         }
         const order_index = index + 1

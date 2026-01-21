@@ -67,7 +67,6 @@ const routes = [
       try { localStorage.setItem('app:invitationCode', String(to.params.code || '')) } catch (e) { /* no-op */ }
       next({ name: 'Home', query: { invited: String(to.params.code || '') } })
       setTimeout(() => {
-        try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
       }, 50)
     }
   }
@@ -86,7 +85,6 @@ router.beforeEach((to, from, next) => {
     const code = (to.params && to.params.code) || (parts.length >= 3 ? parts[2] : '')
     try { localStorage.setItem('app:invitationCode', String(code || '')) } catch (e) { /* no-op */ }
     setTimeout(() => {
-      try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { /* no-op */ }
     }, 50)
     return next({ name: 'Home', query: { invited: String(code || '') } })
   }
@@ -95,7 +93,6 @@ router.beforeEach((to, from, next) => {
     const { useUserStore } = require('../stores/user')
     const userStore = useUserStore()
     if (!userStore?.isLoggedIn && protectedNames.includes(to.name)) {
-      window.dispatchEvent(new CustomEvent('open-login-modal'))
       return next(false)
     }
   } catch (e) {

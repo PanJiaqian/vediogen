@@ -149,7 +149,7 @@
       </div>
 
       <div class="recommendations-grid">
-        <div v-for="item in recommendations" :key="item.id" class="recommendation-card"
+        <div v-for="item in recommendations" :key="item.id" class="recommendation-card" :class="{ 'own-work': item.isCurrentUsersWork }"
           @click="openRecommendation(item)">
           <img :src="item.image" :alt="item.title" class="card-image" />
           <div class="card-content">
@@ -412,7 +412,6 @@ export default {
     },
     async submitUpload() {
       if (!this.userStore?.isLoggedIn) {
-        window.dispatchEvent(new CustomEvent('open-login-modal'))
         return
       }
       const title = String(this.uploadTitle || '').trim()
@@ -478,9 +477,8 @@ export default {
       setTimeout(() => { this.message.show = false }, 3000)
     },
     handleSearch() {
-      // 未登录时拦截并弹出登录框
+      // 未登录时拦截
       if (!this.userStore?.isLoggedIn) {
-        window.dispatchEvent(new CustomEvent('open-login-modal'))
         return
       }
 
@@ -731,7 +729,22 @@ export default {
         if (data.code === 0 && data.data) {
           // 过滤掉不公开的作品，并转换为推荐卡片格式
           const list = Array.isArray(data.data) ? data.data.filter(item => item && item.isPublic !== false) : []
-          this.recommendations = list.map(item => ({
+          const currentUserId = this.userStore?.userInfo?.id
+          list.forEach(item => {
+            /* console.log('作品与用户对比', {
+              workId: item.id,
+              workUserId: item.userId,
+              currentUserId,
+              isCurrentUsersWork: String(item.userId) === String(currentUserId)
+            }) */
+          })
+          const sorted = currentUserId != null
+            ? [
+                ...list.filter(item => String(item.userId) === String(currentUserId)),
+                ...list.filter(item => String(item.userId) !== String(currentUserId))
+              ]
+            : list
+          this.recommendations = sorted.map(item => ({
             id: item.id,
             title: item.title,
             image: item.coverImageUrl || '/api/placeholder/300/200',
@@ -745,7 +758,8 @@ export default {
             tags: [],
             views: 0,
             likes: item.likeCount || 0,
-            status: item.status
+            status: item.status,
+            isCurrentUsersWork: String(item.userId) === String(currentUserId)
           }))
         } else {
           console.error('获取作品列表失败:', data.message)
@@ -1123,6 +1137,23 @@ export default {
 .recommendation-card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
+}
+
+.recommendation-card.own-work {
+  border: 1px solid var(--primary-color);
+}
+
+.recommendation-card.own-work:hover::after {
+  content: '个人作品';
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid var(--primary-color);
+  border-radius: 6px;
 }
 
 .card-image {

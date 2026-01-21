@@ -151,7 +151,6 @@ export default {
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
           console.warn('未登录，无法查询分镜状态')
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { console.warn('打开登录弹窗失败:', e) }
           return
         }
         if (project && project.type === 'avatar') {

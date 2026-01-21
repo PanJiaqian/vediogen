@@ -2893,7 +2893,6 @@ export default {
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) {
           console.warn('未登录，无法重新生成分镜图片')
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
           this.toastText = '生成失败'
           setTimeout(() => { this.toastVisible = false }, 2000)
           return
@@ -2988,7 +2987,7 @@ export default {
       try {
         if (this.isVoiceAuditionPlaying) { this.stopVoiceAudition(); return }
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 } return }
+        if (!token) { return }
         this.toastText = '收到，正在准备'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 1500)
@@ -3125,7 +3124,7 @@ export default {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 } return }
+        if (!token) { return }
         const sc = this.scenes[this.activeSceneIndex] || {}
         const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
         const audioUrl = this.cleanUrl(this.voiceAudioUrl || '')
@@ -4190,10 +4189,7 @@ export default {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) {
-          try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void 0 }
-          return
-        }
+        if (!token) { return }
         const order_index = index + 1
         const text = await copyStoryboardVideo({ videoId, order_index, token })
         let obj = null

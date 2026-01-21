@@ -310,6 +310,21 @@ export async function getCreativeWorkList() {
   return res.text()
 }
 
+export async function deleteCreativeWork({ token, workId }) {
+  const url = `${BASE_URL}/creativeWork/deleteCreativeWork?workId=${encodeURIComponent(workId)}`
+  const requestOptions = {
+    method: 'POST',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
+  }
+}
+
 // 获取创意作品详情
 export async function getCreativeWorkById({ id }) {
   const url = `${BASE_URL}/creativeWork/getcreativeWorkById?creativeWorkId=${encodeURIComponent(id)}`

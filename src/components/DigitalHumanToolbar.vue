@@ -322,7 +322,7 @@ export default {
         if (this.isVoiceLoading) return
         if (this.isPlaying) { this.handlePause(); return }
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void e } return }
+        if (!token) { return }
         this.toastText = '收到，正在准备'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 1500)
@@ -374,7 +374,7 @@ export default {
     async handleGenerateVideo() {
       try {
         const token = (this.userStore && this.userStore.token) || ''
-        if (!token) { try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { void e } return }
+        if (!token) { return }
         const imgFile = this.imageFile || null
         const audioFile = this.uploadAudioFile || null
         const audioUrl = audioFile ? '' : (this.voiceAudioUrl || null)

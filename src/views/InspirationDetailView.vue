@@ -28,7 +28,18 @@
       <div class="info-section">
         <div class="info-content">
           <!-- 标题 -->
-          <h1 class="title">{{ inspirationData.title }}</h1>
+          <div class="title-row">
+            <h1 class="title">{{ inspirationData.title }}</h1>
+            <button v-if="isOwnWork" class="delete-btn" @click="openConfirmDelete" title="删除作品">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M3 6h18"></path>
+                <path d="M8 6V4h8v2"></path>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                <path d="M10 11v6"></path>
+                <path d="M14 11v6"></path>
+              </svg>
+            </button>
+          </div>
 
           <!-- 作者信息 -->
           <div class="author-info">
@@ -85,11 +96,20 @@
         </div>
       </div>
     </div>
+    <div v-if="confirmDeleteVisible" class="center-confirm-overlay" @click.self="closeConfirmDelete">
+      <div class="center-confirm">
+        <div class="confirm-text">确认删除该作品？</div>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" @click="closeConfirmDelete">取消</button>
+          <button class="confirm-ok" @click="performDelete">删除</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
-import { getCreativeWorkById } from '@/api'
+import { getCreativeWorkById, deleteCreativeWork } from '@/api'
 import { useUserStore } from '@/stores/user'
 export default {
   name: 'InspirationDetailView',
@@ -101,6 +121,7 @@ export default {
         videoUrl: '',
         thumbnail: '',
         description: '',
+        authorId: null,
         author: {
           name: '',
           avatar: '/logo.png'
@@ -109,12 +130,18 @@ export default {
         tags: [],
         views: 0,
         likes: 0
-      }
+      },
+      confirmDeleteVisible: false
     }
   },
   computed: {
     userStore() {
       return useUserStore()
+    }
+    ,
+    isOwnWork() {
+      const uid = this.userStore?.userInfo?.id
+      return String(this.inspirationData?.authorId) === String(uid)
     }
   },
   mounted() {
@@ -149,6 +176,7 @@ export default {
             videoUrl: item.videoUrl || '/api/placeholder/video.mp4',
             thumbnail: item.coverImageUrl || '/api/placeholder/600/400',
             description: item.description,
+            authorId: item.userId,
             author: {
               name: `用户${  item.userId}`,
               avatar: '/logo.png'
@@ -171,6 +199,27 @@ export default {
     formatTime(timeString) {
       // 格式化时间显示
       return timeString
+    },
+    async deleteWork() {
+      const token = this.userStore?.token || ''
+      const workId = this.inspirationData?.id
+      if (!token || !workId) return
+      try {
+        const res = await deleteCreativeWork({ token, workId })
+        if (res && res.code === 0) {
+          this.$router.push('/')
+        }
+      } catch (e) { console.error('删除作品失败:', e) }
+    },
+    openConfirmDelete() {
+      this.confirmDeleteVisible = true
+    },
+    closeConfirmDelete() {
+      this.confirmDeleteVisible = false
+    },
+    async performDelete() {
+      this.confirmDeleteVisible = false
+      await this.deleteWork()
     },
     generateSimilarVideo() {
       // 创建基于当前灵感的新项目
@@ -200,6 +249,80 @@ export default {
   padding: 20px;
 }
 
+.info-content {
+  position: relative;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.delete-btn {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  border: none;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.center-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  backdrop-filter: blur(2px);
+}
+
+.center-confirm {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  padding: 20px;
+  min-width: 280px;
+}
+
+.confirm-text {
+  font-size: 16px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.confirm-cancel,
+.confirm-ok {
+  border: none;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.confirm-ok {
+  background: #ef4444;
+  color: #fff;
+}
 .back-btn {
   display: flex;
   align-items: center;

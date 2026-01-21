@@ -350,7 +350,6 @@ export default {
     },
     handleLibrarySubmit() {
       if (!this.userStore?.isLoggedIn) {
-        try { window.dispatchEvent(new CustomEvent('open-login-modal')) } catch (e) { console.warn('登录弹窗事件触发失败:', e) }
         return
       }
       const text = (this.inputText || '').trim()
