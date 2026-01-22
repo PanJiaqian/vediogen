@@ -1,3 +1,4 @@
+// 素材库页：浏览公共与个人素材并支持基于素材创建主体
 <template>
   <div class="asset-library">
     <!-- 顶部标签导航 -->
@@ -180,6 +181,7 @@
 </template>
 
 <script>
+
 import { getMaterialsList } from '@/api'
 import { generateGradientPlaceholder } from '@/utils/placeholder'
 import CreateSubjectModal from '@/components/CreateSubjectModal.vue'

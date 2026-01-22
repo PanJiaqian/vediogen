@@ -1,3 +1,4 @@
+// 分镜生成步骤页：展示任务进度并在完成后跳转到视频编辑
 <template>
   <div class="generation-steps">
     <Header />
@@ -15,9 +16,6 @@
     <!-- 主要内容 -->
     <div class="main-content">
       <div class="project-header">
-        <!-- <div class="project-title-row">
-          <h1 class="project-title">{{ project.title || '未命名项目' }}</h1>
-        </div> -->
         <p class="project-time" v-if="project.createdAt">创建于 {{ project.createdAt }}</p>
       </div>
 
@@ -611,5 +609,5 @@ export default {
   }
 }
 
- 
+
 </style>

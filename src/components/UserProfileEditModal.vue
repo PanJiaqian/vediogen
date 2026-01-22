@@ -1,3 +1,4 @@
+// 用户资料编辑弹窗：修改昵称与头像并回传给父组件
 <template>
   <div v-if="visible" class="modal-overlay" @click.self="close">
     <div class="modal-content">
@@ -28,6 +29,7 @@
 </template>
 
 <script>
+
 export default {
   name: 'UserProfileEditModal',
   props: {

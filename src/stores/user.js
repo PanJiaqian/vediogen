@@ -1,3 +1,4 @@
+// 用户状态存储：维护登录态、Token 生命周期及本地持久化
 import { defineStore } from 'pinia'
 
 export const useUserStore = defineStore('user', {

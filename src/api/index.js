@@ -1,3 +1,4 @@
+// 后端接口封装
 const BASE_URL = 'https://www.xydriftcraft.com:1770'
 
 function buildAuthHeaders(token) {
@@ -13,7 +14,7 @@ function buildSSEHeaders(token) {
 }
 
 
-// 流式读取剧本修改 SSE，逐步返回事件
+// 剧本修改接口：流式
 export async function scriptModifyStream({ modificationSuggestions, videoId, token, onEvent, signal }) {
   const url = `${BASE_URL}/api/agent/Script_modify?modificationSuggestions=${encodeURIComponent(modificationSuggestions)}&videoId=${encodeURIComponent(videoId)}`
   const requestOptions = {
@@ -80,6 +81,7 @@ export async function scriptModifyStream({ modificationSuggestions, videoId, tok
   }
 }
 
+// 剧本生成：流式
 export async function scriptGenStream({ stageDirections, materialId = '', category = '0', token, onEvent, signal }) {
   const url = `${BASE_URL}/api/agent/Script_gen?stageDirections=${encodeURIComponent(stageDirections)}&materialId=${encodeURIComponent(materialId)}&category=${encodeURIComponent(category)}`
   const requestOptions = {
@@ -144,7 +146,7 @@ export async function scriptGenStream({ stageDirections, materialId = '', catego
   }
 }
 
-// 分镜图片生成
+// 分镜图片生成：流式
 export async function storyboardPictureGenStream({ videoId, aspectRatio, token, onEvent, signal }) {
   const url = `${BASE_URL}/api/agent/Storyboard_image_gen?videoId=${encodeURIComponent(videoId)}${aspectRatio ? `&aspectRatio=${encodeURIComponent(aspectRatio)}` : ''}`
   const requestOptions = {
@@ -212,7 +214,7 @@ export async function storyboardPictureGenStream({ videoId, aspectRatio, token, 
   }
 }
 
-// 获取素材列表
+// 获取主体列表
 export async function getMaterialsList(token) {
   const url = `${BASE_URL}/material/getMaterialsList`
   const requestOptions = {
@@ -227,7 +229,7 @@ export async function getMaterialsList(token) {
   return res.text()
 }
 
-// 上传素材
+// 上传主体
 export async function uploadMaterial({ token, formData }) {
   const url = `${BASE_URL}/material/uploadMaterial`
   const requestOptions = {
@@ -297,7 +299,7 @@ export async function queryRegenerateImage({ videoId, type, name, generateUuid, 
   }
 }
 
-// 获取创意作品列表
+// 获取灵感广场作品
 export async function getCreativeWorkList() {
   const url = `${BASE_URL}/creativeWork/getcreativeWorkList`
   const requestOptions = {
@@ -310,6 +312,7 @@ export async function getCreativeWorkList() {
   return res.text()
 }
 
+// 删除灵感广场作品（仅可删除自己的）
 export async function deleteCreativeWork({ token, workId }) {
   const url = `${BASE_URL}/creativeWork/deleteCreativeWork?workId=${encodeURIComponent(workId)}`
   const requestOptions = {
@@ -325,7 +328,7 @@ export async function deleteCreativeWork({ token, workId }) {
   }
 }
 
-// 获取创意作品详情
+// 获取广场作品详情
 export async function getCreativeWorkById({ id }) {
   const url = `${BASE_URL}/creativeWork/getcreativeWorkById?creativeWorkId=${encodeURIComponent(id)}`
   const requestOptions = {
@@ -338,6 +341,7 @@ export async function getCreativeWorkById({ id }) {
   return res.text()
 }
 
+// 发布灵感广场作品
 export async function addCreativeWork({ token, formData }) {
   const url = `${BASE_URL}/creativeWork/addcreativework`
   const requestOptions = {
@@ -353,6 +357,7 @@ export async function addCreativeWork({ token, formData }) {
   return res.text()
 }
 
+// 获取视频版本列表（按对话ID）
 export async function getVideoVersionsByConversation({ conversationId, token }) {
   const url = `${BASE_URL}/detail/works/video/versions/byConversation?conversationId=${encodeURIComponent(conversationId)}`
   const requestOptions = {
@@ -367,6 +372,7 @@ export async function getVideoVersionsByConversation({ conversationId, token }) 
   return res.text()
 }
 
+// 获取对话消息列表（按对话ID）
 export async function getConversationMessages({ conversationId, token }) {
   const url = `${BASE_URL}/detail/conversation/messages?conversationId=${encodeURIComponent(conversationId)}`
   const requestOptions = {
@@ -380,6 +386,7 @@ export async function getConversationMessages({ conversationId, token }) {
   }
   return res.text()
 }
+
 // 获取“我的空间”作品列表
 export async function getMyWorksList(token) {
   const url = `${BASE_URL}/myWorks/getMyWorksList`
@@ -395,6 +402,7 @@ export async function getMyWorksList(token) {
   return res.text()
 }
 
+// 获取“我的空间”数字人作品详情
 export async function getDigitalHumanWorksByConversation({ conversationId, token }) {
   const url = `${BASE_URL}/detail/digitalhuman/works/byConversation?conversationId=${encodeURIComponent(conversationId)}`
   const requestOptions = {
@@ -409,6 +417,7 @@ export async function getDigitalHumanWorksByConversation({ conversationId, token
   return res.text()
 }
 
+// 数字人作品单个分镜详情
 export async function getDigitalHumanWorkSingle({ conversationId, workId, token }) {
   const url = `${BASE_URL}/detail/digitalhuman/work/single?conversationId=${encodeURIComponent(conversationId)}&workid=${encodeURIComponent(workId)}`
   const requestOptions = {
@@ -423,7 +432,7 @@ export async function getDigitalHumanWorkSingle({ conversationId, workId, token 
   return res.text()
 }
 
-// 查询-分镜图片详情列表（GET）
+// 查询-剧本作品详情列表（GET）
 export async function getStoryboardImagesDetail({ videoId, token }) {
   const url = `${BASE_URL}/detail/storyboard/images?videoId=${encodeURIComponent(videoId)}`
   const requestOptions = {
@@ -496,6 +505,7 @@ export async function uploadStoryboardVoiceoverAudio({ videoId, shotId, audioUrl
   return res.text()
 }
 
+// 生成分镜视频（POST）
 export async function generateStoryboardVideo({ videoId, modelName, token }) {
   const url = `${BASE_URL}/api/video/storyboard/generate?videoId=${encodeURIComponent(videoId)}&modelName=${encodeURIComponent(modelName)}`
   const requestOptions = {
@@ -510,6 +520,7 @@ export async function generateStoryboardVideo({ videoId, modelName, token }) {
   return res.text()
 }
 
+// 查询视频生成进度
 export async function queryStoryboardVideoStatus({ videoId, token }) {
   const url = `${BASE_URL}/api/video/storyboard/query?videoid=${encodeURIComponent(videoId)}`
   const requestOptions = {
@@ -524,6 +535,7 @@ export async function queryStoryboardVideoStatus({ videoId, token }) {
   return res.text()
 }
 
+// 查询-单个分镜场景详情（GET）
 export async function getStoryboardSceneDetail({ videoId, sceneNumber, token }) {
   const url = `${BASE_URL}/detail/storyboard/scene?videoId=${encodeURIComponent(videoId)}&sceneNumber=${encodeURIComponent(sceneNumber)}`
   const requestOptions = {
@@ -538,6 +550,7 @@ export async function getStoryboardSceneDetail({ videoId, sceneNumber, token }) 
   return res.text()
 }
 
+// 获取作品状态：剧本、图片、视频
 export async function getWorksVideoStatus({ videoId, token }) {
   const url = `${BASE_URL}/detail/works/video/status?videoId=${encodeURIComponent(videoId)}`
   const requestOptions = {
@@ -552,6 +565,7 @@ export async function getWorksVideoStatus({ videoId, token }) {
   return res.text()
 }
 
+// 查询-分镜场景版本历史左侧（GET）
 export async function getSceneVersionHistory({ videoId, sceneNumber, token }) {
   const url = `${BASE_URL}/storyboard/versions/getSceneHistory?videoId=${encodeURIComponent(videoId)}&sceneNumber=${encodeURIComponent(sceneNumber)}`
   const requestOptions = {
@@ -570,6 +584,7 @@ export async function getSceneVersionHistory({ videoId, sceneNumber, token }) {
   }
 }
 
+// 应用分镜版本
 export async function applySceneVersion({ videoId, sceneNumber, versionId, token }) {
   const url = `${BASE_URL}/storyboard/versions/apply`
   const headers = buildAuthHeaders(token)
@@ -589,6 +604,7 @@ export async function applySceneVersion({ videoId, sceneNumber, versionId, token
   }
 }
 
+// 剧本字幕修改
 export async function updateSceneScript({ videoid, scene_number, text, token }) {
   const url = `${BASE_URL}/detail/scene/script/update`
   const headers = buildAuthHeaders(token)
@@ -644,6 +660,7 @@ export async function deleteAliTts({ token, videoId, shotId }) {
   try { return await res.json() } catch (e) { try { return JSON.parse(await res.text()) } catch { return null } }
 }
 
+// 分镜画面提示词修改
 export async function updateVisualDescription({ videoid, scene_number, text, token }) {
   const url = `${BASE_URL}/detail/scene/updateVisualDescription`
   const headers = buildAuthHeaders(token)
@@ -658,6 +675,7 @@ export async function updateVisualDescription({ videoid, scene_number, text, tok
   }
 }
 
+// 分镜运镜镜头修改
 export async function updateCameraDirection({ videoid, scene_number, text, token }) {
   const url = `${BASE_URL}/detail/scene/updateCameraDirection`
   const headers = buildAuthHeaders(token)
@@ -672,6 +690,7 @@ export async function updateCameraDirection({ videoid, scene_number, text, token
   }
 }
 
+// 分镜标题修改
 export async function updateShotTitle({ videoid, scene_number, text, token }) {
   const url = `${BASE_URL}/detail/scene/updateShotTitle`
   const headers = buildAuthHeaders(token)
@@ -686,6 +705,7 @@ export async function updateShotTitle({ videoid, scene_number, text, token }) {
   }
 }
 
+// 删除分镜
 export async function deleteStoryboardScene({ videoId, sceneNumber, token }) {
   const url = `${BASE_URL}/detail/deleteScene`
   const headers = buildAuthHeaders(token)
@@ -700,6 +720,7 @@ export async function deleteStoryboardScene({ videoId, sceneNumber, token }) {
   }
 }
 
+// 导出视频
 export async function exportWorksVideo({ videoId, token }) {
   const url = `${BASE_URL}/detail/works/video/export?videoId=${encodeURIComponent(videoId)}`
   const requestOptions = {
@@ -907,6 +928,7 @@ export async function alipayNotifySuccess({ app_id, sign, orderNo_sub, trade_no 
   return res.text()
 }
 
+// 导出视频-下载
 export async function exportWorksVideoDownload({ videoId, token }) {
   const url = `${BASE_URL}/detail/works/video/export/download?videoId=${encodeURIComponent(videoId)}`
   const headers = buildAuthHeaders(token)
@@ -930,6 +952,7 @@ export async function exportWorksVideoDownload({ videoId, token }) {
   return { ok, blob, headers: res.headers, status: res.status }
 }
 
+// 获取订单列表
 export async function getOrdersList({ days = 30, token }) {
   const url = `${BASE_URL}/user/membership/getOrdersList?days=${encodeURIComponent(days)}`
   const requestOptions = {
@@ -948,6 +971,7 @@ export async function getOrdersList({ days = 30, token }) {
   }
 }
 
+// 获取邀请码
 export async function getInvitationCode({ token }) {
   const url = `${BASE_URL}/api/invitation/code`
   const requestOptions = {
@@ -966,6 +990,7 @@ export async function getInvitationCode({ token }) {
   }
 }
 
+// 获取邀请统计
 export async function getInvitationStats({ token }) {
   const url = `${BASE_URL}/api/invitation/stats`
   const requestOptions = {
@@ -984,6 +1009,7 @@ export async function getInvitationStats({ token }) {
   }
 }
 
+// 获取通知列表
 export async function getNotificationsList({ token }) {
   const url = `${BASE_URL}/notification/getNotList`
   const requestOptions = { method: 'GET', headers: buildAuthHeaders(token), redirect: 'follow' }
@@ -992,6 +1018,7 @@ export async function getNotificationsList({ token }) {
   try { return await res.json() } catch (e) { return await res.text() }
 }
 
+// 获取未读通知数量
 export async function getNotificationsUnreadCount({ token }) {
   const url = `${BASE_URL}/notification/unread-count`
   const requestOptions = { method: 'GET', headers: buildAuthHeaders(token), redirect: 'follow' }
@@ -1000,6 +1027,7 @@ export async function getNotificationsUnreadCount({ token }) {
   try { return await res.json() } catch (e) { return await res.text() }
 }
 
+// 标记通知为已读
 export async function markNotificationRead({ id, token }) {
   const url = `${BASE_URL}/notification/read?id=${encodeURIComponent(id)}`
   const requestOptions = { method: 'POST', headers: buildAuthHeaders(token), redirect: 'follow' }
@@ -1008,6 +1036,7 @@ export async function markNotificationRead({ id, token }) {
   try { return await res.json() } catch (e) { return await res.text() }
 }
 
+// 删除通知
 export async function deleteNotification({ id, token }) {
   const url = `${BASE_URL}/notification/delete?id=${encodeURIComponent(id)}`
   const requestOptions = { method: 'POST', headers: buildAuthHeaders(token), redirect: 'follow' }
@@ -1016,6 +1045,7 @@ export async function deleteNotification({ id, token }) {
   try { return await res.json() } catch (e) { return await res.text() }
 }
 
+// 获取扣费金额
 export async function getBillingEstimate({ videoId, genType, modelName, token }) {
   const url = `${BASE_URL}/api/billing/estimate?videoId=${encodeURIComponent(videoId)}&genType=${encodeURIComponent(genType)}&modelName=${encodeURIComponent(modelName)}`
   const requestOptions = {
@@ -1034,6 +1064,7 @@ export async function getBillingEstimate({ videoId, genType, modelName, token })
   }
 }
 
+// 语音合成：全部试听的接口
 export async function aliTtsSubmit({ text, languageType, voice, token }) {
   const url = `${BASE_URL}/api/ali-tts/submit?text=${encodeURIComponent(text)}&languageType=${encodeURIComponent(languageType)}&voice=${encodeURIComponent(voice)}`
   const requestOptions = {
@@ -1052,6 +1083,7 @@ export async function aliTtsSubmit({ text, languageType, voice, token }) {
   }
 }
 
+// 单个分镜修改左侧提问
 export async function updateSceneStream({ videoId, shotId, prompt, type, modelname, token, onEvent, signal }) {
   const url = `${BASE_URL}/api/update-scene`
   const headers = buildSSEHeaders(token)
@@ -1112,6 +1144,7 @@ export async function updateSceneStream({ videoId, shotId, prompt, type, modelna
   }
 }
 
+// 获取语音合成音色列表
 export async function getTonesList({ modelName, token }) {
   const url = `${BASE_URL}/detail/voice/getTonesList?modelName=${encodeURIComponent(modelName)}`
   const requestOptions = {
@@ -1126,6 +1159,7 @@ export async function getTonesList({ modelName, token }) {
   return res.text()
 }
 
+// 语音合成：查询合成状态
 export async function aliTtsQuery({ taskId, token }) {
   const url = `${BASE_URL}/api/ali-tts/query?taskId=${encodeURIComponent(taskId)}`
   const requestOptions = {
@@ -1144,6 +1178,7 @@ export async function aliTtsQuery({ taskId, token }) {
   }
 }
 
+// 数字人主体检测
 export async function objectDetectionSeedream({ imageFile, token }) {
   const url = `${BASE_URL}/api/video/seedream/object_detection`
   const headers = buildAuthHeaders(token)
@@ -1163,6 +1198,7 @@ export async function objectDetectionSeedream({ imageFile, token }) {
   }
 }
 
+// 获取当前登录用户基础信息
 export async function getUserBasicStatus(token) {
   const url = `${BASE_URL}/user/getUserBasicStatus`
   const requestOptions = {
@@ -1181,6 +1217,7 @@ export async function getUserBasicStatus(token) {
   }
 }
 
+// 更新用户头像与昵称
 export async function updateAvatarAndNickname({ token, imageFile, nickname }) {
   const url = `${BASE_URL}/user/updateAvatarAndNickname`
   const headers = buildAuthHeaders(token)
@@ -1205,6 +1242,7 @@ export async function updateAvatarAndNickname({ token, imageFile, nickname }) {
   }
 }
 
+// 数字人作品：生成（POST）
 export async function digitalhumanGen({ imageFile, imageUrl, audio, audioUrl, maskUrls, token }) {
   const url = `${BASE_URL}/api/video/digitalhumanGen`
   const headers = buildAuthHeaders(token)
@@ -1223,6 +1261,7 @@ export async function digitalhumanGen({ imageFile, imageUrl, audio, audioUrl, ma
   }
 }
 
+// 数字人作品生成查询
 export async function digitalhumanQuery({ taskId, token }) {
   const url = `${BASE_URL}/api/video/digitalhumanQuery?taskId=${encodeURIComponent(taskId)}`
   const requestOptions = { method: 'GET', headers: buildAuthHeaders(token), redirect: 'follow' }
@@ -1253,7 +1292,7 @@ export async function uploadDigitalHumanWorkImage({ conversationId, imageFile, t
   }
 }
 
-// 数字人作品：主体检测（POST）
+// 数字人作品：单个片段对口型主体检测（POST）
 export async function objectDetectionByWork({ conversationId, workId, token }) {
   const url = `${BASE_URL}/api/digitalhuman/object_detection_by_work`
   const headers = buildAuthHeaders(token)
@@ -1301,6 +1340,7 @@ export async function digitalhumanGenByWork({ conversationId, workId, audio, aud
   }
 }
 
+// 单分镜对口型主体检测
 export async function objectDetectionByScene({ videoId, shotId, token }) {
   const url = `${BASE_URL}/api/digitalhuman/object_detection_by_scene`
   const headers = buildAuthHeaders(token)
@@ -1316,6 +1356,7 @@ export async function objectDetectionByScene({ videoId, shotId, token }) {
   }
 }
 
+// 数字人作品：单个分镜片段对口型
 export async function digitalhumanGenByScene({ videoId, shotId, audio, audioUrl, maskUrls, token }) {
   const url = `${BASE_URL}/api/video/digitalhumanGenByScene`
   const headers = buildAuthHeaders(token)
@@ -1337,6 +1378,7 @@ export async function digitalhumanGenByScene({ videoId, shotId, audio, audioUrl,
   }
 }
 
+// 更新数字人作品字幕
 export async function updateDigitalHumanClientSubtitle({ dh_id, text, token }) {
   const url = `${BASE_URL}/detail/digital-human/client/updateSubtitle`
   const headers = buildAuthHeaders(token)
@@ -1406,7 +1448,7 @@ export async function sendCheckCodeByEmail({ email }) {
   return res.text()
 }
 
-// 多方式登录绑定状态（独立服务地址）
+// 获取多方式登录绑定状态
 export async function getBindStatus(token) {
   const url = `${BASE_URL}/user/bindStatus`
   const requestOptions = {
@@ -1422,7 +1464,7 @@ export async function getBindStatus(token) {
   }
 }
 
-// 绑定手机号（独立服务地址）
+// 绑定手机号
 export async function bindPhone({ token, phone, code }) {
   const url = `${BASE_URL}/user/bindPhone`
   const headers = buildAuthHeaders(token)
@@ -1437,7 +1479,7 @@ export async function bindPhone({ token, phone, code }) {
   }
 }
 
-// 绑定邮箱（独立服务地址）
+// 绑定邮箱
 export async function bindEmail({ token, email, code }) {
   const url = `${BASE_URL}/user/bindEmail`
   const headers = buildAuthHeaders(token)
@@ -1479,6 +1521,7 @@ export async function phoneLogin({ phone, code, invitationCode }) {
   return res.text()
 }
 
+// 复制分镜片段
 export async function copyStoryboardVideo({ videoId, order_index, token }) {
   const url = `${BASE_URL}/detail/storyboard/copy`
   const headers = buildAuthHeaders(token)
@@ -1497,6 +1540,7 @@ export async function copyStoryboardVideo({ videoId, order_index, token }) {
   return res.text()
 }
 
+// 分镜：调整场景顺序（POST）
 export async function reorderStoryboardScenes({ videoId, orders, token }) {
   const url = `${BASE_URL}/detail/storyboard/reorder`
   const headers = buildAuthHeaders(token)
@@ -1519,6 +1563,7 @@ export async function reorderStoryboardScenes({ videoId, orders, token }) {
   }
 }
 
+// 分镜：剪辑指定场景的视频片段（POST）
 export async function clipStoryboardVideo({ videoId, sceneNumber, start_frame, end_frame, token }) {
   const url = `${BASE_URL}/detail/storyboard/clip`
   const headers = buildAuthHeaders(token)
@@ -1541,6 +1586,7 @@ export async function clipStoryboardVideo({ videoId, sceneNumber, start_frame, e
   }
 }
 
+// 分镜：替换指定场景的画面图片（POST）
 export async function replaceStoryboardImage({ videoId, sceneNumber, file, token }) {
   const url = `${BASE_URL}/detail/storyboard/image/replace`
   const headers = buildAuthHeaders(token)
@@ -1565,6 +1611,7 @@ export async function replaceStoryboardImage({ videoId, sceneNumber, file, token
   }
 }
 
+// 会话：删除对话记录（POST）
 export async function deleteConversation({ conversationId, token }) {
   const url = `${BASE_URL}/detail/conversation/delete?conversationId=${encodeURIComponent(conversationId)}`
   const requestOptions = {
@@ -1576,6 +1623,7 @@ export async function deleteConversation({ conversationId, token }) {
   return res.text()
 }
 
+// 上传视频背景音乐文件（POST）
 export async function uploadBackgroundMusic({ videoId, musicFile, filename, token }) {
   const url = `${BASE_URL}/detail/upload/background-music`
   const headers = buildAuthHeaders(token)
@@ -1595,7 +1643,7 @@ export async function uploadBackgroundMusic({ videoId, musicFile, filename, toke
   }
 }
 
-// 查询-视频作品详情（GET
+// 查询：获取视频作品详情（GET）
 export async function getWorksVideoDetail({ id, token }) {
   const url = `${BASE_URL}/detail/works/video/detail?id=${encodeURIComponent(id)}`
   const requestOptions = {

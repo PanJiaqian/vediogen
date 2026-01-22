@@ -1,3 +1,4 @@
+// 数字人工具栏：配置数字人文本/音频驱动及语音参数
 <template>
   <div class="digital-human-toolbar">
     <!-- 添加新角色按钮 -->
@@ -180,6 +181,7 @@
 </template>
 
 <script>
+
 import { aliTtsSubmit, aliTtsQuery, digitalhumanGen, digitalhumanGenByScene, digitalhumanGenByWork, updateDigitalHumanClientSubtitle } from '@/api'
 import { useUserStore } from '@/stores/user'
 import ToneSelector from '@/components/ToneSelector.vue'

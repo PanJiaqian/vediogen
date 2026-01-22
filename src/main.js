@@ -1,3 +1,4 @@
+// 应用入口：创建 Vue 实例并挂载全局路由、状态和性能监控
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'

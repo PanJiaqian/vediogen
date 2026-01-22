@@ -1,3 +1,4 @@
+// 分镜裁剪弹窗：选择分镜视频片段并返回裁剪区间
 <template>
   <div v-if="visible" class="modal-overlay" @click="emitClose">
     <div class="modal-container" @click.stop>
@@ -39,6 +40,7 @@
 </template>
 
 <script>
+
 import { cleanUrl } from '@/utils/media'
 import Hls from 'hls.js'
 

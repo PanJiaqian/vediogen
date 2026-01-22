@@ -1,3 +1,4 @@
+// 顶部导航：负责登录、会员与积分入口以及通知与用户菜单
 <template>
   <header class="header">
     <div class="header__content">
@@ -240,6 +241,7 @@
 </template>
 
 <script>
+
 import LoginModal from './LoginModal.vue'
 import MembershipModal from '@/components/MembershipModal.vue'
 import PointsModal from '@/components/PointsModal.vue'
@@ -811,7 +813,7 @@ export default {
     ,
     // 处理 401 未授权提示
     handleAuth401() {
-      return
+
     }
     ,
     openCenterPrompt(text) {

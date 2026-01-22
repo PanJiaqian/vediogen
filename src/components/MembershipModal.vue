@@ -1,3 +1,4 @@
+// 会员开通弹窗：展示会员套餐并创建订阅订单
 <template>
   <div v-if="visible" class="membership-modal-overlay" @click.self="close">
     <div class="membership-modal">
@@ -158,6 +159,7 @@
 </template>
 
 <script>
+
 import PaymentModal from './PaymentModal.vue'
 import { getMembershipPackages, createOrderByPackage } from '../api'
 import { useUserStore } from '../stores/user'

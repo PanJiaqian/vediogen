@@ -1,3 +1,4 @@
+// 灵感详情页：展示社区作品视频并支持删除和基于此创作
 <template>
   <div class="inspiration-detail">
     <!-- 返回按钮 -->

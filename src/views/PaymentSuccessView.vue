@@ -1,3 +1,4 @@
+// 支付成功页：展示支付结果并引导用户回首页或查看订单
 <template>
   <div class="payment-success-view">
     <div class="success-card">
@@ -31,6 +32,7 @@
 </template>
 
 <script>
+
 export default {
   name: 'PaymentSuccessView',
   methods: {

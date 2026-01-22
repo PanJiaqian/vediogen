@@ -1,3 +1,4 @@
+// 媒体工具：清洗媒体 URL 并判断是否可展示
 export function cleanUrl(u) {
   let str = (u || '').toString().trim()
   str = str
@@ -6,7 +7,7 @@ export function cleanUrl(u) {
     .replace(/"/g, '')
     .replace(/'/g, '')
     .trim()
-  str = str.replace(/^(https?|wss?|ws|ftp):\/(?!\/)/i, m => m.slice(0, -1) + '//')
+  str = str.replace(/^(https?|wss?|ws|ftp):\/(?!\/)/i, m => `${m.slice(0, -1)  }//`)
   str = str.replace(/^(https?|wss?|ws|ftp):\/\/+/i, (_, p1) => `${p1}://`)
   if (typeof window !== 'undefined' && window.location && window.location.protocol === 'https:' && /^http:\/\//i.test(str)) {
     str = str.replace(/^http:\/\//i, 'https://')

@@ -1,3 +1,4 @@
+// 支付弹窗：发起支付宝付款并轮询订单支付状态
 <template>
   <div v-if="visible" class="payment-modal-overlay" @click.self="close">
     <div class="payment-modal">
@@ -49,6 +50,7 @@
 </template>
 
 <script>
+
 import { initiateAlipayPayment, getPaymentOrderStatus } from '../api'
 import { useUserStore } from '../stores/user'
 

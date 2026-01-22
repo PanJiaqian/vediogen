@@ -1,3 +1,4 @@
+// 我的空间页：展示用户作品列表并根据生成状态跳转对应编辑入口
 <template>
   <div class="my-projects">
     <!-- 标签页导航 -->
@@ -61,6 +62,7 @@
 </template>
 
 <script>
+
 import { generateGradientPlaceholder } from '@/utils/placeholder'
 import { getMyWorksList, getStoryboardImagesDetail, queryStoryboardVideoStatus, getWorksVideoStatus, getScriptDetailByVideo, deleteConversation } from '@/api/index.js'
 import { useUserStore } from '@/stores/user.js'
@@ -71,7 +73,7 @@ export default {
     return {
       activeTab: 'story',
       tabs: [
-        { id: 'story', name: '故事' },
+        { id: 'story', name: '故事' }
         // { id: 'avatar', name: '数字人' }
       ],
       storyProjects: [],

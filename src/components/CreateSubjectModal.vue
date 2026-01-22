@@ -1,3 +1,4 @@
+// 创建主体弹窗：将用户输入的形象信息上传为素材
 <template>
   <div v-if="visible" class="modal-overlay" @click="handleOverlayClick">
     <!-- 消息提示 -->
@@ -90,6 +91,7 @@
 </template>
 
 <script>
+
 import { uploadMaterial } from '@/api'
 export default {
   name: 'CreateSubjectModal',
@@ -172,6 +174,7 @@ export default {
         reader.readAsDataURL(file)
       }
     },
+    // 提交表单：校验数据并调用素材上传接口，成功后通知父组件
     async submitNewSubject() {
       // 验证必填字段
       if (!this.newSubject.name.trim()) {

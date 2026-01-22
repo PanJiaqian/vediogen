@@ -1,3 +1,4 @@
+// 路由配置：定义页面路径及全局导航守卫（登录拦截与邀请链接处理）
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
@@ -24,9 +25,6 @@ const routes = [
   {
     path: '/about',
     name: 'About',
-    // route level code-splitting
-    // this generates a separate chunk (about.[hash].js) for this route
-    // which is lazy-loaded when the route is visited.
     component: () => import(/* webpackChunkName: "about" */ '../views/AboutView.vue')
   },
   {

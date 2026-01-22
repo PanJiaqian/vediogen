@@ -61,6 +61,7 @@
 </template>
 
 <script>
+// 侧边栏组件：展示主导航入口与品牌标识
 export default {
   name: 'AppSidebar'
 }

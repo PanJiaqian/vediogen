@@ -233,6 +233,7 @@
 </template>
 
 <script>
+// 首页视图：提供灵感搜索、主体与画风选择以及作品广场展示
 import { getCreativeWorkList, getMaterialsList, addCreativeWork } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { projectPlaceholders } from '@/utils/placeholder'
@@ -740,9 +741,9 @@ export default {
           })
           const sorted = currentUserId != null
             ? [
-                ...list.filter(item => String(item.userId) === String(currentUserId)),
-                ...list.filter(item => String(item.userId) !== String(currentUserId))
-              ]
+              ...list.filter(item => String(item.userId) === String(currentUserId)),
+              ...list.filter(item => String(item.userId) !== String(currentUserId))
+            ]
             : list
           this.recommendations = sorted.map(item => ({
             id: item.id,

@@ -1,3 +1,4 @@
+// 订单记录弹窗：查询最近订单并按类型筛选展示
 <template>
   <div v-if="visible" class="modal-overlay" @click.self="close">
     <div class="modal-content">
@@ -74,6 +75,7 @@
 </template>
 
 <script>
+
 import { getOrdersList, getUserBasicStatus } from '@/api'
 import { useUserStore } from '@/stores/user'
 

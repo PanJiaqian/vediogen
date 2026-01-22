@@ -1,3 +1,4 @@
+// 错误提示弹窗：统一展示错误信息并允许用户关闭
 <template>
   <div v-if="visible" class="modal-overlay" @click="onOverlay">
     <div class="modal-container" @click.stop>
@@ -21,6 +22,7 @@
 </template>
 
 <script>
+
 export default {
   name: 'ErrorModal',
   props: {

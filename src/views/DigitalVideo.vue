@@ -1,3 +1,4 @@
+// 数字人视频页：基于数字人工作流编辑场景并生成成片
 <template>
   <div v-if="isSceneLipSyncMode" class="lip-sync-full-page" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:var(--bg-primary);">
     <LipSyncView
@@ -721,6 +722,7 @@
 </template>
 
 <script>
+
 import ToneSelector from '@/components/ToneSelector.vue'
 import MembershipModal from '@/components/MembershipModal.vue'
 import PointsModal from '@/components/PointsModal.vue'

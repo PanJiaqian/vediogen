@@ -44,6 +44,7 @@
 </template>
 
 <script>
+// 积分充值弹窗：展示积分套餐并创建充值订单
 import PaymentModal from './PaymentModal.vue'
 import { getPointsPackagesList, createOrderByPackage } from '../api'
 import { useUserStore } from '../stores/user'

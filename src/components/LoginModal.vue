@@ -1,3 +1,4 @@
+// 登录弹窗：支持邮箱/短信登录、注册与找回密码
 <template>
   <div v-if="visible" class="modal-overlay" @click="handleOverlayClick">
     <div class="modal-container" @click.stop>
@@ -232,6 +233,7 @@
 </template>
 
 <script>
+
 import { emailLogin, emailRegister, sendCheckCodeByEmail, emailResetPassword, sendSmsCodeByPhone, phoneLogin } from '@/api'
 import { useUserStore } from '@/stores/user'
 export default {

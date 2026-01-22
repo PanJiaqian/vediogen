@@ -22,6 +22,7 @@
 </template>
 
 <script>
+// 根组件：负责应用整体布局（侧边栏、头部导航与路由内容）
 import Sidebar from '@/components/Sidebar.vue'
 import Header from '@/components/Header.vue'
 import { useUserStore } from '@/stores/user'
@@ -69,7 +70,6 @@ export default {
 @import '@/styles/global.css';
 
 #app {
-  /* display: flex; */
   min-height: 100vh;
   background-color: var(--bg-secondary);
 }

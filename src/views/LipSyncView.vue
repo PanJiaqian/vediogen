@@ -61,6 +61,7 @@
 </template>
 
 <script>
+// 对口型视图：基于数字人图片配置字幕与主题配音
 import DigitalHumanToolbar from '@/components/DigitalHumanToolbar.vue'
 import MembershipModal from '@/components/MembershipModal.vue'
 import PointsModal from '@/components/PointsModal.vue'

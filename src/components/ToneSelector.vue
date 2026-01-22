@@ -1,3 +1,4 @@
+// 音色选择器：从服务端拉取可用音色并支持筛选与试听
 <template>
   <div v-if="visible" class="tone-selector-overlay" @click.self="close">
     <div class="tone-selector-modal">
@@ -115,6 +116,7 @@
 </template>
 
 <script>
+
 import { getTonesList } from '@/api'
 import { useUserStore } from '@/stores/user'
 
@@ -253,6 +255,7 @@ export default {
       }
       return map[s] || lang
     },
+    // 从后端获取音色列表，并更新 loading / error / tones 状态
     async fetchTones() {
       this.loading = true
       this.error = null

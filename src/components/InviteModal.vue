@@ -1,3 +1,4 @@
+// 邀请弹窗：展示个人邀请码、邀请统计与复制链接功能
 <template>
   <div v-if="visible" class="invite-overlay" @click="handleOverlayClick">
     <div class="invite-modal" @click.stop>
@@ -110,6 +111,7 @@
 </template>
 
 <script>
+
 import { getInvitationCode, getInvitationStats } from '@/api'
 
 export default {

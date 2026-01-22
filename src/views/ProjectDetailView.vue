@@ -1,3 +1,4 @@
+// 项目详情页：承载剧本生成、分镜状态查询与生成结果预览
 <template>
   <div class="project-detail">
     <!-- 左侧内容区域 -->
@@ -268,6 +269,7 @@
 </template>
 
 <script>
+
 import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo, getWorksVideoStatus, queryStoryboardVideoStatus, getStoryboardImagesDetail, scriptGenStream, getBillingEstimate, getUserBasicStatus } from '@/api'
 import { getMyWorksList, getVideoVersionsByConversation, getConversationMessages } from '@/api/index.js'
 import { useUserStore } from '@/stores/user'
