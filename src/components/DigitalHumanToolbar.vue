@@ -135,9 +135,13 @@
           </div>
           <div class="audio-actions">
             <span class="audio-time">{{ formatSec(uploadCurrentTime) }}/{{ formatSec(uploadAudioDuration) }}</span>
-            <button class="delete-audio-btn" @click.stop="removeUploadedAudio">
+            <button class="delete-audio-btn" @click.stop="removeUploadedAudio" title="删除配音">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 6h18M8 6v14m8-14v14M10 6l1-2h2l1 2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 6h18"></path>
+                <path d="M8 6V4h8v2"></path>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                <path d="M10 11v6"></path>
+                <path d="M14 11v6"></path>
               </svg>
             </button>
           </div>
@@ -634,7 +638,7 @@ export default {
 .audio-slider { width: 100%; accent-color: var(--primary-color); }
 .audio-actions { display: flex; align-items: center; gap: 8px; }
 .audio-time { font-size: 12px; color: var(--text-secondary); }
-.delete-audio-btn { border: none; background: transparent; color: var(--text-secondary); cursor: pointer; padding: 4px; }
+.delete-audio-btn { border: none; background: transparent; color: var(--error-color); cursor: pointer; padding: 4px; }
 
 .tab-navigation {
   display: flex;

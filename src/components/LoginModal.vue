@@ -249,7 +249,7 @@ export default {
       isLogin: true,
       isForgot: false,
       // loginType: 'phone', // 'phone' | 'email'
-      loginType: 'email',
+      loginType: 'phone',
       showPassword: false,
       showForgotPassword: false,
       showForgotConfirmPassword: false,
@@ -353,7 +353,6 @@ export default {
       this.$emit('close')
     },
     handleOverlayClick() {
-      this.closeModal()
     },
     resetForm() {
       const existingCode = this.formData?.invitationCode || ''

@@ -204,7 +204,7 @@
                 </div>
 
                 <!-- 图片描述内容 -->
-                <div class="prompt-content" v-show="isPromptExpanded">
+                <div class="prompt-content" :class="{ collapsed: !isPromptExpanded && !isEditingPrompt }">
                   <!-- 显示模式 -->
                   <div v-if="!isEditingPrompt">
                     <template v-if="scenes[activeSceneIndex]?.scene_script">
@@ -248,7 +248,7 @@
                     </button>
                   </div>
                 </div>
-                <div class="prompt-content" v-show="isPromptExpanded">
+                <div class="prompt-content">
                   <div v-if="!isEditingCameraDirection">
                     <div v-if="scenes[activeSceneIndex]?.scene_script?.camera_direction">
                       <span style="opacity:0.7;"></span>{{ scenes[activeSceneIndex].scene_script.camera_direction }}
@@ -267,7 +267,7 @@
 
               <!-- 底部操作按钮（移动到图片提示词下方） -->
               <div class="bottom-actions">
-                <button class="bottom-btn download-btn">
+                <button class="bottom-btn download-btn" @click="downloadImageDirect(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" />
                     <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" />
@@ -292,7 +292,7 @@
               </div>
 
               <!-- 图片展示 -->
-              <div class="image-container">
+              <!-- <div class="image-container">
                 <div
                   v-if="(isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || isActiveSceneCropping || isPreviewPending || ((!isVideo(sceneDetail.video_url)) && isActiveImageMissing)"
                   class="skeleton-image"></div>
@@ -302,9 +302,9 @@
                 <img v-else-if="shouldRenderImage(sceneDetail.reference_image_url) && !previewImgErrored"
                   :src="cleanUrl(sceneDetail.reference_image_url)" alt="分镜图片" class="scene-image" decoding="async"
                   fetchpriority="high" />
-              </div>
+              </div> -->
 
-
+              <!-- 历史记录 -->
               <div class="version-history-section" style="margin-top: 12px;">
                 <div v-if="sceneHistoryLoading" class="skeleton-image" style="height:100px;"></div>
                 <div v-else-if="sortedSceneHistory && sortedSceneHistory.length" class="version-list" style="display:flex;flex-direction:column;gap:12px;">
@@ -555,9 +555,13 @@
                 </div>
                 <div class="audio-actions">
                   <span class="audio-time">{{ formatSec(voiceSceneCurrentTime) }}/{{ formatSec(voiceSceneAudioDuration) }}</span>
-                  <button class="delete-audio-btn" @click.stop="deleteVoiceover">
+                  <button class="delete-audio-btn" @click.stop="deleteVoiceover" title="删除配音">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M3 6h18M8 6v12m8-12v12M5 6l1-3h12l1 3" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M3 6h18"></path>
+                      <path d="M8 6V4h8v2"></path>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                      <path d="M10 11v6"></path>
+                      <path d="M14 11v6"></path>
                     </svg>
                   </button>
                 </div>
@@ -638,9 +642,13 @@
                 </div>
                 <div class="audio-actions">
                   <span class="audio-time">{{ formatSec(musicCurrentTime) }}/{{ formatSec(musicAudioDuration) }}</span>
-                  <button class="delete-audio-btn" @click.stop="deleteBackgroundMusicByApi">
+                  <button class="delete-audio-btn" @click.stop="deleteBackgroundMusicByApi" title="删除音乐">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M3 6h18M8 6v14m8-14v14M10 6l1-2h2l1 2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M3 6h18"></path>
+                      <path d="M8 6V4h8v2"></path>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                      <path d="M10 11v6"></path>
+                      <path d="M14 11v6"></path>
                     </svg>
                   </button>
                 </div>
@@ -1196,7 +1204,7 @@ export default {
       isPlaying: false,
       // audioDuration: '约 5s 音频 20/240',
       // 图片提示词相关数据
-      isPromptExpanded: true,
+      isPromptExpanded: false,
       isEditingPrompt: false,
       editingPromptText: '',
       originalPromptContent: '',
@@ -2203,6 +2211,18 @@ export default {
         a.download = ''
         a.target = '_blank'
         a.rel = 'noopener'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      } catch (e) { /* no-op */ }
+    },
+    downloadImageDirect(u) {
+      try {
+        const url = this.cleanUrl(u || '')
+        if (!url) return
+        const a = document.createElement('a')
+        a.href = url
+        a.download = ''
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
@@ -5428,9 +5448,9 @@ export default {
                 target.thumbnail = imageUrl
                 if (type === 'image') {
                   target.hasVideo = false
-                  target.video_url = null
+                  target.video_url = 'replaceimage'
                   target.clips = [{ url: imageUrl, durationMs: 5000 }]
-                  this.sceneDetail = { reference_image_url: imageUrl, video_url: null, audio_url: this.cleanUrl(target.audio_url || '') }
+                  this.sceneDetail = { reference_image_url: imageUrl, video_url: 'replaceimage', audio_url: this.cleanUrl(target.audio_url || '') }
                   try {
                     const kk = this.getSceneKey(target, aidx)
                     if (this.updatingKeySet && this.updatingKeySet.delete) this.updatingKeySet.delete(kk)
@@ -5475,7 +5495,9 @@ export default {
                     const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
                     const idx = this.activeSceneIndex
                     const sc = this.scenes[idx] || {}
-                    this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isMod ? null : ((vLocal || vurl) || null), audio_url: this.cleanUrl((data && data.audio_url) || '') }
+                    // 对于 image 类型（vurl 为空），使用 'replaceimage' 表示图片状态
+                    const nextVideoUrl = isMod ? null : (vurl ? (vLocal || vurl) : 'replaceimage')
+                    this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: nextVideoUrl, audio_url: this.cleanUrl((data && data.audio_url) || '') }
                     if (sc) {
                       if (isMod) {
                         sc.hasVideo = false
@@ -5490,6 +5512,17 @@ export default {
                         if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
                         this.durationMap.set(vLocal || vurl, dur)
                         if (idx === this.activeSceneIndex) this.updateActiveSceneDurationFromVideo()
+                        try {
+                          const kk = this.getSceneKey(sc, idx)
+                          if (this.updatingKeySet && this.updatingKeySet.delete) this.updatingKeySet.delete(kk)
+                        } catch (e) { void 0 }
+                      } else {
+                        // image 类型：确保 scene 状态也正确设置
+                        sc.hasVideo = false
+                        sc.video_url = 'replaceimage'
+                        if (!Array.isArray(sc.clips) || !sc.clips.length) {
+                          sc.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
+                        }
                         try {
                           const kk = this.getSceneKey(sc, idx)
                           if (this.updatingKeySet && this.updatingKeySet.delete) this.updatingKeySet.delete(kk)
@@ -6309,6 +6342,11 @@ export default {
   border: 1px solid var(--border-secondary);
   border-top: none;
   border-radius: 0 0 8px 8px;
+}
+
+.prompt-content.collapsed {
+  max-height: 120px;
+  overflow: hidden;
 }
 
 .prompt-content p {
@@ -7856,7 +7894,7 @@ input:checked+.slider:before {
 .audio-slider { width: 100%; accent-color: var(--primary-color); }
 .audio-actions { display: flex; align-items: center; gap: 8px; }
 .audio-time { font-size: 12px; color: var(--text-secondary); }
-.delete-audio-btn { border: none; background: transparent; color: var(--text-secondary); cursor: pointer; padding: 4px; }
+.delete-audio-btn { border: none; background: transparent; color: var(--error-color); cursor: pointer; padding: 4px; }
 .music-apply-section {
   position: absolute;
   bottom: 0;
