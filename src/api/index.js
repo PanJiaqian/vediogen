@@ -1036,6 +1036,14 @@ export async function markNotificationRead({ id, token }) {
   try { return await res.json() } catch (e) { return await res.text() }
 }
 
+export async function markAllNotificationsRead({ token }) {
+  const url = `${BASE_URL}/notification/read-all`
+  const requestOptions = { method: 'POST', headers: buildAuthHeaders(token), redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) { try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { /* no-op */ } }
+  try { return await res.json() } catch (e) { return await res.text() }
+}
+
 // 删除通知
 export async function deleteNotification({ id, token }) {
   const url = `${BASE_URL}/notification/delete?id=${encodeURIComponent(id)}`

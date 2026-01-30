@@ -40,6 +40,7 @@
               <div class="notifications-header">
                 <div class="notif-title">通知</div>
                 <div class="notif-actions">
+                  <button class="notif-refresh" @click.stop="markAllAsRead">标记全部已读</button>
                   <button class="notif-refresh" @click.stop="refreshNotifications">刷新</button>
                 </div>
               </div>
@@ -249,7 +250,7 @@ import UserProfileEditModal from '@/components/UserProfileEditModal.vue'
 import InviteModal from '@/components/InviteModal.vue'
 import OrderRecordsModal from '@/components/OrderRecordsModal.vue'
 import { useUserStore } from '@/stores/user'
-import { getUserBasicStatus, updateAvatarAndNickname, getBindStatus, bindPhone, bindEmail, sendSmsCodeByPhone, sendCheckCodeByEmail, getNotificationsList, getNotificationsUnreadCount, markNotificationRead, deleteNotification } from '@/api'
+import { getUserBasicStatus, updateAvatarAndNickname, getBindStatus, bindPhone, bindEmail, sendSmsCodeByPhone, sendCheckCodeByEmail, getNotificationsList, getNotificationsUnreadCount, markNotificationRead, markAllNotificationsRead, deleteNotification } from '@/api'
 
 export default {
   name: 'AppHeader',
@@ -420,6 +421,19 @@ export default {
           if (idx >= 0) this.$set ? this.$set(this.notificationsList[idx], 'isRead', 1) : (this.notificationsList[idx].isRead = 1)
           await this.fetchNotificationsUnreadCount()
         }
+      } catch (e) { /* no-op */ }
+    },
+    async markAllAsRead() {
+      try {
+        const token = this.userStore && this.userStore.token
+        if (!token) return
+        const res = await markAllNotificationsRead({ token })
+        const ok = (res && (res.code === 0 || res.success === true)) || typeof res === 'string'
+        if (ok && Array.isArray(this.notificationsList) && this.notificationsList.length) {
+          this.notificationsList.forEach(n => { n.isRead = 1 })
+          this.notificationsUnreadCount = 0
+        }
+        await this.fetchNotificationsUnreadCount()
       } catch (e) { /* no-op */ }
     },
     async deleteNotif(n) {
@@ -1071,6 +1085,7 @@ export default {
   background: var(--bg-tertiary);
   color: var(--text-secondary);
   cursor: pointer;
+  margin-right: 10px;
 }
 .notifications-body {
   max-height: 360px;

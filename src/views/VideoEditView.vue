@@ -267,20 +267,20 @@
 
               <!-- 底部操作按钮（移动到图片提示词下方） -->
               <div class="bottom-actions">
-                <button class="bottom-btn download-btn" @click="downloadImageDirect(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)">
+                <!-- <button class="bottom-btn download-btn" @click="downloadImageDirect(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" />
                     <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" />
                     <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" />
                   </svg>
                   下载
-                </button>
-                <button class="bottom-btn apply-btn" @click="applySelectedSceneVersion">
+                </button> -->
+                <!-- <button class="bottom-btn apply-btn" @click="applySelectedSceneVersion">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <polyline points="20,6 9,17 4,12" stroke="currentColor" stroke-width="2" />
                   </svg>
                   应用
-                </button>
+                </button> -->
                 <button v-if="!isVideo(currentPreviewUrl)" class="bottom-btn regenerate-btn"
                   @click="handleRegenerateActiveScene">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -338,11 +338,10 @@
                         </button>
                         <button class="bottom-btn download-btn" @click.stop="downloadImage(v.content)">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" />
-                            <polyline points="7,10 12,15 17,10" stroke="currentColor" stroke-width="2" />
-                            <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" stroke-width="2" />
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2" />
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
                           </svg>
-                          下载
+                          预览
                         </button>
                       </div>
                     </div>
