@@ -93,9 +93,8 @@ export default {
       loading: false,
       orders: [],
       pointsBalance: 0,
-      activeTab: 'all',
+      activeTab: 'consumption',
       tabs: [
-        { id: 'all', name: '全部' },
         { id: 'consumption', name: '消费' },
         { id: 'subscription', name: '订阅' },
         { id: 'recharge', name: '充值' }
@@ -113,13 +112,14 @@ export default {
         const title = String(order.title || '').toLowerCase()
         const type = String(order.orderType || '').toUpperCase()
         if (this.activeTab === 'consumption') {
-          return categoryCn === '消耗' || type === 'CONSUMPTION' || title.includes('消费') || title.includes('扣除') || title.includes('使用')
+          return !this.isPositive(order) || categoryCn === '消耗' || type === 'CONSUMPTION' || title.includes('消费') || title.includes('扣除')
         }
         if (this.activeTab === 'subscription') {
           return categoryCn === '订阅' || type === 'SUBSCRIPTION' || title.includes('会员') || title.includes('订阅')
         }
         if (this.activeTab === 'recharge') {
-          return categoryCn === '充值' || type === 'RECHARGE' || title.includes('充值') || title.includes('积分')
+          const isSub = categoryCn === '订阅' || type === 'SUBSCRIPTION' || title.includes('会员') || title.includes('订阅')
+          return (categoryCn === '充值' || type === 'RECHARGE' || title.includes('充值')) && this.isPositive(order) && !isSub
         }
         return true
       })
@@ -189,6 +189,8 @@ export default {
       if (amt.startsWith('-')) return false
       const cat = String(order && order.category || '').trim()
       if (cat === '消耗') return false
+      const type = String(order && order.orderType || '').trim().toUpperCase()
+      if (type === 'CONSUMPTION') return false
       return true
     },
     openMembership() {
