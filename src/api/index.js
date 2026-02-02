@@ -739,6 +739,71 @@ export async function exportWorksVideo({ videoId, token }) {
   }
 }
 
+// 导出视频-进度流（SSE）
+export async function exportWorksVideoStream({ videoId, token, onEvent, signal }) {
+  const url = `${BASE_URL}/detail/works/video/export/stream?videoId=${encodeURIComponent(videoId)}`
+  const requestOptions = {
+    method: 'GET',
+    headers: buildSSEHeaders(token),
+    redirect: 'follow',
+    signal
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  const reader = res.body && res.body.getReader ? res.body.getReader() : null
+  if (!reader) {
+    if (signal && signal.aborted) return
+    const text = await res.text()
+    if (typeof onEvent === 'function') {
+      const chunks = text.split(/\n\n+/)
+      for (const chunk of chunks) {
+        const m = chunk.match(/data:(.*)/s)
+        if (m && m[1]) {
+          try {
+            const obj = JSON.parse(m[1].trim())
+            onEvent(obj)
+          } catch (err) {
+            console.warn('SSE fallback JSON 解析失败:', err)
+          }
+        }
+      }
+    }
+    return
+  }
+  const decoder = new TextDecoder('utf-8')
+  let buffer = ''
+  for (; ;) {
+    if (signal && signal.aborted) break
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const parts = buffer.split(/\n\n+/)
+    buffer = parts.pop() || ''
+    for (const part of parts) {
+      const m = part.match(/data:(.*)/s)
+      if (m && m[1]) {
+        try {
+          const obj = JSON.parse(m[1].trim())
+          if (typeof onEvent === 'function') onEvent(obj)
+        } catch (err) {
+          console.warn('SSE 流式 JSON 解析失败:', err)
+        }
+      }
+    }
+  }
+  const m = buffer.match(/data:(.*)/s)
+  if (m && m[1]) {
+    try {
+      const obj = JSON.parse(m[1].trim())
+      if (typeof onEvent === 'function') onEvent(obj)
+    } catch (err) {
+      console.warn('SSE 最后块 JSON 解析失败:', err)
+    }
+  }
+}
+
 // POST 创建订单-会员订阅
 export async function createSubscriptionOrder({ token, amount, membershipLevel }) {
   const myHeaders = buildAuthHeaders(token)
@@ -930,7 +995,7 @@ export async function alipayNotifySuccess({ app_id, sign, orderNo_sub, trade_no 
 
 // 导出视频-下载
 export async function exportWorksVideoDownload({ videoId, token }) {
-  const url = `${BASE_URL}/detail/works/video/export/download?videoId=${encodeURIComponent(videoId)}`
+  const url = `${BASE_URL}/detail/works/video/export/fetch-file?videoId=${encodeURIComponent(videoId)}`
   const headers = buildAuthHeaders(token)
   headers.append('Accept', 'video/mp4')
   const requestOptions = {
@@ -1699,6 +1764,7 @@ export default {
   , applySceneVersion
   , deleteConversation
   , exportWorksVideo
+  , exportWorksVideoStream
   , exportWorksVideoDownload
   , aliTtsSubmit
   , aliTtsQuery

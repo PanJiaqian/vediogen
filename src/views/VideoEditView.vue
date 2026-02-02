@@ -1080,7 +1080,7 @@
         {{ exportProgressDone ? '导出成功' : (exportProgressPct.toFixed(1) + '%') }}
       </div>
       <div class="export-desc" style="text-align:center;color:var(--text-secondary);margin-top:8px;">
-        {{ exportProgressDone ? '如自动下载失败可点击手动下载' : '正在导出您的视频，请稍候' }}
+        {{ exportProgressDone ? '如自动下载失败可点击手动下载' : (exportProgressStep || '正在导出您的视频，请稍候') }}
       </div>
       <div v-if="exportProgressDone && exportManualUrl" style="text-align:center;margin-top:8px;">
         <a :href="exportManualUrl" target="_blank" rel="noopener" style="color:var(--primary-color)">手动下载链接</a>
@@ -1142,7 +1142,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideo, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene, uploadBackgroundMusic as uploadBackgroundMusicApi, getWorksVideoDetail, getSubtitleState, updateSubtitleState, deleteBackgroundMusic as deleteBackgroundMusicApi, deleteAliTts } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideoStream, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene, uploadBackgroundMusic as uploadBackgroundMusicApi, getWorksVideoDetail, getSubtitleState, updateSubtitleState, deleteBackgroundMusic as deleteBackgroundMusicApi, deleteAliTts } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -1221,9 +1221,11 @@ export default {
       successFilename: '',
       exportProgressVisible: false,
       exportProgressPct: 0,
+      exportProgressStep: '',
       exportProgressDone: false,
       exportManualUrl: '',
       exportTimer: null,
+      exportAbortController: null,
       isConverting: false,
       isVideoConverting: false,
       sceneDetail: { reference_image_url: '', video_url: '' },
@@ -1358,6 +1360,10 @@ export default {
     if (this.pollImagesTimer) {
       try { clearTimeout(this.pollImagesTimer) } catch (e) { void 0 }
       this.pollImagesTimer = null
+    }
+    if (this.exportAbortController && this.exportAbortController.abort) {
+      try { this.exportAbortController.abort() } catch (e) { void 0 }
+      this.exportAbortController = null
     }
   },
   mounted() {
@@ -4740,35 +4746,71 @@ export default {
       this.convertToVideo()
     },
     async exportVideo() {
+      const ctrl = this.exportAbortController && this.exportAbortController.abort ? this.exportAbortController : null
+      if (ctrl) { try { ctrl.abort() } catch (e) { /* no-op */ } }
+      this.exportAbortController = new AbortController()
+      const signal = this.exportAbortController.signal
+      let finalData = null
+      let abortedForDone = false
+
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const token = (this.userStore && this.userStore.token) || ''
         if (!token) { return }
+
         this.exportProgressVisible = true
         this.exportProgressPct = 0
+        this.exportProgressStep = ''
         this.exportProgressDone = false
         this.exportManualUrl = ''
         if (this.exportTimer) { try { clearInterval(this.exportTimer) } catch (e) { /* no-op */ } this.exportTimer = null }
-        this.exportTimer = setInterval(() => {
-          if (this.exportProgressDone) return
-          const next = Math.min(96, this.exportProgressPct + (Math.random() * 1.6 + 0.8))
-          this.exportProgressPct = next
-          if (next >= 96) { try { clearInterval(this.exportTimer) } catch (e) { /* no-op */ } this.exportTimer = null }
-        }, 1000)
-        const resp = await exportWorksVideoDownload({ videoId, token })
-        if (!resp || resp.status !== 200 || !resp.ok || !resp.blob) {
-          this.exportProgressDone = false
-          this.exportProgressVisible = false
-          if (this.exportTimer) { try { clearInterval(this.exportTimer) } catch (e) { /* no-op */ } this.exportTimer = null }
-          this.toastText = '导出失败'
-          this.toastVisible = true
-          setTimeout(() => { this.toastVisible = false }, 2000)
-          return
+
+        const onEvent = (data) => {
+          if (!data || typeof data !== 'object') return
+          try {
+            const step = String(data.currentStep || '').trim()
+            if (step) this.exportProgressStep = step
+          } catch (e) { /* no-op */ }
+          try {
+            const raw = Number(data.progress)
+            if (Number.isFinite(raw)) {
+              const pct = raw > 1 ? raw : (raw * 100)
+              const next = Math.max(0, Math.min(100, pct))
+              this.exportProgressPct = Math.max(Number(this.exportProgressPct) || 0, next)
+            }
+          } catch (e) { /* no-op */ }
+          const hasUrl = !!String(data.video_url || '').trim()
+          const done = hasUrl || (Number(data.progress) >= 1)
+          if (done) {
+            finalData = data
+            abortedForDone = true
+            try { if (this.exportAbortController) this.exportAbortController.abort() } catch (e) { /* no-op */ }
+          }
         }
+
+        try {
+          await exportWorksVideoStream({ videoId, token, onEvent, signal })
+        } catch (e) {
+          if (!(signal && signal.aborted && (abortedForDone || !this.exportProgressVisible))) throw e
+        }
+
+        if (!finalData) {
+          if (signal && signal.aborted) return
+          throw new Error('export stream ended')
+        }
+
+        const resp = await exportWorksVideoDownload({ videoId, token })
+        if (!resp || resp.status !== 200 || !resp.ok || !resp.blob) throw new Error('download failed')
+
         const objUrl = URL.createObjectURL(resp.blob)
-        this.exportManualUrl = objUrl
-        let filename = this.successFilename || ''
+
+        const publicUrl = this.cleanUrl(finalData.video_url || '')
+        this.successPreviewUrl = publicUrl || this.successPreviewUrl
+        if (finalData.filename) this.successFilename = String(finalData.filename || '')
+
+        this.exportManualUrl = publicUrl || objUrl
+        let filename = String(finalData.filename || this.successFilename || '').trim()
         try {
           const headers = resp.headers
           const cd = headers && headers.get ? headers.get('content-disposition') : ''
@@ -4776,6 +4818,8 @@ export default {
           const fn = (m && (m[1] || m[2])) || ''
           if (fn) filename = fn
         } catch (e) { /* no-op */ }
+        if (filename && !/\.mp4$/i.test(filename)) filename = `${filename}.mp4`
+
         const a = document.createElement('a')
         a.href = objUrl
         a.download = filename || `work_${videoId}.mp4`
@@ -4784,17 +4828,29 @@ export default {
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
+
         this.exportProgressPct = 100
         this.exportProgressDone = true
       } catch (e) {
+        if (signal && signal.aborted && !abortedForDone) return
+        this.exportProgressDone = false
+        this.exportProgressVisible = false
+        this.exportProgressStep = ''
         this.toastText = '导出失败'
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 2000)
+      } finally {
+        this.exportAbortController = null
       }
     },
     closeExportProgress() {
       this.exportProgressVisible = false
+      this.exportProgressStep = ''
       if (this.exportTimer) { try { clearInterval(this.exportTimer) } catch (e) { /* no-op */ } this.exportTimer = null }
+      if (this.exportAbortController && this.exportAbortController.abort) {
+        try { this.exportAbortController.abort() } catch (e) { /* no-op */ }
+      }
+      this.exportAbortController = null
     },
     async startVoiceAudition() {
       try {
@@ -4964,6 +5020,7 @@ export default {
         const directUrl = this.cleanUrl(this.successPreviewUrl || '')
         let filename = this.successFilename || ''
         if (!filename) filename = `work_${videoId}.mp4`
+        if (filename && !/\.mp4$/i.test(filename)) filename = `${filename}.mp4`
         if (directUrl) {
           const a = document.createElement('a')
           a.href = directUrl
@@ -4991,6 +5048,7 @@ export default {
           const fn = (m && (m[1] || m[2])) || ''
           if (fn) filename = fn
         } catch (e) { /* no-op */ }
+        if (filename && !/\.mp4$/i.test(filename)) filename = `${filename}.mp4`
         const a = document.createElement('a')
         a.href = url
         a.download = filename
