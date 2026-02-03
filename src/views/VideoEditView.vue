@@ -4820,6 +4820,7 @@ export default {
         } catch (e) { /* no-op */ }
         if (filename && !/\.mp4$/i.test(filename)) filename = `${filename}.mp4`
 
+        // 等待5秒，确保文件下载完成
         await new Promise((resolve) => setTimeout(resolve, 5000))
 
         const a = document.createElement('a')
