@@ -95,9 +95,12 @@
         <button class="back-btn" @click="closeModal">
           <span class="back-icon">×</span>
         </button>
-        <button class="favorite-btn">
-          <span class="star-icon">☆</span>
-        </button>
+        <div class="detail-header-actions">
+          <button v-if="selectedAsset.type === 'personal'" class="edit-btn" @click="openEditModal">编辑</button>
+          <button class="favorite-btn">
+            <span class="star-icon">☆</span>
+          </button>
+        </div>
       </div>
 
       <!-- 主要内容区域 -->
@@ -171,6 +174,62 @@
       </div>
     </div>
 
+    <div v-if="showEditModal" class="edit-modal-overlay" @click="closeEditModal">
+      <div class="edit-modal" @click.stop>
+        <div class="edit-modal-header">
+          <h2 class="edit-modal-title">编辑主体</h2>
+          <button class="edit-modal-close" @click="closeEditModal">×</button>
+        </div>
+
+        <div class="edit-modal-body">
+          <div class="edit-image-upload" @click="triggerEditImageUpload">
+            <img v-if="editImagePreview" :src="editImagePreview" alt="预览图" class="edit-preview-image" />
+            <div v-else class="edit-upload-placeholder">
+              <div class="edit-upload-icon">📷</div>
+              <p class="edit-upload-text">点击上传新图片（可选）</p>
+            </div>
+          </div>
+          <input ref="editImageInput" type="file" accept="image/*" @change="handleEditImageUpload" style="display: none;" />
+
+          <div class="edit-form">
+            <div class="edit-form-group">
+              <label class="edit-form-label">名字</label>
+              <input v-model="editSubject.name" type="text" class="edit-form-input" placeholder="请输入名字" />
+            </div>
+            <div class="edit-form-row">
+              <div class="edit-form-group">
+                <label class="edit-form-label">类别</label>
+                <input v-model="editSubject.category" type="text" class="edit-form-input" placeholder="请输入类别" />
+              </div>
+              <div class="edit-form-group">
+                <label class="edit-form-label">性别</label>
+                <select v-model="editSubject.gender" class="edit-form-input">
+                  <option value="">请选择</option>
+                  <option value="男">男</option>
+                  <option value="女">女</option>
+                </select>
+              </div>
+            </div>
+            <div class="edit-form-group">
+              <label class="edit-form-label">年龄</label>
+              <input v-model="editSubject.ageRange" type="text" class="edit-form-input" placeholder="请输入年龄" />
+            </div>
+            <div class="edit-form-group">
+              <label class="edit-form-label">主体描述</label>
+              <textarea v-model="editSubject.themeDescription" class="edit-form-textarea" rows="4" placeholder="请输入主体描述"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="edit-modal-footer">
+          <button class="edit-cancel-btn" @click="closeEditModal">取消</button>
+          <button class="edit-save-btn" :disabled="editSaving" @click="submitEditSubject">
+            {{ editSaving ? '保存中...' : '保存' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- 创建新主体弹窗 -->
     <CreateSubjectModal
       :visible="showCreateModal"
@@ -182,7 +241,7 @@
 
 <script>
 
-import { getMaterialsList } from '@/api'
+import { getMaterialsList, updateMaterial } from '@/api'
 import { generateGradientPlaceholder } from '@/utils/placeholder'
 import CreateSubjectModal from '@/components/CreateSubjectModal.vue'
 import { useUserStore } from '@/stores/user'
@@ -204,6 +263,18 @@ export default {
       inputText: '',
       showTag: false,
       showCreateModal: false,
+      showEditModal: false,
+      editSaving: false,
+      editSubject: {
+        materialId: '',
+        name: '',
+        category: '',
+        gender: '',
+        ageRange: '',
+        themeDescription: ''
+      },
+      editImageFile: null,
+      editImagePreview: '',
       tabs: [
         { id: 'public', name: '公共' },
         { id: 'personal', name: '个人' }
@@ -267,6 +338,115 @@ export default {
       // 如果当前在个人标签页，刷新个人素材列表
       if (this.activeTab === 'personal') {
         this.loadPersonalMaterials()
+      }
+    },
+
+    openEditModal() {
+      if (!this.selectedAsset || this.selectedAsset.type !== 'personal') return
+      this.editSubject = {
+        materialId: String(this.selectedAsset.id || ''),
+        name: String(this.selectedAsset.title || ''),
+        category: String(this.selectedAsset.category || ''),
+        gender: String(this.selectedAsset.gender || ''),
+        ageRange: String(this.selectedAsset.ageRange || ''),
+        themeDescription: String(this.selectedAsset.themeDescription || '')
+      }
+      this.editImageFile = null
+      this.editImagePreview = String(this.selectedAsset.thumbnail || '')
+      this.showEditModal = true
+    },
+    closeEditModal() {
+      if (this.editSaving) return
+      this.showEditModal = false
+      this.editImageFile = null
+      this.editImagePreview = ''
+    },
+    triggerEditImageUpload() {
+      if (this.editSaving) return
+      this.$refs.editImageInput && this.$refs.editImageInput.click()
+    },
+    handleEditImageUpload(event) {
+      const file = event && event.target && event.target.files && event.target.files[0]
+      if (!file) return
+      this.editImageFile = file
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        this.editImagePreview = e && e.target ? e.target.result : ''
+      }
+      reader.readAsDataURL(file)
+    },
+    async submitEditSubject() {
+      const token = (this.userStore && this.userStore.token) || ''
+      if (!token) {
+        try { alert('请先登录') } catch (e) { void e }
+        return
+      }
+      if (!String(this.editSubject.name || '').trim()) {
+        try { alert('请输入名字') } catch (e) { void e }
+        return
+      }
+      const materialId = String(this.editSubject.materialId || '').trim()
+      if (!materialId) {
+        try { alert('素材ID缺失') } catch (e) { void e }
+        return
+      }
+
+      this.editSaving = true
+      try {
+        const formdata = new FormData()
+        formdata.append('materialId', materialId)
+        formdata.append('name', String(this.editSubject.name || '').trim())
+        formdata.append('category', String(this.editSubject.category || '').trim())
+        formdata.append('gender', String(this.editSubject.gender || '').trim())
+        formdata.append('ageRange', String(this.editSubject.ageRange || '').trim())
+        formdata.append('themeDescription', String(this.editSubject.themeDescription || '').trim())
+        if (this.editImageFile) {
+          formdata.append('imagefile', this.editImageFile)
+        }
+
+        const result = await updateMaterial({ token, formData: formdata })
+        let data
+        try { data = JSON.parse(result) } catch { data = null }
+        if (data && data.code === 0 && data.data) {
+          const item = data.data
+          const updatedId = String(item.id || materialId)
+          const rawUrl = String(item.fileUrl || '').trim().replace(/^`+|`+$/g, '')
+          const isHttp = /^https?:\/\//i.test(rawUrl)
+          const thumb = isHttp ? rawUrl : this.selectedAsset?.thumbnail
+          const next = {
+            id: item.id || materialId,
+            title: item.name,
+            thumbnail: thumb,
+            type: (this.selectedAsset && this.selectedAsset.type) || 'personal',
+            category: item.category,
+            gender: item.gender,
+            ageRange: item.ageRange,
+            themeDescription: item.themeDescription,
+            createTime: item.createTime,
+            updateTime: item.updateTime
+          }
+
+          if (this.selectedAsset && String(this.selectedAsset.id) === updatedId) {
+            this.selectedAsset = { ...this.selectedAsset, ...next }
+          }
+          const idx = this.assets.findIndex(a => String(a.id) === updatedId)
+          if (idx >= 0) {
+            const existing = this.assets[idx]
+            this.assets.splice(idx, 1, { ...existing, ...next })
+          }
+          this.showEditModal = false
+          this.editImageFile = null
+          this.editImagePreview = ''
+          this.loadPersonalMaterials()
+        } else {
+          const msg = data && data.message ? data.message : '更新失败'
+          try { alert(msg) } catch (e) { void e }
+        }
+      } catch (error) {
+        try { alert('更新失败，请重试') } catch (e) { void e }
+        console.error('更新个人素材失败:', error)
+      } finally {
+        this.editSaving = false
       }
     },
 
@@ -551,6 +731,7 @@ export default {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top center;
 }
 
 .asset-info {
@@ -641,6 +822,230 @@ export default {
   background: var(--bg-tertiary);
 }
 
+.detail-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.edit-btn {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border-radius: 18px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.edit-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.edit-modal {
+  width: 90%;
+  max-width: 820px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-primary);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+}
+
+.edit-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 14px;
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+.edit-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.edit-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.edit-modal-close:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.edit-modal-body {
+  display: flex;
+  gap: 24px;
+  padding: 20px 24px;
+}
+
+.edit-image-upload {
+  flex: 0 0 260px;
+  width: 260px;
+  height: 360px;
+  border: 2px dashed var(--border-primary);
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.edit-image-upload:hover {
+  border-color: var(--primary-color);
+  background: var(--bg-quaternary);
+}
+
+.edit-preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+
+.edit-upload-placeholder {
+  text-align: center;
+  padding: 16px;
+}
+
+.edit-upload-icon {
+  font-size: 28px;
+  margin-bottom: 10px;
+}
+
+.edit-upload-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-tertiary);
+}
+
+.edit-form {
+  flex: 1;
+  min-width: 0;
+}
+
+.edit-form-group {
+  margin-bottom: 16px;
+}
+
+.edit-form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.edit-form-label {
+  display: block;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.edit-form-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.edit-form-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
+}
+
+.edit-form-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  resize: vertical;
+  min-height: 90px;
+  transition: all 0.2s ease;
+}
+
+.edit-form-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
+}
+
+.edit-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 0 24px 20px;
+}
+
+.edit-cancel-btn {
+  padding: 10px 22px;
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-cancel-btn:hover {
+  background: var(--bg-secondary);
+}
+
+.edit-save-btn {
+  padding: 10px 22px;
+  border: none;
+  border-radius: 10px;
+  background: var(--primary-color);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-save-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.edit-save-btn:not(:disabled):hover {
+  background: var(--primary-hover);
+}
+
 .star-icon {
   font-size: 20px;
   color: var(--text-tertiary);
@@ -720,6 +1125,7 @@ export default {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top center;
 }
 
 /* 右侧信息区域 */
@@ -946,6 +1352,20 @@ export default {
 
   .detail-info-section {
     max-width: 100%;
+  }
+
+  .edit-modal-body {
+    flex-direction: column;
+  }
+
+  .edit-image-upload {
+    width: 100%;
+    height: 300px;
+    flex: 0 0 auto;
+  }
+
+  .edit-form-row {
+    flex-direction: column;
   }
 }
 
