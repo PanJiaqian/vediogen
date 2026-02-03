@@ -108,7 +108,7 @@
         <!-- 左侧图片区域 -->
         <div class="detail-image-section" :class="{ 'compressed': showInputBox }">
           <div class="image-container">
-            <img :src="selectedAsset.thumbnail" :alt="selectedAsset.title" />
+            <img :src="selectedAsset.thumbnail" :alt="selectedAsset.title" @click="openImagePreview(selectedAsset.thumbnail)" />
           </div>
 
           <!-- 图片下方输入框 -->
@@ -230,6 +230,11 @@
       </div>
     </div>
 
+    <div v-if="showImagePreview" class="image-preview-overlay" @click.self="closeImagePreview">
+      <img :src="imagePreviewUrl" alt="预览图" class="image-preview-img" />
+      <button class="image-preview-close" @click="closeImagePreview">×</button>
+    </div>
+
     <!-- 创建新主体弹窗 -->
     <CreateSubjectModal
       :visible="showCreateModal"
@@ -264,6 +269,8 @@ export default {
       showTag: false,
       showCreateModal: false,
       showEditModal: false,
+      showImagePreview: false,
+      imagePreviewUrl: '',
       editSaving: false,
       editSubject: {
         materialId: '',
@@ -321,6 +328,8 @@ export default {
     },
     closeModal() {
       this.selectedAsset = null
+      this.showImagePreview = false
+      this.imagePreviewUrl = ''
     },
     createNewSubject() {
       this.showCreateModal = true
@@ -339,6 +348,17 @@ export default {
       if (this.activeTab === 'personal') {
         this.loadPersonalMaterials()
       }
+    },
+
+    openImagePreview(url) {
+      const u = String(url || '').trim()
+      if (!u) return
+      this.imagePreviewUrl = u
+      this.showImagePreview = true
+    },
+    closeImagePreview() {
+      this.showImagePreview = false
+      this.imagePreviewUrl = ''
     },
 
     openEditModal() {
@@ -1126,6 +1146,47 @@ export default {
   height: 100%;
   object-fit: cover;
   object-position: top center;
+  cursor: zoom-in;
+}
+
+.image-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+.image-preview-img {
+  max-width: 92vw;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  background: var(--bg-primary);
+}
+
+.image-preview-close {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.image-preview-close:hover {
+  background: rgba(0, 0, 0, 0.7);
 }
 
 /* 右侧信息区域 */
