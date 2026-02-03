@@ -4820,6 +4820,8 @@ export default {
         } catch (e) { /* no-op */ }
         if (filename && !/\.mp4$/i.test(filename)) filename = `${filename}.mp4`
 
+        await new Promise((resolve) => setTimeout(resolve, 5000))
+
         const a = document.createElement('a')
         a.href = objUrl
         a.download = filename || `work_${videoId}.mp4`
