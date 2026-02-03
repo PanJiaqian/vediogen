@@ -4800,6 +4800,15 @@ export default {
           throw new Error('export stream ended')
         }
 
+        try {
+          const p = Number(finalData && finalData.progress)
+          const pct = Number.isFinite(p) ? (p > 1 ? p : (p * 100)) : (Number(this.exportProgressPct) || 0)
+          if (pct >= 100) {
+            await new Promise(resolve => setTimeout(resolve, 5000))
+            if (!this.exportProgressVisible) return
+          }
+        } catch (e) { /* no-op */ }
+
         const resp = await exportWorksVideoDownload({ videoId, token })
         if (!resp || resp.status !== 200 || !resp.ok || !resp.blob) throw new Error('download failed')
 
@@ -4819,9 +4828,6 @@ export default {
           if (fn) filename = fn
         } catch (e) { /* no-op */ }
         if (filename && !/\.mp4$/i.test(filename)) filename = `${filename}.mp4`
-
-        // 等待5秒，确保文件下载完成
-        await new Promise((resolve) => setTimeout(resolve, 5000))
 
         const a = document.createElement('a')
         a.href = objUrl
