@@ -1674,6 +1674,26 @@ export async function clipStoryboardVideo({ videoId, sceneNumber, start_frame, e
   }
 }
 
+export async function regenerateStoryboardVideo({ videoId, shotId, modelName, sceneNumber, token }) {
+  const sid = String(shotId || sceneNumber || '').trim()
+  const mn = String('wan2.2-i2v-flash').trim()
+  const url = `${BASE_URL}/api/video/storyboard/regenerate?videoId=${encodeURIComponent(videoId)}&shotId=${encodeURIComponent(sid)}&modelName=${encodeURIComponent(mn)}`
+  const requestOptions = {
+    method: 'POST',
+    headers: buildAuthHeaders(token),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    return await res.text()
+  }
+}
+
 // 分镜：替换指定场景的画面图片（POST）
 export async function replaceStoryboardImage({ videoId, sceneNumber, file, token }) {
   const url = `${BASE_URL}/detail/storyboard/image/replace`

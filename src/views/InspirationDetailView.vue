@@ -13,7 +13,7 @@
     <div class="main-content">
       <!-- 左侧视频区域 -->
       <div class="video-section">
-        <div class="video-container">
+        <div class="video-container" :style="videoContainerStyle">
           <video
             :src="inspirationData.videoUrl"
             :poster="inspirationData.thumbnail"
@@ -112,6 +112,7 @@
 <script>
 import { getCreativeWorkById, deleteCreativeWork } from '@/api'
 import { useUserStore } from '@/stores/user'
+import { cleanUrl } from '@/utils/media'
 export default {
   name: 'InspirationDetailView',
   data() {
@@ -121,6 +122,7 @@ export default {
         title: '',
         videoUrl: '',
         thumbnail: '',
+        aspectRatio: '16:9',
         description: '',
         authorId: null,
         author: {
@@ -143,6 +145,18 @@ export default {
     isOwnWork() {
       const uid = this.userStore?.userInfo?.id
       return String(this.inspirationData?.authorId) === String(uid)
+    }
+    ,
+    videoContainerStyle() {
+      const raw = String(this.inspirationData?.aspectRatio || '').trim()
+      if (!raw) return {}
+      const parts = raw.split(':')
+      const rw = parseFloat(parts[0]) || 0
+      const rh = parseFloat(parts[1]) || 0
+      if (!rw || !rh) return {}
+      const ratio = rw / rh
+      const maxWidth = ratio > 0 && ratio < 1 ? '340px' : '560px'
+      return { aspectRatio: `${rw} / ${rh}`, maxWidth }
     }
   },
   mounted() {
@@ -170,12 +184,15 @@ export default {
 
         if (data.code === 0 && data.data) {
           const item = data.data
+          const videoUrl = cleanUrl(item.videoUrl)
+          const coverImageUrl = cleanUrl(item.coverImageUrl)
           // 更新页面数据
           this.inspirationData = {
             id: item.id,
             title: item.title,
-            videoUrl: item.videoUrl || '/api/placeholder/video.mp4',
-            thumbnail: item.coverImageUrl || '/api/placeholder/600/400',
+            videoUrl,
+            thumbnail: coverImageUrl,
+            aspectRatio: item.aspectRatio || '16:9',
             description: item.description,
             authorId: item.userId,
             author: {
@@ -358,20 +375,22 @@ export default {
 
 .video-section {
   flex: 1;
-  max-width: 700px;
+  max-width: 560px;
+  display: flex;
+  justify-content: center;
 }
 
 .video-container {
   background: var(--bg-primary);
   border-radius: 12px;
   overflow: hidden;
-  aspect-ratio: 16/9;
+  width: 100%;
 }
 
 .video-player {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .info-section {

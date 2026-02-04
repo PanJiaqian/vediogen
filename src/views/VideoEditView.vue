@@ -28,14 +28,20 @@
         </button>
       </div>
       <div class="navbar-right">
-        <div class="points-display" :class="{ 'non-member-points': !isVip }" :title="!isVip ? '会员已过期，请重新订阅' : ''" v-if="userStore && userStore.isLoggedIn" @click="showPointsModal = true"><span class="points-icon">✨</span> {{ (userStore && userStore.userInfo && userStore.userInfo.pointsBalance) || 0 }}</div>
+        <div class="points-display" :class="{ 'non-member-points': !isVip }" :title="!isVip ? '会员已过期，请重新订阅' : ''"
+          v-if="userStore && userStore.isLoggedIn" @click="showPointsModal = true"><span class="points-icon">✨</span> {{
+            (userStore && userStore.userInfo && userStore.userInfo.pointsBalance) || 0 }}</div>
         <button class="navbar-btn theme-toggle-btn" @click="toggleTheme" :aria-label="isDark ? '切换为浅色' : '切换为深色'">
           <svg v-if="!isDark" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 17a5 5 0 100-10 5 5 0 000 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M12 17a5 5 0 100-10 5 5 0 000 10z" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round" />
+            <path
+              d="M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
           <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
         <button class="navbar-btn premium-btn" v-if="!isVip" @click="showMembershipModal = true">开通会员</button>
@@ -57,8 +63,15 @@
         <div class="convert-modal-header">转视频任务明细</div>
         <div class="convert-modal-body">
           <div class="convert-scenes-stack">
-            <div class="stack-icon"></div>
-            <div class="stack-count">X {{ convertScenesCount }}</div>
+            <div class="stack-icon">
+              <svg t="1770187421942" class="icon" viewBox="0 0 1024 1024" version="1.1"
+                xmlns="http://www.w3.org/2000/svg" p-id="1581" width="36" height="36">
+                <path
+                  d="M395.776 44.48l37.12 37.76c88.32 89.984 153.28 158.592 195.136 206.08a48 48 0 0 1-72.064 63.36 4263.104 4263.104 0 0 0-125.44-134.272l-29.12-30.08-220.8 264.064a80.128 80.128 0 0 0-4.48 96.512l5.12 6.784 255.232 308.736a48 48 0 1 1-75.648 59.136L106.368 614.848a176 176 0 0 1 0.64-225.088l254.784-304.64 33.92-40.64z m241.92 412.736c23.36 0 44.416 14.144 53.184 35.84l120.192 296.256a31.04 31.04 0 0 1-28.736 42.688c-27.712 0-52.544-17.152-62.4-43.072l-12.352-32.704H565.76l-12.736 34.88a62.208 62.208 0 0 1-58.432 40.896 29.632 29.632 0 0 1-27.52-40.448l117.76-298.368a56.832 56.832 0 0 1 52.864-35.968z m-2.304 109.056l-42.496 116.736h87.04l-44.544-116.736zM912.128 832a43.776 43.776 0 0 1-43.776-43.776V500.992a43.776 43.776 0 1 1 87.552 0v287.232a43.776 43.776 0 0 1-43.776 43.776z"
+                  p-id="1582"></path>
+              </svg>
+            </div>
+            <div class="stack-count">×{{ convertScenesCount }}</div>
           </div>
           <div class="convert-detail">
             <!-- <div class="convert-row">
@@ -69,9 +82,7 @@
             </div> -->
             <div class="convert-row">
               <div class="convert-label">视频时长</div>
-              <select class="convert-select" v-model="selectedDurationMode" disabled>
-                <option value="voice-crop">根据配音长度选择（裁剪）</option>
-              </select>
+              <div class="convert-value">{{ convertDurationText }}</div>
             </div>
             <div class="convert-row">
               <div class="convert-label">分镜数量</div>
@@ -118,7 +129,8 @@
         <div class="tab-item" :class="{ active: activeTab === 'music' }" @click="activeTab = 'music'">
           <div class="tab-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M9 3v10.5a3.5 3.5 0 1 1-2-3.146V5h9v6.5a3.5 3.5 0 1 1-2-3.146V3H9z" stroke="currentColor" stroke-width="2" fill="none"/>
+              <path d="M9 3v10.5a3.5 3.5 0 1 1-2-3.146V5h9v6.5a3.5 3.5 0 1 1-2-3.146V3H9z" stroke="currentColor"
+                stroke-width="2" fill="none" />
             </svg>
           </div>
           <span class="tab-label">音乐</span>
@@ -126,8 +138,8 @@
         <div class="tab-item" :class="{ active: activeTab === 'subtitle' }" @click="activeTab = 'subtitle'">
           <div class="tab-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="2"/>
-              <path d="M6 10h12M8 14h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <rect x="4" y="6" width="16" height="12" rx="2" stroke="currentColor" stroke-width="2" />
+              <path d="M6 10h12M8 14h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
             </svg>
           </div>
           <span class="tab-label">字幕</span>
@@ -141,7 +153,7 @@
           <div class="scene-title-header">
             <span class="scene-number">分镜{{ (scenes && scenes[activeSceneIndex] &&
               Number(scenes[activeSceneIndex].order_index) > 0) ? Number(scenes[activeSceneIndex].order_index) : ''
-              }}</span>
+            }}</span>
             <span class="scene-type" v-if="activeTab === 'image'">镜头策划</span>
             <span class="scene-type" v-if="activeTab === 'voice'">配音编辑</span>
             <span class="scene-type" v-if="activeTab === 'music'">音乐编辑</span>
@@ -149,15 +161,15 @@
           </div>
         </div>
 
-          <template v-if="shouldShowActiveSkeleton">
-            <div class="skeleton-block">
-              <div class="skeleton-line"></div>
-              <div class="skeleton-line"></div>
-              <div class="skeleton-image" style="height:200px;"></div>
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card"></div>
-            </div>
-          </template>
+        <template v-if="shouldShowActiveSkeleton">
+          <div class="skeleton-block">
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-image" style="height:200px;"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+        </template>
         <template v-else>
           <!-- 分镜内容 - 画面模式 -->
           <div class="scene-content" v-if="activeTab === 'image'">
@@ -166,7 +178,7 @@
 
               <!-- 图片提示词区域 -->
               <div class="prompt-section">
-              <div class="prompt-header">
+                <div class="prompt-header">
                   <div class="prompt-icon">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
@@ -176,14 +188,17 @@
                   </div>
                   <span v-if="!isEditingShotTitle" class="prompt-title" @click="editShotTitle">
                     {{ (scenes[activeSceneIndex] && scenes[activeSceneIndex].scene_script &&
-                    scenes[activeSceneIndex].scene_script.shot_title) || '点击编辑标题' }}
+                      scenes[activeSceneIndex].scene_script.shot_title) || '点击编辑标题' }}
                   </span>
-                  <input v-else class="prompt-title-input" v-model="editingShotTitleText" @blur="saveShotTitle" @keyup.enter="saveShotTitle" />
+                  <input v-else class="prompt-title-input" v-model="editingShotTitleText" @blur="saveShotTitle"
+                    @keyup.enter="saveShotTitle" />
                   <div class="prompt-actions">
                     <button class="action-btn edit-btn" @click="editPrompt">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" />
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor"
+                          stroke-width="2" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor"
+                          stroke-width="2" />
                       </svg>
                     </button>
                     <button class="action-btn copy-btn" @click="copyPrompt" title="复制提示词">
@@ -210,10 +225,11 @@
                     <template v-if="scenes[activeSceneIndex]?.scene_script">
                       <div style="display:flex;flex-direction:column;gap:4px;">
                         <div v-if="scenes[activeSceneIndex].scene_script.visual_description">
-                          <span style="opacity:0.7;"></span>{{ scenes[activeSceneIndex].scene_script.visual_description}}
-                </div>
-              </div>
-            </template>
+                          <span style="opacity:0.7;"></span>{{
+                            scenes[activeSceneIndex].scene_script.visual_description}}
+                        </div>
+                      </div>
+                    </template>
                     <!-- <p v-else>{{ scenes[activeSceneIndex]?.description || '暂无描述' }}</p> -->
                   </div>
                   <!-- 编辑模式 -->
@@ -242,8 +258,10 @@
                   <div class="prompt-actions">
                     <button class="action-btn edit-btn" @click="editCameraDirection" title="编辑运镜">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" />
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" />
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor"
+                          stroke-width="2" />
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor"
+                          stroke-width="2" />
                       </svg>
                     </button>
                   </div>
@@ -256,7 +274,8 @@
                     <div v-else style="opacity:0.6;">暂无运镜描述</div>
                   </div>
                   <div v-else class="prompt-edit-container">
-                    <textarea v-model="editingCameraDirectionText" class="prompt-edit-input" placeholder="请输入运镜描述..." @keyup.enter.ctrl="saveCameraDirection"></textarea>
+                    <textarea v-model="editingCameraDirectionText" class="prompt-edit-input" placeholder="请输入运镜描述..."
+                      @keyup.enter.ctrl="saveCameraDirection"></textarea>
                     <div class="prompt-edit-actions">
                       <button class="prompt-edit-btn save-btn" @click="saveCameraDirection">保存</button>
                       <button class="prompt-edit-btn cancel-btn" @click="cancelCameraDirectionEdit">取消</button>
@@ -289,6 +308,13 @@
                   </svg>
                   重新生成
                 </button>
+                <button v-else class="bottom-btn regenerate-btn" @click="handleRegenerateActiveSceneVideo">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                  </svg>
+                  重新生成
+                </button>
               </div>
 
               <!-- 图片展示 -->
@@ -307,27 +333,27 @@
               <!-- 历史记录 -->
               <div class="version-history-section" style="margin-top: 12px;">
                 <div v-if="sceneHistoryLoading" class="skeleton-image" style="height:100px;"></div>
-                <div v-else-if="sortedSceneHistory && sortedSceneHistory.length" class="version-list" style="display:flex;flex-direction:column;gap:12px;">
-                  <div
-                    v-for="v in sortedSceneHistory"
-                    :key="v.id || v.createdAt || v.created_at"
-                    class="chat-message-wrapper"
-                    style="display:flex;flex-direction:column;gap:8px;"
-                  >
-                    <div v-if="String(v.userPrompt || '').trim()" class="chat-bubble chat-right" style="margin-left:auto; max-width:80%; background: var(--bg-tertiary); color: var(--text-primary); border:1px solid var(--border-primary); border-radius:14px; padding:10px 12px;">
+                <div v-else-if="sortedSceneHistory && sortedSceneHistory.length" class="version-list"
+                  style="display:flex;flex-direction:column;gap:12px;">
+                  <div v-for="v in sortedSceneHistory" :key="v.id || v.createdAt || v.created_at"
+                    class="chat-message-wrapper" style="display:flex;flex-direction:column;gap:8px;">
+                    <div v-if="String(v.userPrompt || '').trim()" class="chat-bubble chat-right"
+                      style="margin-left:auto; max-width:80%; background: var(--bg-tertiary); color: var(--text-primary); border:1px solid var(--border-primary); border-radius:14px; padding:10px 12px;">
                       <span>{{ v.userPrompt }}</span>
                     </div>
                     <div class="chat-bubble chat-left" style="padding:10px;border-radius:12px;">
-                      <div style="font-size:12px;opacity:0.6;margin-bottom:8px;">{{ formatDisplayTime(v.createdAt || v.created_at) }}</div>
+                      <div style="font-size:12px;opacity:0.6;margin-bottom:8px;">{{ formatDisplayTime(v.createdAt ||
+                        v.created_at) }}
+                      </div>
                       <template v-if="isVideo(v.content)">
                         <video :src="preferMp4(cleanUrl(v.content))"
-                               style="width:100%;height:auto;border-radius:10px;object-fit:contain;"
-                               muted playsinline preload="none" controls></video>
+                          style="width:100%;height:auto;border-radius:10px;object-fit:contain;" muted playsinline
+                          preload="none" controls></video>
                       </template>
                       <template v-else>
                         <img :src="cleanUrl(v.content)" alt="版本图"
-                             style="width:100%;height:auto;border-radius:10px;object-fit:contain;cursor:pointer;"
-                             decoding="async" @click="openVersionPreview(v.content)" />
+                          style="width:100%;height:auto;border-radius:10px;object-fit:contain;cursor:pointer;"
+                          decoding="async" @click="openVersionPreview(v.content)" />
                       </template>
                       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
                         <button class="bottom-btn apply-btn" @click.stop="applySceneVersionItem(v)">
@@ -338,7 +364,8 @@
                         </button>
                         <button class="bottom-btn download-btn" @click.stop="downloadImage(v.content)">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2" />
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor"
+                              stroke-width="2" />
                             <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" />
                           </svg>
                           预览
@@ -350,63 +377,73 @@
                 <div v-else style="font-size:12px;opacity:0.7;padding:8px;">暂无版本记录</div>
               </div>
               <div class="chat-messages" style="margin-top: 12px;">
-                <div v-for="msg in leftChatMessages" :key="msg.id" class="chat-message-wrapper" style="margin-bottom: 12px;">
+                <div v-for="msg in leftChatMessages" :key="msg.id" class="chat-message-wrapper"
+                  style="margin-bottom: 12px;">
                   <!-- User Message (Right) -->
-                  <div v-if="msg.side === 'right'" class="chat-bubble chat-right" style="margin-left: auto; max-width: 80%;">
+                  <div v-if="msg.side === 'right'" class="chat-bubble chat-right"
+                    style="margin-left: auto; max-width: 80%;">
                     <span>{{ msg.text }}</span>
                   </div>
 
                   <!-- Assistant Prompt Box (Left) -->
                   <div v-else-if="msg.type === 'prompt_box'" class="prompt-box-chat" style="width: 100%;">
-                     <!-- Prompt Section Replica -->
-                     <div class="prompt-section" style="margin-bottom: 0;">
-                        <div class="prompt-header">
-                          <div class="prompt-icon">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
-                              <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
-                              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
+                    <!-- Prompt Section Replica -->
+                    <div class="prompt-section" style="margin-bottom: 0;">
+                      <div class="prompt-header">
+                        <div class="prompt-icon">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor"
+                              stroke-width="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor"
+                              stroke-width="2" />
+                          </svg>
+                        </div>
+                        <span class="prompt-title">{{ (msg.data && msg.data.shot_title) || '分镜' }}</span>
+                        <div class="prompt-actions">
+                          <!-- Visual only buttons for identical look -->
+                          <button class="action-btn edit-btn" title="编辑提示词">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor"
+                                stroke-width="2" />
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor"
+                                stroke-width="2" />
                             </svg>
-                          </div>
-                          <span class="prompt-title">{{ (msg.data && msg.data.shot_title) || '分镜' }}</span>
-                          <div class="prompt-actions">
-                             <!-- Visual only buttons for identical look -->
-                            <button class="action-btn edit-btn" title="编辑提示词">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" />
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" />
-                              </svg>
-                            </button>
-                            <button class="action-btn copy-btn" title="复制提示词">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" stroke-width="2" />
-                              </svg>
-                            </button>
-                            <button class="action-btn more-btn" title="收缩提示词">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" />
-                              </svg>
-                            </button>
+                          </button>
+                          <button class="action-btn copy-btn" title="复制提示词">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor"
+                                stroke-width="2" />
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor"
+                                stroke-width="2" />
+                            </svg>
+                          </button>
+                          <button class="action-btn more-btn" title="收缩提示词">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      <div class="prompt-content">
+                        <div style="display:flex;flex-direction:column;gap:4px;">
+                          <div v-if="msg.data && msg.data.visual_description">
+                            <span style="opacity:0.7;"></span>{{ msg.data.visual_description }}
                           </div>
                         </div>
-                        <div class="prompt-content">
-                          <div style="display:flex;flex-direction:column;gap:4px;">
-                            <div v-if="msg.data && msg.data.visual_description">
-                              <span style="opacity:0.7;"></span>{{ msg.data.visual_description }}
-                            </div>
-                          </div>
-                        </div>
-                     </div>
+                      </div>
+                    </div>
 
-                     <!-- Image Display inside Prompt Box -->
-                     <div class="image-container" style="margin-top: 12px;">
-                        <div v-if="msg.pending && !msg.imageUrl" class="skeleton-image" style="height:200px;"></div>
-                        <img v-else-if="msg.imageUrl" :src="cleanUrl(msg.imageUrl)" alt="分镜更新图" class="scene-image" decoding="async" />
-                        <div v-else-if="msg.text" style="padding: 12px; font-size: 13px; opacity: 0.8; background: var(--bg-tertiary); border-radius: 8px;">
-                           {{ msg.text }}
-                        </div>
-                     </div>
+                    <!-- Image Display inside Prompt Box -->
+                    <div class="image-container" style="margin-top: 12px;">
+                      <div v-if="msg.pending && !msg.imageUrl" class="skeleton-image" style="height:200px;"></div>
+                      <img v-else-if="msg.imageUrl" :src="cleanUrl(msg.imageUrl)" alt="分镜更新图" class="scene-image"
+                        decoding="async" />
+                      <div v-else-if="msg.text"
+                        style="padding: 12px; font-size: 13px; opacity: 0.8; background: var(--bg-tertiary); border-radius: 8px;">
+                        {{ msg.text }}
+                      </div>
+                    </div>
                   </div>
 
                   <!-- Default Left Message -->
@@ -416,9 +453,11 @@
                         <div class="skeleton-image" style="width:100%;height:160px;border-radius:12px;"></div>
                       </template>
                       <template v-else>
-                        <img :src="cleanUrl(msg.imageUrl)" alt="分镜更新图" style="width:100%;height:auto;border-radius:12px;" decoding="async" />
+                        <img :src="cleanUrl(msg.imageUrl)" alt="分镜更新图"
+                          style="width:100%;height:auto;border-radius:12px;" decoding="async" />
                       </template>
-                      <span v-if="msg.text" style="display:block; margin-top:6px; opacity:0.8; font-size:12px;">{{ msg.text }}</span>
+                      <span v-if="msg.text" style="display:block; margin-top:6px; opacity:0.8; font-size:12px;">{{
+                        msg.text }}</span>
                     </div>
                     <span v-else>{{ msg.text }}</span>
                   </div>
@@ -426,10 +465,11 @@
               </div>
             </div>
 
-                <!-- 固定的输入框区域 -->
+            <!-- 固定的输入框区域 -->
             <div class="input-section">
               <div class="input-container">
-                <textarea v-model="sceneInput" class="scene-input" placeholder="输入你想要对当前画面修改的内容" maxlength="250"></textarea>
+                <textarea v-model="sceneInput" class="scene-input" placeholder="输入你想要对当前画面修改的内容"
+                  maxlength="250"></textarea>
                 <div class="char-counter">{{ (sceneInput || '').length }}/250</div>
                 <div class="input-actions">
                   <button class="input-action-btn send-btn" @click="sendSceneInput">
@@ -462,7 +502,8 @@
               <!-- 画外音合词区域 -->
               <div class="voice-script-section">
                 <div class="voice-input-box">
-                  <textarea v-model="voiceScript" class="voice-script-input" placeholder="输入想要人物讲述的台词" maxlength="150"></textarea>
+                  <textarea v-model="voiceScript" class="voice-script-input" placeholder="输入想要人物讲述的台词"
+                    maxlength="150"></textarea>
                   <div class="voice-char-counter">{{ (voiceScript || '').length }}/150</div>
                 </div>
                 <div class="voice-script-controls">
@@ -472,8 +513,10 @@
                         <path d="M8 5v14l11-7z" />
                       </svg>
                       <svg v-else width="16" height="16" viewBox="0 0 50 50" fill="none">
-                        <circle cx="25" cy="25" r="20" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round">
-                          <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite"/>
+                        <circle cx="25" cy="25" r="20" stroke="currentColor" stroke-width="4" fill="none"
+                          stroke-linecap="round">
+                          <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25"
+                            dur="0.8s" repeatCount="indefinite" />
                         </circle>
                       </svg>
                     </button>
@@ -500,8 +543,10 @@
                       <path d="M8 5v14l11-7z" />
                     </svg>
                     <svg v-else width="12" height="12" viewBox="0 0 50 50" fill="none">
-                      <circle cx="25" cy="25" r="20" stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round">
-                        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="0.8s" repeatCount="indefinite"/>
+                      <circle cx="25" cy="25" r="20" stroke="currentColor" stroke-width="4" fill="none"
+                        stroke-linecap="round">
+                        <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25"
+                          dur="0.8s" repeatCount="indefinite" />
                       </circle>
                     </svg>
                   </button>
@@ -511,63 +556,69 @@
                     <span class="voice-tag">{{ voiceAge }}</span>
                     <!-- <span class="voice-tag">{{ voiceStyle }}</span> -->
                   </div>
-                <div class="voice-card-arrow">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 18l6-6-6-6" />
-                  </svg>
+                  <div class="voice-card-arrow">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                  </div>
                 </div>
-              </div>
 
-              <!-- 语种选择区域（点击弹窗） -->
-              <div class="voice-setting-item" style="margin-top: 16px;">
-                <div class="voice-setting-header" style="gap:8px; align-items:center;">
-                  <span class="voice-setting-title">语种选择</span>
-                  <div v-if="!voiceName" class="no-voice-tip">请先选择音色</div>
-                  <select v-else v-model="voiceLanguage" class="filter-select" style="min-width: 140px;">
-                    <option v-for="lang in supportedLanguages" :key="lang" :value="lang">{{ toZhLanguage(lang) }}</option>
-                  </select>
+                <!-- 语种选择区域（点击弹窗） -->
+                <div class="voice-setting-item" style="margin-top: 16px;">
+                  <div class="voice-setting-header" style="gap:8px; align-items:center;">
+                    <span class="voice-setting-title">语种选择</span>
+                    <div v-if="!voiceName" class="no-voice-tip">请先选择音色</div>
+                    <select v-else v-model="voiceLanguage" class="filter-select" style="min-width: 140px;">
+                      <option v-for="lang in supportedLanguages" :key="lang" :value="lang">{{ toZhLanguage(lang) }}
+                      </option>
+                    </select>
+                  </div>
                 </div>
-              </div>
 
-              <div class="voice-emotion-wrapper">
-                <div class="emotion-btn">
-                  <span class="emotion-icon">😊</span>
-                  <span class="emotion-text">情绪: 默认</span>
-                  <svg class="emotion-arrow" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M7 10l5 5 5-5z" />
-                  </svg>
+                <div class="voice-emotion-wrapper">
+                  <div class="emotion-btn">
+                    <span class="emotion-icon">😊</span>
+                    <span class="emotion-text">情绪: 默认</span>
+                    <svg class="emotion-arrow" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7 10l5 5 5-5z" />
+                    </svg>
+                  </div>
                 </div>
-              </div>
-              <div v-if="voiceSceneAudioUrl" class="uploaded-audio-card" style="margin-top:12px;">
-                <button class="audio-icon-btn" @click.stop="toggleVoiceSceneAudio">
-                  <svg v-if="!voiceScenePlaying" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
-                  <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="4" width="4" height="16" rx="1" />
-                    <rect x="14" y="4" width="4" height="16" rx="1" />
-                  </svg>
-                </button>
-                <div class="audio-main">
-                  <div class="audio-title">配音音频</div>
-                  <input class="audio-slider" type="range" min="0" :max="Math.max(1, Math.floor(voiceSceneAudioDuration || 1))" :value="Math.floor(voiceSceneCurrentTime || 0)" @input="seekVoiceSceneAudio">
-                </div>
-                <div class="audio-actions">
-                  <span class="audio-time">{{ formatSec(voiceSceneCurrentTime) }}/{{ formatSec(voiceSceneAudioDuration) }}</span>
-                  <button class="delete-audio-btn" @click.stop="deleteVoiceover" title="删除配音">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M3 6h18"></path>
-                      <path d="M8 6V4h8v2"></path>
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
-                      <path d="M10 11v6"></path>
-                      <path d="M14 11v6"></path>
+                <div v-if="voiceSceneAudioUrl" class="uploaded-audio-card" style="margin-top:12px;">
+                  <button class="audio-icon-btn" @click.stop="toggleVoiceSceneAudio">
+                    <svg v-if="!voiceScenePlaying" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                    <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="4" width="4" height="16" rx="1" />
+                      <rect x="14" y="4" width="4" height="16" rx="1" />
                     </svg>
                   </button>
+                  <div class="audio-main">
+                    <div class="audio-title">配音音频</div>
+                    <input class="audio-slider" type="range" min="0"
+                      :max="Math.max(1, Math.floor(voiceSceneAudioDuration || 1))"
+                      :value="Math.floor(voiceSceneCurrentTime || 0)" @input="seekVoiceSceneAudio">
+                  </div>
+                  <div class="audio-actions">
+                    <span class="audio-time">{{ formatSec(voiceSceneCurrentTime) }}/{{
+                      formatSec(voiceSceneAudioDuration)
+                      }}</span>
+                    <button class="delete-audio-btn" @click.stop="deleteVoiceover" title="删除配音">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M3 6h18"></path>
+                        <path d="M8 6V4h8v2"></path>
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+                        <path d="M10 11v6"></path>
+                        <path d="M14 11v6"></path>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <!-- 声音音量区域（已注释） -->
-              <!--
+                <!-- 声音音量区域（已注释） -->
+                <!--
               <div class="voice-setting-item" style="margin-top: 20px;">
                 <div class="voice-setting-header">
                   <span class="voice-setting-title">声音音量</span>
@@ -585,8 +636,8 @@
               </div>
               -->
 
-              <!-- 声音语速区域（已注释） -->
-              <!--
+                <!-- 声音语速区域（已注释） -->
+                <!--
               <div class="voice-setting-item">
                 <div class="voice-setting-header">
                   <span class="voice-setting-title">声音语速</span>
@@ -615,20 +666,24 @@
           <!-- 音乐内容 - 上传模式 -->
           <div class="music-content" v-if="activeTab === 'music'">
             <div class="music-scrollable-content">
-              <div v-if="!musicAudioUrl" class="upload-area" @click="$refs.musicFileInput && $refs.musicFileInput.click()" @dragover.prevent @drop.prevent="handleMusicDrop">
+              <div v-if="!musicAudioUrl" class="upload-area"
+                @click="$refs.musicFileInput && $refs.musicFileInput.click()" @dragover.prevent
+                @drop.prevent="handleMusicDrop">
                 <div class="upload-placeholder">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke-linecap="round"
+                      stroke-linejoin="round" />
                   </svg>
                   <p class="upload-text">点击 or 将文件拖拽到这里上传</p>
                   <p class="upload-hint">支持 MP3、WAV 格式，时长 0.3s - 60s</p>
                 </div>
-                <input type="file" accept=".mp3,.wav" style="display:none" ref="musicFileInput" @change="onMusicFileSelected">
+                <input type="file" accept=".mp3,.wav" style="display:none" ref="musicFileInput"
+                  @change="onMusicFileSelected">
               </div>
               <div v-if="musicAudioUrl" class="uploaded-audio-card">
                 <button class="audio-icon-btn" @click.stop="toggleMusicPlay">
                   <svg v-if="!musicPlaying" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z"/>
+                    <path d="M8 5v14l11-7z" />
                   </svg>
                   <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                     <rect x="6" y="4" width="4" height="16" rx="1" />
@@ -637,7 +692,9 @@
                 </button>
                 <div class="audio-main">
                   <div class="audio-title">{{ musicAudioName }}</div>
-                  <input class="audio-slider" type="range" min="0" :max="Math.max(1, Math.floor(musicAudioDuration || 1))" :value="Math.floor(musicCurrentTime || 0)" @input="seekMusicAudio">
+                  <input class="audio-slider" type="range" min="0"
+                    :max="Math.max(1, Math.floor(musicAudioDuration || 1))" :value="Math.floor(musicCurrentTime || 0)"
+                    @input="seekMusicAudio">
                 </div>
                 <div class="audio-actions">
                   <span class="audio-time">{{ formatSec(musicCurrentTime) }}/{{ formatSec(musicAudioDuration) }}</span>
@@ -677,18 +734,23 @@
                   <div class="subtitle-style-row">
                     <label class="subtitle-style-label">字体</label>
                     <select v-model="subtitleStyleFamily" class="subtitle-style-input">
-                      <option v-for="opt in fontFamilyOptions" :key="opt.value || 'default-fam'" :value="opt.value">{{ opt.label }}</option>
+                      <option v-for="opt in fontFamilyOptions" :key="opt.value || 'default-fam'" :value="opt.value">{{
+                        opt.label
+                        }}</option>
                     </select>
                   </div>
                   <div class="subtitle-style-row">
                     <label class="subtitle-style-label">字重</label>
                     <select v-model="subtitleStyleFormat" class="subtitle-style-input">
-                      <option v-for="opt in fontWeightOptions" :key="opt.value || 'default-wt'" :value="opt.value">{{ opt.label }}</option>
+                      <option v-for="opt in fontWeightOptions" :key="opt.value || 'default-wt'" :value="opt.value">{{
+                        opt.label }}
+                      </option>
                     </select>
                   </div>
                   <div class="subtitle-style-row">
                     <label class="subtitle-style-label">字号</label>
-                    <input type="range" min="12" max="80" step="1" :value="parseInt(subtitleStyleSize) || 20" @input="subtitleStyleSize = ($event.target.value + 'px')" class="subtitle-style-input">
+                    <input type="range" min="12" max="80" step="1" :value="parseInt(subtitleStyleSize) || 20"
+                      @input="subtitleStyleSize = ($event.target.value + 'px')" class="subtitle-style-input">
                     <!-- <span style="min-width:44px;text-align:right;">{{ parseInt(subtitleStyleSize) || 20 }}</span> -->
                   </div>
                   <div class="subtitle-style-row">
@@ -708,8 +770,9 @@
       <!-- 右侧区域 -->
       <div class="right-panel">
         <!-- 画布编辑和对口型 -->
-        <div v-if="isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || (isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail))" class="skeleton-block"
-          style="margin-bottom: 8px;">
+        <div
+          v-if="shouldShowActiveSkeleton || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || (isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail))"
+          class="skeleton-block" style="margin-bottom: 8px;">
           <div class="skeleton-line" style="width: 200px; height: 32px;"></div>
         </div>
         <div v-else class="edit-controls">
@@ -733,21 +796,16 @@
 
         <!-- 视频画面 -->
         <div class="video-preview">
-            <div class="video-container" ref="videoContainer" @click="handleVideoContainerClick">
-              <!-- 1、骨架屏 -->
-              <div v-if="shouldShowActiveSkeleton"
-                   class="skeleton-image"
-                   style="height:100%"></div>
-            <video v-else-if="shouldShowVideo"
-              ref="previewVideo"
-              :src="preferMp4(sceneDetail.video_url)"
+          <div class="video-container" ref="videoContainer" @click="handleVideoContainerClick">
+            <!-- 1、骨架屏 -->
+            <div v-if="shouldShowActiveSkeleton" class="skeleton-image" style="height:100%"></div>
+            <video v-else-if="shouldShowVideo" ref="previewVideo" :src="preferMp4(sceneDetail.video_url)"
               :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
-              preload="metadata" playsinline muted
-              class="video-image" @loadedmetadata="updateSubtitleMaxWidth"></video>
-            <img v-else-if="shouldShowImage"
-              :src="cleanUrl(sceneDetail.reference_image_url)"
-              :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image" ref="previewImage"
-              decoding="async" fetchpriority="high" @error="onPreviewImgError" @load="updateSubtitleMaxWidth" />
+              preload="metadata" playsinline muted class="video-image" @loadedmetadata="updateSubtitleMaxWidth"></video>
+            <img v-else-if="shouldShowImage" :src="cleanUrl(sceneDetail.reference_image_url)"
+              :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image"
+              ref="previewImage" decoding="async" fetchpriority="high" @error="onPreviewImgError"
+              @load="updateSubtitleMaxWidth" />
             <div v-else class="skeleton-image"></div>
             <div
               v-if="!isVideo(sceneDetail.video_url) && (previewImgErrored || isGenerateFailed(sceneDetail.reference_image_url))"
@@ -755,29 +813,36 @@
               <div class="error-banner">生成失败</div>
             </div>
             <audio ref="previewAudio" style="display:none" preload="auto"></audio>
-            <input ref="replaceFileInput" type="file" accept="image/*" style="display:none" @change="onReplaceImageFileSelected" />
+            <input ref="replaceFileInput" type="file" accept="image/*" style="display:none"
+              @change="onReplaceImageFileSelected" />
             <button
               v-if="!isVideo(sceneDetail.video_url) && shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail) && !(isVideoConverting || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex))"
-              class="replace-btn"
-              @click="triggerReplaceImageUpload">
+              class="replace-btn" @click="triggerReplaceImageUpload">
               <span class="replace-icon">⟲</span>
               替换
             </button>
             <!-- 字幕叠加层 -->
-            <div v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || subtitleText || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))" class="subtitle-overlay" :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }" :style="subtitleOverlayStyle">
+            <div
+              v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || subtitleText || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))"
+              class="subtitle-overlay"
+              :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }"
+              :style="subtitleOverlayStyle">
               <span v-if="!isEditingSubtitle">
                 {{ subtitleText || scenes[activeSceneIndex].scene_script.dialogue_or_narration }}
               </span>
-              <input v-else ref="subtitleInput" v-model="editingSubtitleText" class="subtitle-edit-input" @keyup.enter="saveSubtitleEdit" @blur="saveSubtitleEdit" />
+              <input v-else ref="subtitleInput" v-model="editingSubtitleText" class="subtitle-edit-input"
+                @keyup.enter="saveSubtitleEdit" @blur="saveSubtitleEdit" />
               <button v-if="isEditingSubtitle" class="subtitle-save-btn" @click.stop="saveSubtitleEdit">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <polyline points="20 6 9 17 4 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                  <polyline points="20 6 9 17 4 12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  </polyline>
                 </svg>
               </button>
             </div>
           </div>
           <div class="preview-aside">
-            <template v-if="shouldShowActiveSkeleton || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending">
+            <template
+              v-if="shouldShowActiveSkeleton || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending">
               <div class="thumb-card">
                 <div class="skeleton-image"></div>
               </div>
@@ -795,13 +860,10 @@
                   </svg>
                   <span>视频</span>
                 </div>
-                <video v-if="!isM3u8(getSceneVideoUrlForThumb())"
-                  :src="preferMp4(getSceneVideoUrlForThumb())"
-                  :poster="cleanUrl(sceneDetail.reference_image_url || '')"
-                  class="thumb-image" muted playsinline preload="none" disablepictureinpicture></video>
-                <img v-else
-                  :src="cleanUrl(sceneDetail.reference_image_url || '')"
-                  class="thumb-image" alt="缩略图" />
+                <video v-if="!isM3u8(getSceneVideoUrlForThumb())" :src="preferMp4(getSceneVideoUrlForThumb())"
+                  :poster="cleanUrl(sceneDetail.reference_image_url || '')" class="thumb-image" muted playsinline
+                  preload="none" disablepictureinpicture></video>
+                <img v-else :src="cleanUrl(sceneDetail.reference_image_url || '')" class="thumb-image" alt="缩略图" />
               </div>
               <div v-if="shouldRenderImage(sceneDetail.reference_image_url) && !previewImgErrored && !isPreviewPending"
                 class="thumb-card" @click="switchPreviewTo('image')">
@@ -882,7 +944,8 @@
             <template v-else>
 
               <!-- 时间轴头部控制区 -->
-              <div class="timeline-header-control" style="display: flex; justify-content: flex-end; padding: 0 16px 8px;">
+              <div class="timeline-header-control"
+                style="display: flex; justify-content: flex-end; padding: 0 16px 8px;">
                 <div class="subtitle-switch" style="display: flex; align-items: center; gap: 8px;">
                   <span style="font-size: 12px; color: var(--text-secondary);">字幕</span>
                   <label class="switch">
@@ -914,7 +977,7 @@
                         <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
                       </svg>
                       <span class="track-title">分镜{{ (Number(scene.order_index) > 0 ? Number(scene.order_index) : '')
-                        }}</span>
+                      }}</span>
                       <!-- 操作按钮 -->
                       <div class="track-actions">
                         <button class="action-btn copy-btn" @click="copyScene(index)" title="复制分镜">
@@ -925,7 +988,8 @@
                               stroke-width="2" />
                           </svg>
                         </button>
-                        <button class="action-btn delete-btn" @click="deleteSceneRemote(index)" title="删除分镜" v-if="scenes.length > 1">
+                        <button class="action-btn delete-btn" @click="deleteSceneRemote(index)" title="删除分镜"
+                          v-if="scenes.length > 1">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                             <polyline points="3,6 5,6 21,6" stroke="currentColor" stroke-width="2" />
                             <path d="M19,6v14a2,2 0,0,1-2,2H7a2,2 0,0,1-2-2V6m3,0V4a2,2 0,0,1,2-2h4a2,2 0,0,1,2,2v2"
@@ -972,7 +1036,8 @@
                             <path d="M18 5c3 3 3 11 0 14" stroke="currentColor" stroke-width="2" />
                           </svg>
                         </button>
-                        <button v-else class="audio-btn add-audio" @click.stop="activeSceneIndex = index; activeTab = 'voice'">
+                        <button v-else class="audio-btn add-audio"
+                          @click.stop="activeSceneIndex = index; activeTab = 'voice'">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
                             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
                             <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" stroke-width="2" />
@@ -1003,7 +1068,8 @@
                     </svg>
                     <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none">
                       <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" stroke="currentColor" stroke-width="2" />
-                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor" stroke-width="2" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" stroke="currentColor"
+                        stroke-width="2" />
                     </svg>
                     背景音乐
                   </button>
@@ -1033,16 +1099,13 @@
   <div v-if="toastVisible" class="floating-toast">{{ toastText }}</div>
 
   <!-- 对口型页面覆盖层 -->
-    <div v-if="showLipSyncView" class="lip-sync-overlay">
-      <LipSyncView @close="toggleLipSyncView" @task-created="onLipSyncTaskCreated"
-        :imageUrl="lipSyncImageUrl || cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
-        :sceneTitle="scenes[activeSceneIndex]?.title || ''"
-        :sceneDescription="(scenes[activeSceneIndex]?.description || ((scenes[activeSceneIndex]?.scene_script?.shot_title || '') + (scenes[activeSceneIndex]?.scene_script?.visual_description ? '：' + scenes[activeSceneIndex]?.scene_script?.visual_description : ''))) || ''"
-        :detection="lipSyncDetection"
-        :videoId="lipSyncVideoId"
-        :shotId="lipSyncShotId"
-        :workId="lipSyncWorkId" />
-    </div>
+  <div v-if="showLipSyncView" class="lip-sync-overlay">
+    <LipSyncView @close="toggleLipSyncView" @task-created="onLipSyncTaskCreated"
+      :imageUrl="lipSyncImageUrl || cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
+      :sceneTitle="scenes[activeSceneIndex]?.title || ''"
+      :sceneDescription="(scenes[activeSceneIndex]?.description || ((scenes[activeSceneIndex]?.scene_script?.shot_title || '') + (scenes[activeSceneIndex]?.scene_script?.visual_description ? '：' + scenes[activeSceneIndex]?.scene_script?.visual_description : ''))) || ''"
+      :detection="lipSyncDetection" :videoId="lipSyncVideoId" :shotId="lipSyncShotId" :workId="lipSyncWorkId" />
+  </div>
 
   <div v-if="successModalVisible" class="success-modal-overlay" @click="closeSuccessModal">
     <div class="success-modal" @click.stop>
@@ -1060,19 +1123,22 @@
         <svg width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="export-folder">
           <defs>
             <linearGradient id="folderGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#6c6f75"/>
-              <stop offset="100%" stop-color="#3d4044"/>
+              <stop offset="0%" stop-color="#6c6f75" />
+              <stop offset="100%" stop-color="#3d4044" />
             </linearGradient>
           </defs>
           <g fill="none">
-            <path d="M6 22h18l4 4h26c2.209 0 4 1.791 4 4v20c0 4.418-3.582 8-8 8H12c-4.418 0-8-3.582-8-8V26c0-2.209 1.791-4 4-4Z" fill="url(#folderGrad)" />
-            <rect x="38" y="16" width="18" height="24" rx="2" fill="#f5f6f7" stroke="#d0d0d0" stroke-width="1"/>
-            <text x="10" y="16" font-size="8" fill="#cfcfcf" font-family="system-ui, -apple-system, Segoe UI, Roboto">织梦</text>
-            <circle cx="32" cy="34" r="2.3" fill="#ffffff" opacity="0.9"/>
-            <circle cx="26" cy="34" r="2.3" fill="#ffffff" opacity="0.9"/>
-            <circle cx="38" cy="34" r="2.3" fill="#ffffff" opacity="0.9"/>
-            <circle cx="32" cy="28" r="2.3" fill="#ffffff" opacity="0.9"/>
-            <circle cx="32" cy="40" r="2.3" fill="#ffffff" opacity="0.9"/>
+            <path
+              d="M6 22h18l4 4h26c2.209 0 4 1.791 4 4v20c0 4.418-3.582 8-8 8H12c-4.418 0-8-3.582-8-8V26c0-2.209 1.791-4 4-4Z"
+              fill="url(#folderGrad)" />
+            <rect x="38" y="16" width="18" height="24" rx="2" fill="#f5f6f7" stroke="#d0d0d0" stroke-width="1" />
+            <text x="10" y="16" font-size="8" fill="#cfcfcf"
+              font-family="system-ui, -apple-system, Segoe UI, Roboto">织梦</text>
+            <circle cx="32" cy="34" r="2.3" fill="#ffffff" opacity="0.9" />
+            <circle cx="26" cy="34" r="2.3" fill="#ffffff" opacity="0.9" />
+            <circle cx="38" cy="34" r="2.3" fill="#ffffff" opacity="0.9" />
+            <circle cx="32" cy="28" r="2.3" fill="#ffffff" opacity="0.9" />
+            <circle cx="32" cy="40" r="2.3" fill="#ffffff" opacity="0.9" />
           </g>
         </svg>
       </div>
@@ -1096,8 +1162,10 @@
       <div class="crop-modal-header">裁剪图片</div>
       <div class="crop-modal-body" @mousemove="onReplaceMouseMove" @mouseup="onReplaceMouseUp">
         <div class="crop-preview" ref="replaceCropPreview">
-          <img :src="replaceSelectedImageUrl" class="crop-image" ref="replaceCropImage" @load="onReplaceCropImageLoad" />
-          <div v-if="replaceDisplayRect" class="crop-select" :style="replaceCropSelectBoxStyle" @mousedown.prevent="onReplaceSelectMouseDown">
+          <img :src="replaceSelectedImageUrl" class="crop-image" ref="replaceCropImage"
+            @load="onReplaceCropImageLoad" />
+          <div v-if="replaceDisplayRect" class="crop-select" :style="replaceCropSelectBoxStyle"
+            @mousedown.prevent="onReplaceSelectMouseDown">
             <div class="crop-handle handle-nw" @mousedown.stop.prevent="onReplaceHandleMouseDown('nw', $event)"></div>
             <div class="crop-handle handle-ne" @mousedown.stop.prevent="onReplaceHandleMouseDown('ne', $event)"></div>
             <div class="crop-handle handle-sw" @mousedown.stop.prevent="onReplaceHandleMouseDown('sw', $event)"></div>
@@ -1107,10 +1175,14 @@
       </div>
       <div class="crop-modal-footer">
         <div class="ratio-buttons">
-          <button :class="['ratio-btn', {active: replaceCropRatio==='9:16'}]" @click="replaceCropRatio='9:16'">9:16</button>
-          <button :class="['ratio-btn', {active: replaceCropRatio==='16:9'}]" @click="replaceCropRatio='16:9'">16:9</button>
-          <button :class="['ratio-btn', {active: replaceCropRatio==='3:4'}]" @click="replaceCropRatio='3:4'">3:4</button>
-          <button :class="['ratio-btn', {active: replaceCropRatio==='4:3'}]" @click="replaceCropRatio='4:3'">4:3</button>
+          <button :class="['ratio-btn', { active: replaceCropRatio === '9:16' }]"
+            @click="replaceCropRatio = '9:16'">9:16</button>
+          <button :class="['ratio-btn', { active: replaceCropRatio === '16:9' }]"
+            @click="replaceCropRatio = '16:9'">16:9</button>
+          <button :class="['ratio-btn', { active: replaceCropRatio === '3:4' }]"
+            @click="replaceCropRatio = '3:4'">3:4</button>
+          <button :class="['ratio-btn', { active: replaceCropRatio === '4:3' }]"
+            @click="replaceCropRatio = '4:3'">4:3</button>
         </div>
         <div class="crop-actions">
           <button class="crop-cancel" @click="cancelReplaceCrop">取消</button>
@@ -1120,15 +1192,19 @@
     </div>
   </div>
   <!-- 版本预览浮层（置于同一模板内） -->
-  <div v-if="versionPreviewVisible" class="version-preview-overlay" @click="closeVersionPreview" style="position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:4000;display:flex;align-items:center;justify-content:center;">
-    <div class="version-preview-modal" @click.stop style="position:relative;max-width:90vw;max-height:90vh;padding:12px;background:var(--bg-primary);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.3);display:flex;flex-direction:column;gap:10px;align-items:center;">
-      <button @click="closeVersionPreview" style="position:absolute;top:8px;right:8px;width:32px;height:32px;border:none;background:var(--bg-tertiary);border-radius:16px;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer;">
+  <div v-if="versionPreviewVisible" class="version-preview-overlay" @click="closeVersionPreview"
+    style="position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:4000;display:flex;align-items:center;justify-content:center;">
+    <div class="version-preview-modal" @click.stop
+      style="position:relative;max-width:90vw;max-height:90vh;padding:12px;background:var(--bg-primary);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.3);display:flex;flex-direction:column;gap:10px;align-items:center;">
+      <button @click="closeVersionPreview"
+        style="position:absolute;top:8px;right:8px;width:32px;height:32px;border:none;background:var(--bg-tertiary);border-radius:16px;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
           <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
           <line x1="6" y1="18" x2="18" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>
       </button>
-      <img :src="cleanUrl(versionPreviewUrl)" alt="预览" style="max-width:86vw;max-height:78vh;object-fit:contain;border-radius:10px;" />
+      <img :src="cleanUrl(versionPreviewUrl)" alt="预览"
+        style="max-width:86vw;max-height:78vh;object-fit:contain;border-radius:10px;" />
     </div>
   </div>
 </template>
@@ -1142,7 +1218,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, updateVideoTitle, exportWorksVideoStream, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene, uploadBackgroundMusic as uploadBackgroundMusicApi, getWorksVideoDetail, getSubtitleState, updateSubtitleState, deleteBackgroundMusic as deleteBackgroundMusicApi, deleteAliTts } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, regenerateStoryboardVideo, updateVideoTitle, exportWorksVideoStream, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene, uploadBackgroundMusic as uploadBackgroundMusicApi, getWorksVideoDetail, getSubtitleState, updateSubtitleState, deleteBackgroundMusic as deleteBackgroundMusicApi, deleteAliTts } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -1365,6 +1441,14 @@ export default {
       try { this.exportAbortController.abort() } catch (e) { void 0 }
       this.exportAbortController = null
     }
+    try {
+      if (this._regenerateVideoPollTimers instanceof Map) {
+        for (const t of this._regenerateVideoPollTimers.values()) {
+          try { clearInterval(t) } catch (e) { void 0 }
+        }
+        this._regenerateVideoPollTimers.clear()
+      }
+    } catch (e) { void 0 }
   },
   mounted() {
     this.onFullscreenChange = () => {
@@ -1498,7 +1582,7 @@ export default {
       ]
     }
     // this.$nextTick(() => { this.tryAttachHls() })
-    Promise.resolve().then(async() => {
+    Promise.resolve().then(async () => {
       try {
         const token = (this.userStore && this.userStore.token) || ''
         if (token) {
@@ -1511,7 +1595,7 @@ export default {
         }
       } catch (e) { /* no-op */ }
     })
-    Promise.resolve().then(async() => {
+    Promise.resolve().then(async () => {
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -1523,10 +1607,15 @@ export default {
         const list = imgResp && imgResp.code === 0 && Array.isArray(imgResp.data) ? imgResp.data : []
         try {
           const modSet = new Set()
+          const regenSet = new Set()
           for (const it of list) {
             const sn = String((it && it.scene_number) || '').trim()
             const vurl = String((it && it.video_url) || '').trim()
-            if (sn && this.isModifyingStatus(vurl)) modSet.add(sn)
+            if (sn && this.isRegeneratingNowStatus(vurl)) regenSet.add(sn)
+            else if (sn && this.isModifyingStatus(vurl)) modSet.add(sn)
+          }
+          if (regenSet.size) {
+            for (const sn of Array.from(regenSet)) this.startRegenerateVideoPolling(sn)
           }
           if (modSet.size) {
             const arr = Array.isArray(this.scenes) ? this.scenes : []
@@ -1540,23 +1629,47 @@ export default {
               }
             }
           }
+          if (regenSet.size) {
+            const arr = Array.isArray(this.scenes) ? this.scenes : []
+            for (let i = 0; i < arr.length; i++) {
+              const sc = arr[i] || {}
+              const sn = String((sc && sc.scene_number) || '').trim()
+              if (sn && regenSet.has(sn)) {
+                sc.hasVideo = false
+                sc.video_url = 'Re-generating_now'
+                sc.clips = []
+                if (i === this.activeSceneIndex) {
+                  const ref = this.cleanUrl((sc && sc.thumbnail) || '')
+                  const audio = this.cleanUrl((sc && sc.audio_url) || '')
+                  this.sceneDetail = { reference_image_url: ref, video_url: null, audio_url: audio }
+                }
+              }
+            }
+          }
+          try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
         } catch (e) { void 0 }
-        const text = await getStoryboardSceneDetail({ videoId, sceneNumber: list[0].scene_number, token })
+        if (!list.length) return
+        const firstSceneNumber = String(list[0].scene_number || '').trim()
+        if (!firstSceneNumber) return
+        const text = await getStoryboardSceneDetail({ videoId, sceneNumber: firstSceneNumber, token })
         let json
         try { json = JSON.parse(text) } catch { json = null }
         const data = json && json.data ? json.data : null
         if (data) {
           const refImg = this.cleanUrl(data.reference_image_url || '')
           const vurl = this.cleanUrl(data.fallback_mp4 || data.video_url || '')
+          const match = list.find(x => String((x && x.scene_number) || '').trim() === firstSceneNumber) || null
+          const listV = this.cleanUrl((match && (match.fallback_mp4 || match.video_url)) || '')
+          const isBlocked = this.isRegeneratingNowStatus(listV || vurl) || this.isModifyingStatus(listV || vurl)
           const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
-          const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
+          const vLocal = (!isBlocked && vurl) ? await this.getLocalUrl(vurl) : ''
           const audioUrl = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
-          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || vurl, audio_url: audioUrl }
+          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isBlocked ? null : (vLocal || vurl || null), audio_url: audioUrl }
           this.syncPreviewPlayback()
         }
       } catch (e) { void 0 }
     })
-    Promise.resolve().then(async() => {
+    Promise.resolve().then(async () => {
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -1569,7 +1682,7 @@ export default {
         this.worksVideoReady = !!(data && data.video === true)
       } catch (e) { void 0 }
     })
-    Promise.resolve().then(async() => {
+    Promise.resolve().then(async () => {
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -1591,7 +1704,7 @@ export default {
         }
       } catch (e) { void 0 }
     })
-    Promise.resolve().then(async() => {
+    Promise.resolve().then(async () => {
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -1603,10 +1716,15 @@ export default {
         const list = imgResp && imgResp.code === 0 && Array.isArray(imgResp.data) ? imgResp.data : []
         try {
           const modSet = new Set()
+          const regenSet = new Set()
           for (const it of list) {
             const sn = String((it && it.scene_number) || '').trim()
             const vurl = String((it && it.video_url) || '').trim()
-            if (sn && this.isModifyingStatus(vurl)) modSet.add(sn)
+            if (sn && this.isRegeneratingNowStatus(vurl)) regenSet.add(sn)
+            else if (sn && this.isModifyingStatus(vurl)) modSet.add(sn)
+          }
+          if (regenSet.size) {
+            for (const sn of Array.from(regenSet)) this.startRegenerateVideoPolling(sn)
           }
           if (modSet.size) {
             const arr = Array.isArray(this.scenes) ? this.scenes : []
@@ -1616,6 +1734,18 @@ export default {
               if (sn && modSet.has(sn)) {
                 sc.hasVideo = false
                 sc.video_url = 'modifying'
+                sc.clips = []
+              }
+            }
+          }
+          if (regenSet.size) {
+            const arr = Array.isArray(this.scenes) ? this.scenes : []
+            for (let i = 0; i < arr.length; i++) {
+              const sc = arr[i] || {}
+              const sn = String((sc && sc.scene_number) || '').trim()
+              if (sn && regenSet.has(sn)) {
+                sc.hasVideo = false
+                sc.video_url = 'Re-generating_now'
                 sc.clips = []
               }
             }
@@ -1665,7 +1795,7 @@ export default {
     },
     subtitleOverlayStyle() {
       const w = Math.max(0, Number(this.subtitleMaxWidthPx) || 0)
-      const s = w ? { maxWidth: `${w  }px` } : {}
+      const s = w ? { maxWidth: `${w}px` } : {}
       const fam = String(this.subtitleStyleFamily || '').trim()
       const fmt = String(this.subtitleStyleFormat || '').trim()
       const size = String(this.subtitleStyleSize || '').trim()
@@ -1700,6 +1830,13 @@ export default {
     },
     isVip() {
       return this.userStore && this.userStore.userInfo && this.userStore.userInfo.vipStatus === 'ACTIVE'
+    },
+    convertDurationSeconds() {
+      const n = Number(this.convertScenesCount) || 0
+      return Math.max(0, Math.round(n * 5))
+    },
+    convertDurationText() {
+      return `${this.convertDurationSeconds}s`
     },
     currentPreviewUrl() {
       const v = this.cleanUrl(this.sceneDetail.video_url || '')
@@ -1788,7 +1925,7 @@ export default {
       const y = Math.round(this.replaceCropSelY || 0)
       const w = Math.max(0, Math.round(this.replaceCropSelW || 0))
       const h = Math.max(0, Math.round(this.replaceCropSelH || 0))
-      return { left: `${x  }px`, top: `${y  }px`, width: `${w  }px`, height: `${h  }px`, position: 'absolute' }
+      return { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px`, position: 'absolute' }
     },
     // 判断指定分镜是否应该显示骨架屏
     shouldShowSkeletonForScene() {
@@ -1802,8 +1939,8 @@ export default {
         if (this.isVideoPendingScene(scene, sceneIndex)) {
           // 检查是否有视频
           const hasVid = this.isVideo(scene.video_url || '') ||
-                        (Array.isArray(scene.clips) && scene.clips.length > 0 &&
-                         this.isVideo(scene.clips[0].url || ''))
+            (Array.isArray(scene.clips) && scene.clips.length > 0 &&
+              this.isVideo(scene.clips[0].url || ''))
           // 没有视频就显示骨架屏
           if (!hasVid) return true
         }
@@ -1834,7 +1971,7 @@ export default {
 
       // 显示图片（没点击一键转视频，或点击了但没有视频）
       const imageUrl = this.sceneDetail.reference_image_url ||
-                       this.scenes[this.activeSceneIndex]?.thumbnail
+        this.scenes[this.activeSceneIndex]?.thumbnail
       return this.shouldRenderImage(imageUrl)
     }
   },
@@ -1847,7 +1984,7 @@ export default {
         const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
         const ref = this.cleanUrl((sc && sc.thumbnail) || '')
         const rawVid = (first && first.url) || (sc && sc.video_url)
-        const vid = (rawVid === null || this.isModifyingStatus(rawVid)) ? null : this.cleanUrl(rawVid || '')
+        const vid = (rawVid === null || this.isModifyingStatus(rawVid) || this.isRegeneratingNowStatus(rawVid)) ? null : this.cleanUrl(rawVid || '')
         const audio = this.cleanUrl((sc && sc.audio_url) || '')
         this.sceneDetail = { reference_image_url: ref, video_url: vid, audio_url: audio }
         try {
@@ -2088,6 +2225,10 @@ export default {
         this.toastVisible = true
         setTimeout(() => { this.toastVisible = false }, 2000)
       }
+    },
+    isRegeneratingNowStatus(v) {
+      const s = String(v || '').trim().toLowerCase()
+      return s === 're-generating_now'
     },
     isModifyingStatus(v) {
       const s = String(v || '').trim().toLowerCase()
@@ -2804,7 +2945,7 @@ export default {
             this.toastVisible = true
             setTimeout(() => { this.toastVisible = false }, 2000)
           } else {
-            this.toastText = `修改失败: ${  obj ? (obj.message || obj.msg) : '未知错误'}`
+            this.toastText = `修改失败: ${obj ? (obj.message || obj.msg) : '未知错误'}`
             this.toastVisible = true
             setTimeout(() => { this.toastVisible = false }, 2000)
           }
@@ -2979,9 +3120,9 @@ export default {
     },
     getSceneKey(scene, index) {
       const sn = String((scene && scene.scene_number) || '').trim()
-      if (sn) return `sn:${  sn}`
+      if (sn) return `sn:${sn}`
       const id = String((scene && scene.id) || index)
-      return `id:${  id}`
+      return `id:${id}`
     },
     isSceneUpdating(scene, index) {
       const set = this.updatingKeySet instanceof Set ? this.updatingKeySet : null
@@ -2992,7 +3133,7 @@ export default {
       return set.has(k)
     },
     isVideoPendingScene(scene, index) {
-      if (scene && (scene.video_url === null || this.isModifyingStatus(scene.video_url))) return true
+      if (scene && (scene.video_url === null || this.isModifyingStatus(scene.video_url) || this.isRegeneratingNowStatus(scene.video_url))) return true
       if (!this.isVideoGenerating) return false
       const set = this.pendingVideoSet instanceof Set ? this.pendingVideoSet : null
       if (!set) return false
@@ -3035,7 +3176,7 @@ export default {
         if (audioEl && audioEl.src && this.isPlaying) {
           try {
             const p = audioEl.play()
-            if (p && p.catch) p.catch(() => {})
+            if (p && p.catch) p.catch(() => { })
           } catch (e) { void 0 }
         }
 
@@ -3097,7 +3238,7 @@ export default {
             try {
               if (audioEl.paused) {
                 const p = audioEl.play()
-                if (p && p.catch) p.catch(() => {})
+                if (p && p.catch) p.catch(() => { })
               }
             } catch (e) { void 0 }
           }
@@ -3420,13 +3561,13 @@ export default {
       const clips = this.getSceneClips(scene)
       const total = clips.reduce((sum, c) => sum + (Number(c.durationMs) || 5000), 0) || 1
       const widthPct = Math.max(2, Math.round(((Number(clip.durationMs) || 5000) / total) * 100))
-      return { width: `${widthPct  }%`, minWidth: '28px' }
+      return { width: `${widthPct}%`, minWidth: '28px' }
     },
     onPreviewImgError() {
       this.previewImgErrored = true
     },
     getClipKey(index, cidx) {
-      return `${String(index)  }:${  String(cidx)}`
+      return `${String(index)}:${String(cidx)}`
     },
     isClipImgErrored(index, cidx) {
       const k = this.getClipKey(index, cidx)
@@ -3639,7 +3780,7 @@ export default {
           // 优先使用 fallback_mp4，其次 video_url，保留 "replace image" 等特殊值
           const rawVideoUrl = data.fallback_mp4 || data.video_url || ''
           const vurl = this.cleanUrl(rawVideoUrl)
-          console.log(vurl,1111)
+          console.log(vurl, 1111)
           const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
           const vlocal = vurl ? await this.getLocalUrl(vurl) : ''
           const incomingKey = String(data.scene_number || '').trim()
@@ -3648,10 +3789,10 @@ export default {
 
           if (targetIndex >= 0 && targetIndex < this.scenes.length) {
             const target = this.scenes[targetIndex]
-            console.log(target,333333)
+            console.log(target, 333333)
             if (refImg) target.thumbnail = refImg
             target.audio_url = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
-            console.log(target.audio_url,555)
+            console.log(target.audio_url, 555)
             // 检查是否是真正的视频 URL（排除 "replace image" 等特殊值）
             const isRealVideo = vurl && this.isVideo(vurl)
             if (isRealVideo) {
@@ -3726,7 +3867,7 @@ export default {
           const sdAudio = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
           // 确保 reference_image_url 有回退值
           this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: nextVideo, audio_url: sdAudio }
-          console.log(this.sceneDetail,2222222)
+          console.log(this.sceneDetail, 2222222)
           if (targetIndex === this.activeSceneIndex) this.syncPreviewPlayback()
         } else {
           this.refreshSidebarFromLocal()
@@ -3855,7 +3996,7 @@ export default {
                 }
                 const sc = this.scenes[idx]
                 const refImg = this.cleanUrl(item.reference_image_url || '')
-                const vurl = this.cleanUrl(item.video_url || '')
+                const vurl = this.cleanUrl(item.fallback_mp4 || item.video_url || '')
                 const shotTitle = (item && item.scene_script && item.scene_script.shot_title) || item.shot_title || ''
                 const visualDesc = (item && item.scene_script && item.scene_script.visual_description) || item.visual_description || ''
                 const sceneKey = String(item.scene_number || '').trim()
@@ -3865,14 +4006,18 @@ export default {
                   sc.thumbnail = refImg
                   if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 5000 }]
                 }
+                const isRegen = this.isRegeneratingNowStatus(vurl)
                 const isMod = this.isModifyingStatus(vurl)
-                if (isMod) {
-                  sc.video_url = 'modifying'
+                if (isRegen || isMod) {
+                  sc.video_url = isRegen ? 'Re-generating_now' : 'modifying'
                   sc.hasVideo = false
                   sc.clips = []
                   if (idx === this.activeSceneIndex) {
                     const activeThumb = this.cleanUrl(sc.thumbnail || '')
                     this.sceneDetail = { reference_image_url: activeThumb, video_url: null }
+                  }
+                  if (isRegen && sceneKey) {
+                    this.startRegenerateVideoPolling(sceneKey)
                   }
                 } else if (this.worksVideoReady && (!vurl || !this.isVideo(vurl))) {
                   // 检查是否是 "replace image" 状态
@@ -3968,8 +4113,8 @@ export default {
           const key = String(item.scene_number || '').trim()
           const oi = Number(item.order_index || item.orderIndex)
           const refImg = this.cleanUrl(item.reference_image_url || '')
-          let vurl = this.cleanUrl(item.video_url || '')
-          const isMod = this.isModifyingStatus(vurl)
+          let vurl = this.cleanUrl(item.fallback_mp4 || item.video_url || '')
+          const isMod = this.isModifyingStatus(vurl) || this.isRegeneratingNowStatus(vurl)
           if (!this.isVideo(vurl)) vurl = ''
           if (key) map.set(key, { video_url: isMod ? '' : vurl, reference_image_url: refImg })
           if (Number.isFinite(oi) && oi > 0) map.set(`oi:${oi}`, { video_url: isMod ? '' : vurl, reference_image_url: refImg })
@@ -3985,8 +4130,8 @@ export default {
         if (!match) match = list[activeIdx] || null
         if (!match) return
         const refImg = this.cleanUrl(match.reference_image_url || '')
-        let vurl = this.cleanUrl(match.video_url || '')
-        const isMod = this.isModifyingStatus(vurl)
+        let vurl = this.cleanUrl(match.fallback_mp4 || match.video_url || '')
+        const isMod = this.isModifyingStatus(vurl) || this.isRegeneratingNowStatus(vurl)
         if (!this.isVideo(vurl)) vurl = ''
         const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
         const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
@@ -4002,8 +4147,65 @@ export default {
           if (cameraDir) scriptObj.camera_direction = cameraDir
           if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
           if (visualDesc) sc.description = visualDesc
-          if (isMod) { sc.video_url = 'modifying'; sc.hasVideo = false; sc.clips = [] }
+          if (isMod) {
+            sc.video_url = this.isRegeneratingNowStatus(match.fallback_mp4 || match.video_url || '') ? 'Re-generating_now' : 'modifying'
+            sc.hasVideo = false
+            sc.clips = []
+            const sn = String(sc.scene_number || '').trim()
+            if (sn && this.isRegeneratingNowStatus(match.fallback_mp4 || match.video_url || '')) this.startRegenerateVideoPolling(sn)
+          }
         }
+      } catch (e) { void 0 }
+    },
+    startRegenerateVideoPolling(sceneNumber) {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        const key = String(sceneNumber || '').trim()
+        if (!videoId || !token || !key) return
+        if (!this._regenerateVideoPollTimers) this._regenerateVideoPollTimers = new Map()
+        const clearForKey = () => {
+          try {
+            const t = this._regenerateVideoPollTimers.get(key)
+            if (t) clearInterval(t)
+            this._regenerateVideoPollTimers.delete(key)
+          } catch (e) { void 0 }
+        }
+        clearForKey()
+        const runOnce = async () => {
+          try {
+            const text = await getStoryboardImagesDetail({ videoId, token })
+            let resp = null
+            try { resp = JSON.parse(text) } catch { resp = null }
+            const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
+            if (!list.length) return
+            const item = list.find(x => String((x && x.scene_number) || '').trim() === key) || null
+            if (!item) return
+            const rawV = this.cleanUrl(item.fallback_mp4 || item.video_url || '')
+            if (!rawV || this.isRegeneratingNowStatus(rawV) || this.isModifyingStatus(rawV) || !this.isVideo(rawV)) return
+            const oi = Number(item.order_index || item.orderIndex)
+            let idx = this.scenes.findIndex(s => String((s && s.scene_number) || '').trim() === key)
+            if (idx < 0 && Number.isFinite(oi) && oi > 0) idx = oi - 1
+            while (idx >= this.scenes.length) {
+              this.scenes.push({ id: Date.now() + this.scenes.length, title: `分镜${this.scenes.length + 1}`, description: '', thumbnail: '', clips: [], order_index: this.scenes.length + 1 })
+            }
+            if (idx >= 0 && idx < this.scenes.length) {
+              const sc = this.scenes[idx]
+              const refImg = this.cleanUrl(item.reference_image_url || sc.thumbnail || '')
+              if (refImg) sc.thumbnail = refImg
+              const pendingKey = this.getSceneKey(sc, idx)
+              if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
+              this.pendingVideoSet.add(pendingKey)
+              this.isVideoGenerating = true
+              this.queueVideoForScene(idx, rawV, Number.isFinite(oi) ? oi : undefined, key, pendingKey)
+              clearForKey()
+            }
+          } catch (e) { void 0 }
+        }
+        runOnce()
+        const t = setInterval(runOnce, 5000)
+        this._regenerateVideoPollTimers.set(key, t)
       } catch (e) { void 0 }
     },
     startSceneVideoPolling(sceneNumber) {
@@ -4027,7 +4229,7 @@ export default {
         }
         clearForKey()
         const t1 = setTimeout(() => {
-          const t2 = setInterval(async() => {
+          const t2 = setInterval(async () => {
             try {
               const text = await getStoryboardSceneDetail({ videoId, sceneNumber: key, token })
               let json
@@ -4196,7 +4398,7 @@ export default {
     clearClipErrorsForIndex(i) {
       try {
         const keys = Object.keys(this.clipImgErrorMap || {})
-        const prefix = `${String(i)  }:`
+        const prefix = `${String(i)}:`
         for (const k of keys) { if (k.indexOf(prefix) === 0) { if (this.$delete) this.$delete(this.clipImgErrorMap, k); else delete this.clipImgErrorMap[k] } }
       } catch (e) { void 0 }
     },
@@ -4551,6 +4753,108 @@ export default {
         setTimeout(() => { this.toastVisible = false }, 2000)
       }
     },
+    async handleRegenerateActiveSceneVideo() {
+      const idx = this.activeSceneIndex
+      const scene = Array.isArray(this.scenes) ? (this.scenes[idx] || {}) : {}
+      const backup = {
+        hasVideo: !!scene.hasVideo,
+        video_url: scene.video_url,
+        clips: Array.isArray(scene.clips) ? scene.clips.slice() : []
+      }
+      const restore = () => {
+        try {
+          if (idx >= 0 && idx < this.scenes.length) {
+            const sc = this.scenes[idx]
+            sc.hasVideo = backup.hasVideo
+            sc.video_url = backup.video_url
+            sc.clips = backup.clips
+            if (idx === this.activeSceneIndex) {
+              const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
+              const rawVid = (first && first.url) || (sc && sc.video_url)
+              const vid = (rawVid === null || this.isModifyingStatus(rawVid) || this.isRegeneratingNowStatus(rawVid)) ? null : this.cleanUrl(rawVid || '')
+              const ref = this.cleanUrl((sc && sc.thumbnail) || '')
+              const audio = this.cleanUrl((sc && sc.audio_url) || '')
+              this.sceneDetail = { reference_image_url: ref, video_url: vid, audio_url: audio }
+            }
+          }
+        } catch (e) { void 0 }
+      }
+      try {
+        this.toastText = '正在生成中'
+        this.toastVisible = true
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) {
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        if (!videoId) {
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
+
+        let sceneNumber = String((scene && scene.scene_number) || '').trim()
+        if (!sceneNumber) {
+          const fromOrder = Array.isArray(this._shotOrder) ? this._shotOrder[idx] : ''
+          if (fromOrder) sceneNumber = String(fromOrder).trim()
+        }
+        if (!sceneNumber) {
+          try {
+            const text = await getStoryboardImagesDetail({ videoId, token })
+            let resp = null
+            try { resp = JSON.parse(text) } catch { resp = null }
+            const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
+            const oi = Number(scene.order_index)
+            let match = null
+            if (Number.isFinite(oi) && oi > 0) {
+              match = list.find(x => Number(x.order_index || x.orderIndex) === oi) || null
+            }
+            if (!match) match = list[idx] || null
+            sceneNumber = String((match && match.scene_number) || '').trim()
+          } catch (e) { void 0 }
+        }
+        if (!sceneNumber) {
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
+
+        const pendingKey = this.getSceneKey(scene, idx)
+        if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
+        this.pendingVideoSet.add(pendingKey)
+        this.isVideoGenerating = true
+
+        scene.hasVideo = false
+        scene.video_url = 'Re-generating_now'
+        scene.clips = []
+        if (idx === this.activeSceneIndex) {
+          const ref = this.cleanUrl((scene && scene.thumbnail) || '')
+          const audio = this.cleanUrl((scene && scene.audio_url) || '')
+          this.sceneDetail = { reference_image_url: ref, video_url: null, audio_url: audio }
+        }
+
+        const resp = await regenerateStoryboardVideo({ videoId: String(videoId), shotId: String(sceneNumber), modelName: 'wan2.2-i2v-flash', token })
+        const ok = !!(resp && typeof resp === 'object' ? ((resp.code === 0) || resp.success === true) : true)
+        if (!ok) {
+          if (this.pendingVideoSet instanceof Set) this.pendingVideoSet.delete(pendingKey)
+          restore()
+          this.toastText = (resp && (resp.message || resp.msg)) || '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
+
+        this.toastText = '已提交重新生成'
+        setTimeout(() => { this.toastVisible = false }, 1500)
+        this.startRegenerateVideoPolling(sceneNumber)
+      } catch (e) {
+        restore()
+        this.toastText = '生成失败'
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      }
+    },
     async goBack() {
       const projectId = this.$route.params.id
       const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -4671,7 +4975,7 @@ export default {
         this.pollStoryboardImagesDetail()
         // 每30秒轮询一次分镜视频生成状态（localhost）
         if (this._storyboardQueryInterval) clearInterval(this._storyboardQueryInterval)
-        this._storyboardQueryInterval = setInterval(async() => {
+        this._storyboardQueryInterval = setInterval(async () => {
           try {
             const statusText = await queryStoryboardVideoStatus({ videoId, token })
             let statusJson = null
@@ -4892,7 +5196,7 @@ export default {
         if (!taskId) { this.isVoiceLoading = false; this.toastText = '语音任务创建失败'; this.toastVisible = true; setTimeout(() => { this.toastVisible = false }, 2000); return }
         this.voiceAuditionTaskId = taskId
         if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { void 0 } this.voicePollTimer = null }
-        this.voicePollTimer = setInterval(async() => {
+        this.voicePollTimer = setInterval(async () => {
           try {
             const q = await aliTtsQuery({ taskId, token })
             const obj = typeof q === 'string' ? (() => { try { return JSON.parse(q) } catch { return null } })() : q
@@ -5167,7 +5471,7 @@ export default {
           const t0 = Math.max(0, (priorMs - acc0) / 1000)
           try { audioEl.currentTime = t0 } catch (e) { void 0 }
           if (a0 || audioEl.src) {
-            try { const p = audioEl.play(); if (p && p.catch) p.catch(() => {}) } catch (e) { void 0 }
+            try { const p = audioEl.play(); if (p && p.catch) p.catch(() => { }) } catch (e) { void 0 }
           }
         }
       } catch (e) { void 0 }
@@ -5183,7 +5487,7 @@ export default {
         if (audioEl && audioEl.src) {
           try {
             const p = audioEl.play()
-            if (p && p.catch) p.catch(() => {})
+            if (p && p.catch) p.catch(() => { })
           } catch (e) { void 0 }
         }
       }
@@ -5222,7 +5526,7 @@ export default {
             if (audioEl.paused && this.isPlaying) {
               try {
                 const p = audioEl.play()
-                if (p && p.catch) p.catch(() => {})
+                if (p && p.catch) p.catch(() => { })
               } catch (e) { void 0 }
             }
           }
@@ -5546,7 +5850,7 @@ export default {
             if (tp === 'finished' || ev === 'node_finished' || ev === 'workflow_finished' || ev === 'succeeded') {
               this.subtitleEnabled = this.subtitleEnabledPrev
               setTimeout(() => {
-                Promise.resolve().then(async() => {
+                Promise.resolve().then(async () => {
                   try {
                     const text = await getStoryboardSceneDetail({ videoId, sceneNumber: shotId, token })
                     let json
@@ -5689,7 +5993,7 @@ export default {
         this.lipSyncWorkId = ''
 
         if (videoId && shotId && token) {
-          Promise.resolve().then(async() => {
+          Promise.resolve().then(async () => {
             try {
               const detResp = await objectDetectionByScene({ videoId, shotId, token })
               const obj = typeof detResp === 'string' ? (() => { try { return JSON.parse(detResp) } catch { return null } })() : detResp
@@ -5715,7 +6019,7 @@ export default {
       this.pendingVideoSet = new Set(this.pendingVideoSet)
 
       const token = (this.userStore && this.userStore.token) || ''
-      const poll = async() => {
+      const poll = async () => {
         try {
           const resp = await digitalhumanQuery({ taskId, token })
           const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp
@@ -6447,9 +6751,19 @@ export default {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
-.prompt-edit-input::placeholder { color: var(--text-tertiary); }
-[data-theme="dark"] .prompt-edit-input { color: #fff; background-color: #1e1e1e; border-color: #333; }
-[data-theme="dark"] .prompt-edit-input::placeholder { color: #bbb; }
+.prompt-edit-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .prompt-edit-input {
+  color: #fff;
+  background-color: #1e1e1e;
+  border-color: #333;
+}
+
+[data-theme="dark"] .prompt-edit-input::placeholder {
+  color: #bbb;
+}
 
 .prompt-edit-actions {
   display: flex;
@@ -6754,10 +7068,13 @@ export default {
   border-radius: 16px;
   background: var(--bg-primary);
   color: var(--text-primary);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
   cursor: pointer;
 }
-.replace-icon { font-size: 14px; }
+
+.replace-icon {
+  font-size: 14px;
+}
 
 .video-image {
   max-width: 100%;
@@ -6986,20 +7303,22 @@ export default {
 .crop-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3000;
 }
+
 .crop-modal {
   width: 90%;
   max-width: 800px;
   background: var(--bg-primary);
   border-radius: 12px;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
   overflow: hidden;
 }
+
 .crop-modal-header {
   padding: 16px 20px;
   font-size: 16px;
@@ -7007,6 +7326,7 @@ export default {
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-secondary);
 }
+
 .crop-modal-body {
   padding: 16px;
   display: flex;
@@ -7015,6 +7335,7 @@ export default {
   background: var(--bg-secondary);
   height: 60vh;
 }
+
 .crop-preview {
   width: 100%;
   height: 100%;
@@ -7023,19 +7344,22 @@ export default {
   overflow: hidden;
   position: relative;
 }
+
 .crop-image {
   width: 100%;
   height: 100%;
   object-fit: contain;
   object-position: center center;
 }
+
 .crop-select {
   position: absolute;
   border: 2px solid var(--primary-color);
   background: rgba(0, 0, 0, 0.15);
   cursor: move;
-  box-shadow: 0 0 0 9999px rgba(0,0,0,0.2) inset;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.2) inset;
 }
+
 .crop-handle {
   position: absolute;
   width: 10px;
@@ -7043,17 +7367,43 @@ export default {
   background: var(--primary-color);
   border-radius: 50%;
 }
-.handle-nw { left: -6px; top: -6px; cursor: nwse-resize; }
-.handle-ne { right: -6px; top: -6px; cursor: nesw-resize; }
-.handle-sw { left: -6px; bottom: -6px; cursor: nesw-resize; }
-.handle-se { right: -6px; bottom: -6px; cursor: nwse-resize; }
+
+.handle-nw {
+  left: -6px;
+  top: -6px;
+  cursor: nwse-resize;
+}
+
+.handle-ne {
+  right: -6px;
+  top: -6px;
+  cursor: nesw-resize;
+}
+
+.handle-sw {
+  left: -6px;
+  bottom: -6px;
+  cursor: nesw-resize;
+}
+
+.handle-se {
+  right: -6px;
+  bottom: -6px;
+  cursor: nwse-resize;
+}
+
 .crop-modal-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px 16px;
 }
-.ratio-buttons { display: flex; gap: 8px; }
+
+.ratio-buttons {
+  display: flex;
+  gap: 8px;
+}
+
 .ratio-btn {
   padding: 6px 10px;
   border: 1px solid var(--border-secondary);
@@ -7061,10 +7411,33 @@ export default {
   background: var(--bg-tertiary);
   color: var(--text-secondary);
 }
-.ratio-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
-.crop-actions { display: flex; gap: 10px; }
-.crop-cancel { padding: 6px 12px; border: 1px solid var(--border-secondary); border-radius: 8px; background: var(--bg-primary); color: var(--text-primary); }
-.crop-apply { padding: 6px 12px; border: none; border-radius: 8px; background: var(--primary-color); color: #fff; }
+
+.ratio-btn.active {
+  background: var(--primary-color);
+  color: #fff;
+  border-color: var(--primary-color);
+}
+
+.crop-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.crop-cancel {
+  padding: 6px 12px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.crop-apply {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary-color);
+  color: #fff;
+}
 
 /* 时间轴区域 */
 .timeline-section {
@@ -7079,20 +7452,22 @@ export default {
 .convert-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 3200;
 }
+
 .convert-modal {
   width: 90%;
   max-width: 460px;
   background: var(--bg-primary);
   border-radius: 12px;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.2);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
   overflow: hidden;
 }
+
 .convert-modal-header {
   padding: 16px 20px;
   font-size: 16px;
@@ -7100,9 +7475,11 @@ export default {
   color: var(--text-primary);
   border-bottom: 1px solid var(--border-secondary);
 }
+
 .convert-modal-body {
   padding: 16px;
 }
+
 .convert-scenes-stack {
   display: flex;
   align-items: center;
@@ -7110,33 +7487,47 @@ export default {
   justify-content: center;
   margin-bottom: 12px;
 }
+
 .convert-scenes-stack .stack-icon {
   width: 60px;
   height: 40px;
   border-radius: 8px;
   background: var(--bg-tertiary);
   box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
 }
+
+.convert-scenes-stack .stack-icon svg {
+  display: block;
+}
+
 .convert-scenes-stack .stack-count {
   font-size: 18px;
   font-weight: 600;
   color: var(--text-primary);
 }
+
 .convert-detail {
   background: var(--bg-secondary);
   border-radius: 10px;
   padding: 12px;
 }
+
 .convert-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 0;
 }
+
 .convert-label {
   color: var(--text-secondary);
   font-size: 14px;
 }
+
 .convert-select {
   width: 220px;
   padding: 6px 8px;
@@ -7145,21 +7536,25 @@ export default {
   background: var(--bg-primary);
   color: var(--text-primary);
 }
+
 .convert-value {
   color: var(--text-primary);
   font-weight: 600;
 }
+
 .convert-tip {
   margin-top: 8px;
   color: #ef4444;
   font-size: 13px;
 }
+
 .convert-modal-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px 16px;
 }
+
 .convert-cancel-btn {
   padding: 8px 16px;
   border: 1px solid var(--border-secondary);
@@ -7167,6 +7562,7 @@ export default {
   background: var(--bg-primary);
   color: var(--text-primary);
 }
+
 .convert-confirm-btn {
   padding: 8px 16px;
   border: none;
@@ -7174,10 +7570,12 @@ export default {
   background: var(--primary-color);
   color: #fff;
 }
+
 .convert-confirm-btn:disabled {
   background: var(--bg-tertiary);
   color: var(--text-tertiary);
 }
+
 .timeline-header {
   display: flex;
   justify-content: space-between;
@@ -7585,6 +7983,7 @@ input:checked+.slider:before {
   font-size: 12px;
   color: var(--text-tertiary);
 }
+
 .voice-script-controls {
   display: flex;
   align-items: center;
@@ -7894,6 +8293,7 @@ input:checked+.slider:before {
   position: relative;
   overflow: hidden;
 }
+
 .music-scrollable-content {
   flex: 1;
   padding: 20px;
@@ -7903,6 +8303,7 @@ input:checked+.slider:before {
   min-height: 0;
   content-visibility: auto;
 }
+
 .upload-area {
   border: 1px dashed var(--border-color, #e0e0e0);
   border-radius: 8px;
@@ -7913,10 +8314,12 @@ input:checked+.slider:before {
   background-color: var(--bg-tertiary, #f9f9f9);
   transition: all 0.3s;
 }
+
 .upload-area:hover {
   border-color: var(--primary-color, #007bff);
   background-color: var(--bg-hover, #f0f7ff);
 }
+
 .upload-placeholder {
   display: flex;
   flex-direction: column;
@@ -7924,15 +8327,18 @@ input:checked+.slider:before {
   gap: 8px;
   color: var(--text-secondary, #666);
 }
+
 .upload-text {
   font-size: 14px;
   font-weight: 500;
   color: var(--text-primary, #333);
 }
+
 .upload-hint {
   font-size: 12px;
   color: var(--text-hint, #999);
 }
+
 .uploaded-audio-card {
   display: flex;
   align-items: center;
@@ -7943,6 +8349,7 @@ input:checked+.slider:before {
   padding: 10px 12px;
   margin-top: 12px;
 }
+
 .audio-icon-btn {
   width: 36px;
   height: 36px;
@@ -7955,12 +8362,47 @@ input:checked+.slider:before {
   justify-content: center;
   cursor: pointer;
 }
-.audio-main { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.audio-title { font-size: 14px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.audio-slider { width: 100%; accent-color: var(--primary-color); }
-.audio-actions { display: flex; align-items: center; gap: 8px; }
-.audio-time { font-size: 12px; color: var(--text-secondary); }
-.delete-audio-btn { border: none; background: transparent; color: var(--error-color); cursor: pointer; padding: 4px; }
+
+.audio-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.audio-title {
+  font-size: 14px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-slider {
+  width: 100%;
+  accent-color: var(--primary-color);
+}
+
+.audio-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.audio-time {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.delete-audio-btn {
+  border: none;
+  background: transparent;
+  color: var(--error-color);
+  cursor: pointer;
+  padding: 4px;
+}
+
 .music-apply-section {
   position: absolute;
   bottom: 0;
@@ -7970,6 +8412,7 @@ input:checked+.slider:before {
   border-top: 1px solid var(--border-secondary);
   background: var(--bg-primary);
 }
+
 .music-apply-btn {
   width: 100%;
   padding: 12px;
@@ -7982,7 +8425,10 @@ input:checked+.slider:before {
   cursor: pointer;
   transition: all 0.2s;
 }
-.music-apply-btn:hover { background: var(--primary-hover); }
+
+.music-apply-btn:hover {
+  background: var(--primary-hover);
+}
 
 /* 对口型页面覆盖层样式 */
 .lip-sync-overlay {
@@ -8106,10 +8552,12 @@ input:checked+.slider:before {
     border-color: #333;
     color: #ccc;
   }
+
   .filter-select:hover {
     border-color: #1890ff;
     color: #1890ff;
   }
+
   .no-voice-tip {
     color: #666;
   }
@@ -8165,7 +8613,7 @@ input:checked+.slider:before {
   min-height: 60px;
   background: rgba(0, 0, 0, 0.4);
   color: #fff;
-  border: 1px solid rgba(255,255,255,0.3);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 8px;
   font-size: inherit;
   line-height: 1.5;
@@ -8225,13 +8673,14 @@ input:checked+.slider:before {
   border-radius: 50%;
 }
 
-input:checked + .slider {
+input:checked+.slider {
   background-color: var(--primary-color);
 }
 
-input:checked + .slider:before {
+input:checked+.slider:before {
   transform: translateX(16px);
 }
+
 /* 对口型页面覆盖层样式 */
 .lip-sync-overlay {
   position: fixed;
@@ -8285,8 +8734,13 @@ input:checked + .slider:before {
 }
 
 @keyframes skeleton-shimmer {
-  0% { background-position: 100% 50%; }
-  100% { background-position: 0 50%; }
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
+  }
 }
 
 .points-display {
@@ -8294,7 +8748,8 @@ input:checked + .slider:before {
   align-items: center;
   gap: 4px;
   background-color: var(--bg-secondary);
-  color: #fbbf24; /* Gold/Yellow for points */
+  color: #fbbf24;
+  /* Gold/Yellow for points */
   padding: 0.5rem 0.8rem;
   border-radius: 20px;
   font-weight: 600;
@@ -8306,9 +8761,11 @@ input:checked + .slider:before {
   background-color: var(--bg-tertiary);
   transform: translateY(-1px);
 }
+
 .non-member-points {
   color: var(--text-tertiary);
 }
+
 .non-member-points .points-icon {
   filter: grayscale(1);
 }
