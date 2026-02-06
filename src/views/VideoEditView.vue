@@ -1582,7 +1582,7 @@ export default {
       ]
     }
     // this.$nextTick(() => { this.tryAttachHls() })
-    Promise.resolve().then(async () => {
+    Promise.resolve().then(async() => {
       try {
         const token = (this.userStore && this.userStore.token) || ''
         if (token) {
@@ -1595,7 +1595,7 @@ export default {
         }
       } catch (e) { /* no-op */ }
     })
-    Promise.resolve().then(async () => {
+    Promise.resolve().then(async() => {
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -1669,7 +1669,7 @@ export default {
         }
       } catch (e) { void 0 }
     })
-    Promise.resolve().then(async () => {
+    Promise.resolve().then(async() => {
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -1682,7 +1682,7 @@ export default {
         this.worksVideoReady = !!(data && data.video === true)
       } catch (e) { void 0 }
     })
-    Promise.resolve().then(async () => {
+    Promise.resolve().then(async() => {
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -1704,7 +1704,7 @@ export default {
         }
       } catch (e) { void 0 }
     })
-    Promise.resolve().then(async () => {
+    Promise.resolve().then(async() => {
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
@@ -4173,7 +4173,7 @@ export default {
           } catch (e) { void 0 }
         }
         clearForKey()
-        const runOnce = async () => {
+        const runOnce = async() => {
           try {
             const text = await getStoryboardImagesDetail({ videoId, token })
             let resp = null
@@ -4229,7 +4229,7 @@ export default {
         }
         clearForKey()
         const t1 = setTimeout(() => {
-          const t2 = setInterval(async () => {
+          const t2 = setInterval(async() => {
             try {
               const text = await getStoryboardSceneDetail({ videoId, sceneNumber: key, token })
               let json
@@ -4975,7 +4975,7 @@ export default {
         this.pollStoryboardImagesDetail()
         // 每30秒轮询一次分镜视频生成状态（localhost）
         if (this._storyboardQueryInterval) clearInterval(this._storyboardQueryInterval)
-        this._storyboardQueryInterval = setInterval(async () => {
+        this._storyboardQueryInterval = setInterval(async() => {
           try {
             const statusText = await queryStoryboardVideoStatus({ videoId, token })
             let statusJson = null
@@ -5196,7 +5196,7 @@ export default {
         if (!taskId) { this.isVoiceLoading = false; this.toastText = '语音任务创建失败'; this.toastVisible = true; setTimeout(() => { this.toastVisible = false }, 2000); return }
         this.voiceAuditionTaskId = taskId
         if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { void 0 } this.voicePollTimer = null }
-        this.voicePollTimer = setInterval(async () => {
+        this.voicePollTimer = setInterval(async() => {
           try {
             const q = await aliTtsQuery({ taskId, token })
             const obj = typeof q === 'string' ? (() => { try { return JSON.parse(q) } catch { return null } })() : q
@@ -5850,7 +5850,7 @@ export default {
             if (tp === 'finished' || ev === 'node_finished' || ev === 'workflow_finished' || ev === 'succeeded') {
               this.subtitleEnabled = this.subtitleEnabledPrev
               setTimeout(() => {
-                Promise.resolve().then(async () => {
+                Promise.resolve().then(async() => {
                   try {
                     const text = await getStoryboardSceneDetail({ videoId, sceneNumber: shotId, token })
                     let json
@@ -5993,7 +5993,7 @@ export default {
         this.lipSyncWorkId = ''
 
         if (videoId && shotId && token) {
-          Promise.resolve().then(async () => {
+          Promise.resolve().then(async() => {
             try {
               const detResp = await objectDetectionByScene({ videoId, shotId, token })
               const obj = typeof detResp === 'string' ? (() => { try { return JSON.parse(detResp) } catch { return null } })() : detResp
@@ -6019,7 +6019,7 @@ export default {
       this.pendingVideoSet = new Set(this.pendingVideoSet)
 
       const token = (this.userStore && this.userStore.token) || ''
-      const poll = async () => {
+      const poll = async() => {
         try {
           const resp = await digitalhumanQuery({ taskId, token })
           const obj = typeof resp === 'string' ? (() => { try { return JSON.parse(resp) } catch { return null } })() : resp

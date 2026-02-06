@@ -36,7 +36,7 @@
                 <button type="button" class="chip-close" @click="removeStyleChip(s)">×</button>
               </span>
             </div>
-            <textarea v-model="searchQuery" rows="3" maxlength="250" class="search-input" :placeholder="selectedSubjects.length ? '' : '输入你的想法，小梦会帮你自动为你创作'"
+            <textarea v-model="searchQuery" rows="3" maxlength="240" class="search-input" :placeholder="selectedSubjects.length ? '' : '输入你的想法，小梦会帮你自动为你创作'"
               @keyup.enter="handleSearch"></textarea>
           </div>
           <div class="search-actions-container">
@@ -117,7 +117,7 @@
             </div>
             <div class="right-actions">
               <div class="input-counter">
-                <span class="count">{{ (searchQuery || '').length }}/250</span>
+                <span class="count">{{ (searchQuery || '').length }}/240</span>
               </div>
               <button class="search-submit-btn" :class="{ active: searchQuery.trim().length > 0 }" @click="handleSearch">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
