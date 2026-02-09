@@ -796,12 +796,12 @@
 
         <!-- 视频画面 -->
         <div class="video-preview">
-          <div class="video-container" ref="videoContainer" @click="handleVideoContainerClick">
+          <div class="video-container" ref="videoContainer" @click="handleVideoContainerClick($event)">
             <!-- 1、骨架屏 -->
             <div v-if="shouldShowActiveSkeleton" class="skeleton-image" style="height:100%"></div>
             <video v-else-if="shouldShowVideo" ref="previewVideo" :src="preferMp4(sceneDetail.video_url)"
               :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
-              preload="metadata" playsinline muted class="video-image" @loadedmetadata="updateSubtitleMaxWidth"></video>
+              preload="metadata" playsinline muted :controls="isFullscreen" :controlslist="isFullscreen ? 'nofullscreen' : null" class="video-image" @loadedmetadata="updateSubtitleMaxWidth"></video>
             <img v-else-if="shouldShowImage" :src="cleanUrl(sceneDetail.reference_image_url)"
               :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image"
               ref="previewImage" decoding="async" fetchpriority="high" @error="onPreviewImgError"
@@ -823,7 +823,7 @@
             </button>
             <!-- 字幕叠加层 -->
             <div
-              v-if="subtitleEnabled && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || subtitleText || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))"
+              v-if="subtitleEnabled && subtitleLayoutReady && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || subtitleText || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))"
               class="subtitle-overlay"
               :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }"
               :style="subtitleOverlayStyle">
@@ -1362,6 +1362,8 @@ export default {
       , versionPreviewVisible: false
       , versionPreviewUrl: ''
       , subtitleMaxWidthPx: 0
+      , subtitleFontScale: 1
+      , subtitleLayoutReady: false
       , musicAudioEl: null
       , musicAudioFile: null
       , musicAudioUrl: ''
@@ -1372,7 +1374,7 @@ export default {
       , subtitleText: ''
       , subtitleStyleFamily: ''
       , subtitleStyleFormat: ''
-      , subtitleStyleSize: '20px'
+      , subtitleStyleSize: '60px'
       , subtitleStyleColor: '#ffffff'
       , subtitleStateLoading: false
       , subtitleStyleFromApi: false
@@ -1453,6 +1455,10 @@ export default {
   mounted() {
     this.onFullscreenChange = () => {
       this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement)
+      this.$nextTick(() => {
+        this.updateSubtitleMaxWidth()
+        setTimeout(() => { this.updateSubtitleMaxWidth() }, 80)
+      })
     }
     document.addEventListener('fullscreenchange', this.onFullscreenChange)
     document.addEventListener('webkitfullscreenchange', this.onFullscreenChange)
@@ -1802,7 +1808,17 @@ export default {
       const color = String(this.subtitleStyleColor || '').trim()
       if (fam) s.fontFamily = fam
       if (fmt) s.fontWeight = fmt
-      if (size) s.fontSize = size
+      if (size) {
+        const basePx = Number.parseFloat(size)
+        const hasPxUnit = /px$/i.test(size)
+        const scale = Number(this.subtitleFontScale) || 1
+        if (hasPxUnit && Number.isFinite(basePx) && Number.isFinite(scale) && scale > 0) {
+          const px = Math.max(1, Math.round(basePx * scale * 100) / 100)
+          s.fontSize = `${px}px`
+        } else {
+          s.fontSize = size
+        }
+      }
       if (color) s.color = color
       return s
     },
@@ -2085,7 +2101,7 @@ export default {
         if (!videoId || !sceneNumber || !token) return
         const p1 = updateSubtitleState({
           token, workId: String(videoId), sceneNumber, workType: 'script_creation',
-          fontFamily: this.subtitleStyleFamily || '', fontFormat: this.subtitleStyleFormat || '', fontSize: this.subtitleStyleSize || '20px', fontColor: this.subtitleStyleColor || '#ffffff'
+          fontFamily: this.subtitleStyleFamily || '', fontFormat: this.subtitleStyleFormat || '', fontSize: this.subtitleStyleSize || '60px', fontColor: this.subtitleStyleColor || '#ffffff'
         })
         const p2 = updateSceneScript({ videoid: String(videoId), scene_number: sceneNumber, text, token })
         Promise.all([p1, p2]).then(([resp1, resp2]) => {
@@ -2128,7 +2144,7 @@ export default {
           // 返回为 null 时恢复为默认样式
           this.subtitleStyleFamily = ''
           this.subtitleStyleFormat = ''
-          this.subtitleStyleSize = '20px'
+          this.subtitleStyleSize = '60px'
           this.subtitleStyleColor = '#ffffff'
           this.subtitleStyleFromApi = false
         }
@@ -2145,7 +2161,7 @@ export default {
         if (!videoId || !sceneNumber || !token) { this.subtitleStyleSaving = false; return }
         const resp = await updateSubtitleState({
           token, workId: String(videoId), sceneNumber, workType: 'script_creation',
-          fontFamily: this.subtitleStyleFamily || '', fontFormat: this.subtitleStyleFormat || '', fontSize: this.subtitleStyleSize || '20px', fontColor: this.subtitleStyleColor || '#ffffff'
+          fontFamily: this.subtitleStyleFamily || '', fontFormat: this.subtitleStyleFormat || '', fontSize: this.subtitleStyleSize || '60px', fontColor: this.subtitleStyleColor || '#ffffff'
         })
         const ok = !!(resp && ((resp.code === 0) || resp.success === true))
         this.toastText = ok ? '字幕样式已更新' : ((resp && (resp.message || resp.msg)) || '更新失败')
@@ -2264,6 +2280,25 @@ export default {
         const pad = 48
         const w = Math.max(0, Math.floor(basis - pad))
         this.subtitleMaxWidthPx = w
+
+        let scale = 1
+        let ready = false
+        const el = ve || ie
+        if (el && el.getBoundingClientRect) {
+          const rect = el.getBoundingClientRect()
+          const dw = Number(rect && rect.width) || 0
+          const dh = Number(rect && rect.height) || 0
+          const iw = (ve && Number(ve.videoWidth)) || (ie && Number(ie.naturalWidth)) || 0
+          const ih = (ve && Number(ve.videoHeight)) || (ie && Number(ie.naturalHeight)) || 0
+          if (dw > 0 && dh > 0 && iw > 0 && ih > 0) {
+            const sw = dw / iw
+            const sh = dh / ih
+            const v = Math.min(sw, sh)
+            if (Number.isFinite(v) && v > 0) { scale = v; ready = true }
+          }
+        }
+        this.subtitleFontScale = scale
+        this.subtitleLayoutReady = ready
       } catch (e) { /* no-op */ }
     },
     scrollLeftToBottom() {
@@ -2382,8 +2417,18 @@ export default {
       this.versionPreviewVisible = false
       this.versionPreviewUrl = ''
     },
-    handleVideoContainerClick() {
-
+    handleVideoContainerClick(e) {
+      try {
+        if (this.isEditingSubtitle) return
+        const el = this.$refs && this.$refs.previewVideo
+        if (!el) return
+        if (!this.shouldShowVideo) return
+        const path = e && typeof e.composedPath === 'function' ? e.composedPath() : []
+        for (const n of path) {
+          if (n && n.classList && n.classList.contains('subtitle-overlay')) return
+        }
+        this.togglePlay()
+      } catch (e) { void 0 }
     },
     startEditSubtitle() {
       if (this.isEditingSubtitle) return
@@ -3154,7 +3199,7 @@ export default {
     async toggleFullscreen() {
       try {
         const d = document
-        const el = this.$refs.previewVideo || this.$refs.videoContainer
+        const el = this.$refs.videoContainer || this.$refs.previewVideo
         if (!el) return
         const activeFs = d.fullscreenElement || d.webkitFullscreenElement || d.msFullscreenElement
         if (activeFs) {
@@ -8571,7 +8616,7 @@ input:checked+.slider:before {
   color: white;
   /* padding: 8px 16px; */
   border-radius: 4px;
-  font-size: 20px;
+  font-size: 60px;
   font-weight: 700;
   text-align: center;
   max-width: 80%;
@@ -8588,7 +8633,7 @@ input:checked+.slider:before {
 }
 
 .subtitle-overlay.fullscreen-mode {
-  font-size: clamp(24px, 3vw, 40px);
+  bottom: 48px;
 }
 
 .subtitle-overlay [contenteditable="true"] {
