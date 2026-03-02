@@ -232,6 +232,20 @@
               @click="project.aspectRatio = '1:1'">1:1</button>
           </div>
         </div>
+        <div class="model-select" v-show="!isSubmitting && !canViewStoryboard">
+          <span class="model-label">模型选择</span>
+          <div class="model-dropdown-wrapper" ref="modelDropdownRef">
+            <button type="button" class="model-dropdown" @click.stop="toggleModelMenu">
+              {{ project.modelName }}
+            </button>
+            <div v-if="modelMenuOpen" class="model-options" @click.stop>
+              <button type="button" class="model-option" :class="{ active: project.modelName === 'seedream4.5' }"
+                @click="selectModel('seedream4.5')">
+                seedream4.5
+              </button>
+            </div>
+          </div>
+        </div>
         <div class="action-buttons" v-show="!isSubmitting">
           <!-- <button class="action-btn save-script">保存剧本</button>
           <button class="action-btn add-scene">添加场景</button> -->
@@ -305,6 +319,7 @@ export default {
         createdAt: '',
         duration: '',
         aspectRatio: '16:9',
+        modelName: 'seedream4.5',
         wordCount: '',
         videoType: '',
         contentSummary: '',
@@ -316,6 +331,7 @@ export default {
       selectedVersionIndex: null,
       toastVisible: false,
       toastText: '',
+      modelMenuOpen: false,
       sceneImgErrorMap: {},
       characterImgErrorMap: {},
       pointsBalance: 0,
@@ -370,6 +386,18 @@ export default {
     }
   },
   methods: {
+    toggleModelMenu() {
+      this.modelMenuOpen = !this.modelMenuOpen
+    },
+    selectModel(v) {
+      this.project.modelName = String(v || '').trim() || 'seedream4.5'
+      this.modelMenuOpen = false
+    },
+    onModelDropdownOutside(e) {
+      const el = this.$refs.modelDropdownRef
+      if (!el) return
+      if (!el.contains(e && e.target)) this.modelMenuOpen = false
+    },
     async resolveConversationIdViaMyWorks() {
       try {
         const token = (this.userStore && this.userStore.token) || ''
@@ -1261,6 +1289,7 @@ export default {
   },
   async mounted() {
     // 根据路由参数获取项目详情
+    document.addEventListener('click', this.onModelDropdownOutside)
     const projectId = this.$route.params.id
     console.log('项目ID:', projectId)
     try {
@@ -1317,6 +1346,7 @@ export default {
     } catch (e) { /* no-op */ }
   }
   , beforeUnmount() {
+    document.removeEventListener('click', this.onModelDropdownOutside)
     try { if (this._sseGenCtrl && this._sseGenCtrl.abort) this._sseGenCtrl.abort() } catch (e) { void e }
     try { if (this._sseModCtrl && this._sseModCtrl.abort) this._sseModCtrl.abort() } catch (e) { void e }
   }
@@ -2314,6 +2344,74 @@ export default {
 .aspect-option.active {
   background: var(--primary-color);
   border-color: var(--primary-color);
+  color: #ffffff;
+}
+
+.model-select {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.model-label {
+  color: #374151;
+  font-size: calc(12px * var(--font-scale));
+}
+
+.model-dropdown-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+.model-dropdown {
+  padding: 6px 36px 6px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  background: #fff;
+  color: #374151;
+  font-size: calc(12px * var(--font-scale));
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  cursor: pointer;
+}
+
+.model-options {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+}
+
+.model-option {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #374151;
+  font-size: calc(12px * var(--font-scale));
+  cursor: pointer;
+}
+
+.model-option:hover {
+  background: #F9FAFB;
+}
+
+.model-option.active {
+  background: var(--primary-color);
   color: #ffffff;
 }
 </style>

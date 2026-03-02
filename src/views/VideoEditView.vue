@@ -61,7 +61,7 @@
     <div v-if="convertConfirmVisible" class="convert-modal-overlay" @click="closeConvertConfirmModal">
       <div class="convert-modal" @click.stop>
         <div class="convert-modal-header">转视频任务明细</div>
-        <div class="convert-modal-body">
+        <div class="convert-modal-body" @click="convertModelMenuOpen = false">
           <div class="convert-scenes-stack">
             <div class="stack-icon">
               <svg t="1770187421942" class="icon" viewBox="0 0 1024 1024" version="1.1"
@@ -74,12 +74,6 @@
             <div class="stack-count">×{{ convertScenesCount }}</div>
           </div>
           <div class="convert-detail">
-            <!-- <div class="convert-row">
-              <div class="convert-label">选用模型</div>
-              <select class="convert-select" v-model="selectedConvertModelName" @change="reestimateConvertBilling">
-                <option value="wan2.2-i2v-flash">智能选择（720P）</option>
-              </select>
-            </div> -->
             <div class="convert-row">
               <div class="convert-label">视频时长</div>
               <div class="convert-value">{{ convertDurationText }}</div>
@@ -91,6 +85,26 @@
             <div class="convert-row">
               <div class="convert-label">积分消耗</div>
               <div class="convert-value">{{ convertEstimateTotal }}</div>
+            </div>
+            <div class="convert-row">
+              <div class="convert-label">模型选择</div>
+              <div class="convert-model-wrapper">
+                <button type="button" class="convert-model-select" @click.stop="toggleConvertModelMenu">
+                  {{ convertModelDisplayName() }}
+                </button>
+                <div v-if="convertModelMenuOpen" class="convert-model-options" @click.stop>
+                  <button type="button" class="convert-model-option"
+                    :class="{ active: selectedConvertModelName === 'wan2.2-i2v-flash' }"
+                    @click="selectConvertModel('wan2.2-i2v-flash')">
+                    万相2.2-flash
+                  </button>
+                  <button type="button" class="convert-model-option"
+                    :class="{ active: selectedConvertModelName === 'wan2.2-i2v-plus' }"
+                    @click="selectConvertModel('wan2.2-i2v-plus')">
+                    万相2.2-plus
+                  </button>
+                </div>
+              </div>
             </div>
             <div class="convert-tip" v-if="!canConfirmConvert">积分不足，请充值</div>
           </div>
@@ -1264,6 +1278,7 @@ export default {
       , canConfirmConvert: false
       , isDark: false
       , selectedConvertModelName: 'wan2.2-i2v-flash'
+      , convertModelMenuOpen: false
       , selectedDurationMode: 'voice-crop'
       , aspectRatio: '16:9'
       , showReplaceCropModal: false
@@ -4683,6 +4698,7 @@ export default {
       }
     },
     async handleRegenerateActiveScene() {
+      let addedKey = ''
       try {
         this.toastText = '正在生成中'
         this.toastVisible = true
@@ -4697,6 +4713,12 @@ export default {
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
         const type = 'shot_img'
         const currentScene = this.scenes[this.activeSceneIndex] || {}
+        try {
+          const k = this.getSceneKey(currentScene, this.activeSceneIndex)
+          if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
+          this.updatingKeySet.add(k)
+          addedKey = k
+        } catch (e) { void 0 }
         // 使用接口返回的 id，如 shot_1_1；若不存在则回退到按索引生成
         const nameRaw = String(currentScene.scene_number || '').trim()
         const name = nameRaw || `shot_${this.activeSceneIndex + 1}`
@@ -4759,6 +4781,10 @@ export default {
         console.warn('重新生成分镜图片失败:', e)
         this.toastText = '生成失败'
         setTimeout(() => { this.toastVisible = false }, 2000)
+      } finally {
+        if (addedKey && this.updatingKeySet && this.updatingKeySet.delete) {
+          try { this.updatingKeySet.delete(addedKey) } catch (e) { void 0 }
+        }
       }
     },
     async handleRegenerateActiveSceneVideo() {
@@ -4885,7 +4911,7 @@ export default {
       const projectId = this.$route.params.id
       const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
       const token = (this.userStore && this.userStore.token) || ''
-      const modelName = 'wan2.2-i2v-flash'
+      const modelName = String(this.selectedConvertModelName || '').trim() || 'wan2.2-i2v-flash'
       try {
         if (!token) { return }
         let balance = 0
@@ -5051,11 +5077,25 @@ export default {
     },
     closeConvertConfirmModal() {
       this.convertConfirmVisible = false
+      this.convertModelMenuOpen = false
     },
     confirmConvert() {
       if (!this.canConfirmConvert) return
       this.convertConfirmVisible = false
       this.convertToVideo()
+    },
+    toggleConvertModelMenu() {
+      this.convertModelMenuOpen = !this.convertModelMenuOpen
+    },
+    selectConvertModel(v) {
+      this.selectedConvertModelName = String(v || '').trim() || 'wan2.2-i2v-flash'
+      this.convertModelMenuOpen = false
+      this.reestimateConvertBilling()
+    },
+    convertModelDisplayName() {
+      const v = String(this.selectedConvertModelName || '').trim()
+      if (v === 'wan2.2-i2v-plus') return '万相2.2-plus'
+      return '万相2.2-flash'
     },
     async exportVideo() {
       const ctrl = this.exportAbortController && this.exportAbortController.abort ? this.exportAbortController : null
@@ -7554,6 +7594,62 @@ export default {
   border-radius: 6px;
   background: var(--bg-primary);
   color: var(--text-primary);
+}
+
+.convert-model-wrapper {
+  position: relative;
+  width: 220px;
+}
+
+.convert-model-select {
+  width: 100%;
+  padding: 6px 36px 6px 12px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 12px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+
+.convert-model-options {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  padding: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 10;
+}
+
+.convert-model-option {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.convert-model-option:hover {
+  background: var(--bg-tertiary);
+}
+
+.convert-model-option.active {
+  background: var(--primary-color);
+  color: #ffffff;
 }
 
 .convert-value {
