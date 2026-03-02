@@ -74,6 +74,9 @@
         >
           <div class="asset-preview">
             <img :src="asset.thumbnail" :alt="asset.title" />
+            <button v-if="asset.type === 'personal'" class="asset-delete-btn" @click.stop="openDeleteConfirm(asset)">
+              ×
+            </button>
           </div>
 
           <div class="asset-info">
@@ -97,6 +100,7 @@
         </button>
         <div class="detail-header-actions">
           <button v-if="selectedAsset.type === 'personal'" class="edit-btn" @click="openEditModal">编辑</button>
+          <button v-if="selectedAsset.type === 'personal'" class="delete-btn" @click.stop="openDeleteConfirm">删除</button>
           <button class="favorite-btn">
             <span class="star-icon">☆</span>
           </button>
@@ -230,10 +234,24 @@
       </div>
     </div>
 
+    <div v-if="deleteConfirmVisible" class="delete-modal-overlay" @click.self="closeDeleteConfirm">
+      <div class="delete-modal" @click.stop>
+        <div class="delete-modal-title">是否删除该主体</div>
+        <div class="delete-modal-actions">
+          <button class="delete-cancel" @click="closeDeleteConfirm">取消</button>
+          <button class="delete-confirm" :disabled="deleteDeleting" @click="confirmDeleteSelectedSubject">
+            {{ deleteDeleting ? '删除中...' : '删除' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="showImagePreview" class="image-preview-overlay" @click.self="closeImagePreview">
       <img :src="imagePreviewUrl" alt="预览图" class="image-preview-img" />
       <button class="image-preview-close" @click="closeImagePreview">×</button>
     </div>
+
+    <div v-if="toastVisible" class="floating-toast">{{ toastText }}</div>
 
     <!-- 创建新主体弹窗 -->
     <CreateSubjectModal
@@ -246,7 +264,7 @@
 
 <script>
 
-import { getMaterialsList, updateMaterial } from '@/api'
+import { deleteMaterial, getMaterialsList, updateMaterial } from '@/api'
 import { generateGradientPlaceholder } from '@/utils/placeholder'
 import CreateSubjectModal from '@/components/CreateSubjectModal.vue'
 import { useUserStore } from '@/stores/user'
@@ -269,6 +287,11 @@ export default {
       showTag: false,
       showCreateModal: false,
       showEditModal: false,
+      deleteConfirmVisible: false,
+      deleteDeleting: false,
+      deleteTargetAsset: null,
+      toastVisible: false,
+      toastText: '',
       showImagePreview: false,
       imagePreviewUrl: '',
       editSaving: false,
@@ -328,6 +351,7 @@ export default {
     },
     closeModal() {
       this.selectedAsset = null
+      this.deleteConfirmVisible = false
       this.showImagePreview = false
       this.imagePreviewUrl = ''
     },
@@ -359,6 +383,11 @@ export default {
     closeImagePreview() {
       this.showImagePreview = false
       this.imagePreviewUrl = ''
+    },
+    showToast(text) {
+      this.toastText = String(text || '').trim() || '提示'
+      this.toastVisible = true
+      setTimeout(() => { this.toastVisible = false }, 1800)
     },
 
     openEditModal() {
@@ -503,6 +532,52 @@ export default {
         }
       } catch (error) {
         console.error('获取个人素材列表失败:', error)
+      }
+    },
+    openDeleteConfirm() {
+      const arg = arguments && arguments.length ? arguments[0] : null
+      const target = arg || this.selectedAsset
+      if (!target || target.type !== 'personal') return
+      this.deleteTargetAsset = target
+      this.deleteConfirmVisible = true
+    },
+    closeDeleteConfirm() {
+      if (this.deleteDeleting) return
+      this.deleteConfirmVisible = false
+      this.deleteTargetAsset = null
+    },
+    async confirmDeleteSelectedSubject() {
+      if (this.deleteDeleting) return
+      this.deleteDeleting = true
+      try {
+        await this.deleteSelectedSubject(this.deleteTargetAsset)
+      } finally {
+        this.deleteDeleting = false
+        this.deleteConfirmVisible = false
+        this.deleteTargetAsset = null
+      }
+    },
+    async deleteSelectedSubject() {
+      try {
+        const arg = arguments && arguments.length ? arguments[0] : null
+        const target = arg || this.selectedAsset
+        if (!target || target.type !== 'personal') return
+        const token = (this.userStore && this.userStore.token) || ''
+        const materialId = target.id
+        const result = await deleteMaterial({ token, materialId })
+        let data = null
+        try { data = JSON.parse(result) } catch (e) { data = null }
+        if (data && data.code === 0) {
+          this.showToast((data && (data.data || data.message)) || '删除成功')
+          if (this.selectedAsset && String(this.selectedAsset.id) === String(materialId)) this.closeModal()
+          this.loadPersonalMaterials()
+        } else {
+          const msg = (data && data.message) ? data.message : '删除失败'
+          try { alert(msg) } catch (e) { void e }
+        }
+      } catch (error) {
+        try { alert('删除失败，请重试') } catch (e) { void e }
+        console.error('删除个人素材失败:', error)
       }
     },
     toggleInputBox() {
@@ -747,6 +822,29 @@ export default {
   justify-content: center;
 }
 
+.asset-delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(17, 24, 39, 0.6);
+  color: #ffffff;
+  font-size: 16px;
+  line-height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.asset-delete-btn:hover {
+  background: rgba(17, 24, 39, 0.8);
+}
+
 .asset-preview img {
   width: 100%;
   height: 100%;
@@ -863,6 +961,94 @@ export default {
 .edit-btn:hover {
   background: var(--bg-tertiary);
   color: var(--text-primary);
+}
+
+.delete-btn {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-primary);
+  color: var(--error-color);
+  border-radius: 18px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--error-color);
+}
+
+.delete-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2500;
+}
+
+.delete-modal {
+  background: var(--bg-primary);
+  border-radius: 12px;
+  padding: 16px 20px;
+  min-width: 280px;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.delete-modal-title {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.delete-modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.delete-cancel {
+  padding: 8px 16px;
+  border: 1px solid var(--border-primary);
+  background: var(--bg-primary);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.delete-confirm {
+  padding: 8px 16px;
+  border: none;
+  background: var(--error-color);
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.delete-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.floating-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 80px;
+  transform: translateX(-50%);
+  background: rgba(17, 24, 39, 0.9);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  z-index: 4000;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .edit-modal-overlay {

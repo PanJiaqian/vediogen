@@ -162,7 +162,7 @@
         </div>
 
         <template v-if="shouldShowActiveSkeleton">
-          <div class="skeleton-block">
+          <div :class="['skeleton-block', activeSkeletonThemeClass]">
             <div class="skeleton-line"></div>
             <div class="skeleton-line"></div>
             <div class="skeleton-image" style="height:200px;"></div>
@@ -380,87 +380,7 @@
                 <div v-for="msg in leftChatMessages" :key="msg.id" class="chat-message-wrapper"
                   style="margin-bottom: 12px;">
                   <!-- User Message (Right) -->
-                  <div v-if="msg.side === 'right'" class="chat-bubble chat-right"
-                    style="margin-left: auto; max-width: 80%;">
-                    <span>{{ msg.text }}</span>
-                  </div>
 
-                  <!-- Assistant Prompt Box (Left) -->
-                  <div v-else-if="msg.type === 'prompt_box'" class="prompt-box-chat" style="width: 100%;">
-                    <!-- Prompt Section Replica -->
-                    <div class="prompt-section" style="margin-bottom: 0;">
-                      <div class="prompt-header">
-                        <div class="prompt-icon">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor"
-                              stroke-width="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
-                            <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor"
-                              stroke-width="2" />
-                          </svg>
-                        </div>
-                        <span class="prompt-title">{{ (msg.data && msg.data.shot_title) || '分镜' }}</span>
-                        <div class="prompt-actions">
-                          <!-- Visual only buttons for identical look -->
-                          <button class="action-btn edit-btn" title="编辑提示词">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor"
-                                stroke-width="2" />
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor"
-                                stroke-width="2" />
-                            </svg>
-                          </button>
-                          <button class="action-btn copy-btn" title="复制提示词">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" stroke="currentColor"
-                                stroke-width="2" />
-                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor"
-                                stroke-width="2" />
-                            </svg>
-                          </button>
-                          <button class="action-btn more-btn" title="收缩提示词">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                      <div class="prompt-content">
-                        <div style="display:flex;flex-direction:column;gap:4px;">
-                          <div v-if="msg.data && msg.data.visual_description">
-                            <span style="opacity:0.7;"></span>{{ msg.data.visual_description }}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Image Display inside Prompt Box -->
-                    <div class="image-container" style="margin-top: 12px;">
-                      <div v-if="msg.pending && !msg.imageUrl" class="skeleton-image" style="height:200px;"></div>
-                      <img v-else-if="msg.imageUrl" :src="cleanUrl(msg.imageUrl)" alt="分镜更新图" class="scene-image"
-                        decoding="async" />
-                      <div v-else-if="msg.text"
-                        style="padding: 12px; font-size: 13px; opacity: 0.8; background: var(--bg-tertiary); border-radius: 8px;">
-                        {{ msg.text }}
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Default Left Message -->
-                  <div v-else class="chat-bubble chat-left">
-                    <div v-if="msg.pending" style="display:flex; flex-direction:column; align-items:flex-start;">
-                      <template v-if="!msg.imageUrl">
-                        <div class="skeleton-image" style="width:100%;height:160px;border-radius:12px;"></div>
-                      </template>
-                      <template v-else>
-                        <img :src="cleanUrl(msg.imageUrl)" alt="分镜更新图"
-                          style="width:100%;height:auto;border-radius:12px;" decoding="async" />
-                      </template>
-                      <span v-if="msg.text" style="display:block; margin-top:6px; opacity:0.8; font-size:12px;">{{
-                        msg.text }}</span>
-                    </div>
-                    <span v-else>{{ msg.text }}</span>
-                  </div>
                 </div>
               </div>
             </div>
@@ -749,8 +669,8 @@
                   </div>
                   <div class="subtitle-style-row">
                     <label class="subtitle-style-label">字号</label>
-                    <input type="range" min="12" max="80" step="1" :value="parseInt(subtitleStyleSize) || 20"
-                      @input="subtitleStyleSize = ($event.target.value + 'px')" class="subtitle-style-input">
+                    <input type="number" min="12" max="80" step="1" v-model.number="subtitleStyleSizeValue"
+                      class="subtitle-style-input">
                     <!-- <span style="min-width:44px;text-align:right;">{{ parseInt(subtitleStyleSize) || 20 }}</span> -->
                   </div>
                   <div class="subtitle-style-row">
@@ -772,7 +692,7 @@
         <!-- 画布编辑和对口型 -->
         <div
           v-if="shouldShowActiveSkeleton || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || (isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)) || (sceneDetail.video_url === null && !shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail))"
-          class="skeleton-block" style="margin-bottom: 8px;">
+          :class="['skeleton-block', activeSkeletonThemeClass]" style="margin-bottom: 8px;">
           <div class="skeleton-line" style="width: 200px; height: 32px;"></div>
         </div>
         <div v-else class="edit-controls">
@@ -798,7 +718,13 @@
         <div class="video-preview">
           <div class="video-container" ref="videoContainer" @click="handleVideoContainerClick($event)">
             <!-- 1、骨架屏 -->
-            <div v-if="shouldShowActiveSkeleton" class="skeleton-image" style="height:100%"></div>
+            <div v-if="shouldShowActiveSkeleton" :class="['skeleton-image', activeSkeletonThemeClass, 'generate-skeleton']"
+              style="height:100%">
+              <div class="generate-skeleton__content">
+                <div class="generate-skeleton__spinner"></div>
+                <div class="generate-skeleton__text">正在生成中</div>
+              </div>
+            </div>
             <video v-else-if="shouldShowVideo" ref="previewVideo" :src="preferMp4(sceneDetail.video_url)"
               :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
               preload="metadata" playsinline muted :controls="isFullscreen" :controlslist="isFullscreen ? 'nofullscreen' : null" class="video-image" @loadedmetadata="updateSubtitleMaxWidth"></video>
@@ -844,10 +770,10 @@
             <template
               v-if="shouldShowActiveSkeleton || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || isPreviewPending">
               <div class="thumb-card">
-                <div class="skeleton-image"></div>
+                <div :class="['skeleton-image', activeSkeletonThemeClass]"></div>
               </div>
               <div class="thumb-card">
-                <div class="skeleton-image"></div>
+                <div :class="['skeleton-image', activeSkeletonThemeClass]"></div>
               </div>
             </template>
             <template v-else>
@@ -914,32 +840,34 @@
           <!-- 时间轴区域 -->
           <div class="timeline-section" ref="timelineSection">
             <template v-if="isVideoConverting">
-              <div class="timeline-header">
-                <span class="timeline-label">
-                  <div class="skeleton-line" style="width:80px;height:12px;"></div>
-                </span>
-                <label class="switch">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="time-scale">
-                <div class="time-scale-inner" ref="timeScaleInner">
-                  <div class="skeleton-line" style="height:12px;"></div>
+              <div class="timeline-skeleton skeleton-theme-convert">
+                <div class="timeline-header">
+                  <span class="timeline-label">
+                    <div class="skeleton-line" style="width:80px;height:12px;"></div>
+                  </span>
+                  <label class="switch">
+                    <span class="slider"></span>
+                  </label>
                 </div>
-              </div>
-              <div class="timeline-tracks" ref="timelineTracks">
-                <div v-for="n in 3" :key="'skel-track-' + n" class="timeline-track">
-                  <div class="track-header">
-                    <div class="skeleton-line" style="width:120px;height:12px;"></div>
+                <div class="time-scale">
+                  <div class="time-scale-inner" ref="timeScaleInner">
+                    <div class="skeleton-line" style="height:12px;"></div>
                   </div>
-                  <div class="track-clips">
-                    <div v-for="m in 10" :key="'skel-clip-' + n + '-' + m" class="scene-clip">
-                      <div class="skeleton-image" style="height:28px;"></div>
+                </div>
+                <div class="timeline-tracks" ref="timelineTracks">
+                  <div v-for="n in 3" :key="'skel-track-' + n" class="timeline-track">
+                    <div class="track-header">
+                      <div class="skeleton-line" style="width:120px;height:12px;"></div>
+                    </div>
+                    <div class="track-clips">
+                      <div v-for="m in 10" :key="'skel-clip-' + n + '-' + m" class="scene-clip">
+                        <div class="skeleton-image" style="height:28px;"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
+                <div class="playback-indicator" :style="{ left: playbackLeftPx + 'px' }"></div>
               </div>
-              <div class="playback-indicator" :style="{ left: playbackLeftPx + 'px' }"></div>
             </template>
             <template v-else>
 
@@ -1799,13 +1727,25 @@ export default {
     userStore() {
       return useUserStore()
     },
+    subtitleStyleSizeValue: {
+      get() {
+        const size = String(this.subtitleStyleSize || '').trim()
+        const num = Number.parseFloat(size)
+        return Number.isFinite(num) ? num : 20
+      },
+      set(val) {
+        const num = Number(val)
+        if (Number.isFinite(num)) {
+          this.subtitleStyleSize = `${num}px`
+        }
+      }
+    },
     subtitleOverlayStyle() {
       const w = Math.max(0, Number(this.subtitleMaxWidthPx) || 0)
       const s = w ? { maxWidth: `${w}px` } : {}
       const fam = String(this.subtitleStyleFamily || '').trim()
       const fmt = String(this.subtitleStyleFormat || '').trim()
       const size = String(this.subtitleStyleSize || '').trim()
-      const color = String(this.subtitleStyleColor || '').trim()
       if (fam) s.fontFamily = fam
       if (fmt) s.fontWeight = fmt
       if (size) {
@@ -1819,7 +1759,7 @@ export default {
           s.fontSize = size
         }
       }
-      if (color) s.color = color
+      s.color = String(this.subtitleStyleColor || '#ffffff').trim() || '#ffffff'
       return s
     },
     sortedSceneHistory() {
@@ -1853,6 +1793,15 @@ export default {
     },
     convertDurationText() {
       return `${this.convertDurationSeconds}s`
+    },
+    activeSkeletonThemeClass() {
+      const idx = this.activeSceneIndex
+      const scene = Array.isArray(this.scenes) ? this.scenes[idx] : null
+      const isRegenerating = scene ? this.isSceneUpdating(scene, idx) : false
+      const isConverting = this.isVideoConverting || (scene ? this.isVideoPendingScene(scene, idx) : false)
+      if (isRegenerating) return 'skeleton-theme-regenerate'
+      if (isConverting) return 'skeleton-theme-convert'
+      return ''
     },
     currentPreviewUrl() {
       const v = this.cleanUrl(this.sceneDetail.video_url || '')
@@ -1995,6 +1944,7 @@ export default {
     activeSceneIndex() {
       this.previewImgErrored = false
       this.voiceScript = ''
+      const isAutoPlaying = this.isPlaying
       try {
         const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
         const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
@@ -2007,13 +1957,15 @@ export default {
           const t = sc && sc.scene_script && sc.scene_script.dialogue_or_narration ? String(sc.scene_script.dialogue_or_narration) : ''
           this.subtitleText = t
         } catch (e) { void 0 }
-        this.syncPreviewPlayback()
+        if (!isAutoPlaying) this.syncPreviewPlayback()
       } catch (e) { void 0 }
       // this.$nextTick(() => { this.tryAttachHls() })
       this.$nextTick(() => { this.fetchSceneHistoryForActiveScene() })
       this.$nextTick(() => {
-        if (this.lastPreviewMode === 'image') this.switchPreviewTo('image')
-        else if (this.lastPreviewMode === 'video') this.switchPreviewTo('video')
+        if (!isAutoPlaying) {
+          if (this.lastPreviewMode === 'image') this.switchPreviewTo('image')
+          else if (this.lastPreviewMode === 'video') this.switchPreviewTo('video')
+        }
       })
     },
     'sceneDetail.reference_image_url'(val) {
@@ -2021,12 +1973,7 @@ export default {
       this.$nextTick(() => { this.updateSubtitleMaxWidth() })
     },
     'sceneDetail.video_url'(val) {
-      if (this.isPlaying) {
-        const el = this.$refs.previewVideo
-        if (el) {
-          try { el.pause() } catch (e) { void 0 }
-        }
-      } else {
+      if (!this.isPlaying) {
         this.pausePreview()
       }
       try { this._previewLoadSrc = '' } catch (e) { void 0 }
@@ -2232,6 +2179,7 @@ export default {
           this.voiceSceneAudioDuration = 0
           this.voiceSceneCurrentTime = 0
           if (sc) sc.audio_url = ''
+          this.sceneDetail = Object.assign({}, this.sceneDetail || {}, { audio_url: '' })
         }
         this.toastText = ok ? '配音已删除' : ((resp && (resp.message || resp.msg)) || '删除失败')
         this.toastVisible = true
@@ -3265,7 +3213,8 @@ export default {
         console.warn('预览播放失败:', e)
       }
     },
-    syncPreviewPlayback() {
+    syncPreviewPlayback(options = {}) {
+      const { autoplay = false, seekSeconds = 0 } = options || {}
       this.$nextTick(() => {
         const audioEl = this.$refs.previewAudio
         if (audioEl) {
@@ -3315,8 +3264,22 @@ export default {
         }
         this._lastPreviewUrl = src
         if (this.isVideo(this.currentPreviewUrl)) {
-          try { el.pause(); el.currentTime = 0 } catch (e) { console.warn('预览暂停失败:', e) }
-          // 不自动播放，等待用户点击播放按钮触发
+          if (autoplay || this.isPlaying) {
+            const t = Math.max(0, Number(seekSeconds) || 0)
+            if (el.readyState >= 2) {
+              try { el.currentTime = t } catch (e) { void 0 }
+              this.playVideoSafely(el)
+            } else {
+              const onCanPlay = () => {
+                el.removeEventListener('canplay', onCanPlay)
+                try { el.currentTime = t } catch (e) { void 0 }
+                this.playVideoSafely(el)
+              }
+              try { el.addEventListener('canplay', onCanPlay, { once: true }) } catch (e) { void 0 }
+            }
+          } else {
+            try { el.pause(); el.currentTime = 0 } catch (e) { console.warn('预览暂停失败:', e) }
+          }
         } else {
           try { el.pause(); el.currentTime = 0 } catch (e) { console.warn('预览暂停失败:', e) }
         }
@@ -5335,6 +5298,17 @@ export default {
               if (this.$set) this.$set(sc, 'audio_url', appliedAudio); else sc.audio_url = appliedAudio
               const sd = this.sceneDetail || {}
               this.sceneDetail = Object.assign({}, sd, { audio_url: appliedAudio })
+              try { if (this.voiceSceneAudioEl) { try { this.voiceSceneAudioEl.pause() } catch (e) { void 0 } this.voiceSceneAudioEl = null } } catch (e) { void 0 }
+              this.voiceSceneAudioUrl = appliedAudio
+              this.voiceScenePlaying = false
+              this.voiceSceneAudioDuration = 0
+              this.voiceSceneCurrentTime = 0
+              const el = new Audio(appliedAudio)
+              try { el.crossOrigin = 'anonymous' } catch (e) { void 0 }
+              el.addEventListener('loadedmetadata', () => { this.voiceSceneAudioDuration = Number(el.duration) || 0 })
+              el.addEventListener('timeupdate', () => { this.voiceSceneCurrentTime = Number(el.currentTime) || 0 })
+              el.addEventListener('ended', () => { this.voiceScenePlaying = false })
+              this.voiceSceneAudioEl = el
             }
           } catch (e) { void 0 }
           try {
@@ -5551,7 +5525,7 @@ export default {
         }
         if (idx !== this.activeSceneIndex) {
           this.activeSceneIndex = idx
-          this.syncPreviewPlayback()
+          this.syncPreviewPlayback({ autoplay: true, seekSeconds: 0 })
           try { this.loadSubtitleState() } catch (e) { /* no-op */ }
         }
 
@@ -8518,9 +8492,47 @@ input:checked+.slider:before {
   border-radius: 8px;
 }
 
+.generate-skeleton {
+  position: relative;
+}
+
+.generate-skeleton__content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.generate-skeleton__spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid currentColor;
+  border-top-color: var(--primary-color);
+  border-radius: 9999px;
+  animation: generate-skeleton-spin 0.9s linear infinite;
+}
+
+.generate-skeleton__text {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--text-tertiary);
+}
+
+@keyframes generate-skeleton-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .timeline-track .skeleton-image {
   height: 28px;
-  background: linear-gradient(90deg, var(--border-primary) 20%, var(--text-quaternary) 40%, var(--border-primary) 60%);
+  background-color: var(--skeleton-base, #d4dbe6);
+  background: linear-gradient(90deg, var(--skeleton-base, #d4dbe6) 25%, var(--skeleton-highlight, #c0cadd) 40%, var(--skeleton-base, #d4dbe6) 65%);
   background-size: 400% 100%;
   animation: skeleton-shimmer 1.2s ease-in-out infinite;
   border-radius: 6px;
@@ -8623,7 +8635,7 @@ input:checked+.slider:before {
   pointer-events: auto;
   z-index: 10;
   text-shadow: none;
-  -webkit-text-stroke: 0.6px #000;
+ /** -webkit-text-stroke: 0.6px #000;*/
   text-stroke: 0.6px #000;
   white-space: pre-wrap;
 }
@@ -8786,6 +8798,50 @@ input:checked+.slider:before {
   100% {
     background-position: 0 50%;
   }
+}
+
+.skeleton-theme-convert {
+  --skeleton-base: #d4dbe6;
+  --skeleton-highlight: #c0cadd;
+}
+
+.skeleton-theme-regenerate {
+  --skeleton-base: #d4dbe6;
+  --skeleton-highlight: #c0cadd;
+}
+
+[data-theme="dark"] .skeleton-theme-convert,
+[data-theme="dark"] .skeleton-theme-regenerate {
+  --skeleton-base: #1f2937;
+  --skeleton-highlight: #334155;
+}
+
+.skeleton-theme-convert .skeleton-line,
+.skeleton-theme-convert.skeleton-line,
+.skeleton-theme-convert .skeleton-paragraph,
+.skeleton-theme-convert.skeleton-paragraph,
+.skeleton-theme-convert .skeleton-image,
+.skeleton-theme-convert.skeleton-image,
+.skeleton-theme-convert .skeleton-card,
+.skeleton-theme-convert.skeleton-card,
+.skeleton-theme-convert .timeline-track .skeleton-image {
+  background-color: var(--skeleton-base);
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-highlight) 40%, var(--skeleton-base) 65%);
+  background-size: 400% 100%;
+}
+
+.skeleton-theme-regenerate .skeleton-line,
+.skeleton-theme-regenerate.skeleton-line,
+.skeleton-theme-regenerate .skeleton-paragraph,
+.skeleton-theme-regenerate.skeleton-paragraph,
+.skeleton-theme-regenerate .skeleton-image,
+.skeleton-theme-regenerate.skeleton-image,
+.skeleton-theme-regenerate .skeleton-card,
+.skeleton-theme-regenerate.skeleton-card,
+.skeleton-theme-regenerate .timeline-track .skeleton-image {
+  background-color: var(--skeleton-base);
+  background: linear-gradient(90deg, var(--skeleton-base) 25%, var(--skeleton-highlight) 40%, var(--skeleton-base) 65%);
+  background-size: 400% 100%;
 }
 
 .points-display {

@@ -260,6 +260,23 @@ export async function updateMaterial({ token, formData }) {
   return res.text()
 }
 
+export async function deleteMaterial({ token, materialId }) {
+  const url = `${BASE_URL}/material/deleteMaterial`
+  const formData = new FormData()
+  formData.append('materialId', String(materialId || ''))
+  const requestOptions = {
+    method: 'POST',
+    headers: buildAuthHeaders(token),
+    body: formData,
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  return res.text()
+}
+
 // 图片重新生成（POST）
 export async function regenerateImage({ videoId, type, name, token }) {
   const url = `${BASE_URL}/api/image/regenerate?videoId=${encodeURIComponent(videoId)}&type=${encodeURIComponent(type)}&name=${encodeURIComponent(name)}`
