@@ -320,8 +320,11 @@ export async function queryRegenerateImage({ videoId, type, name, generateUuid, 
   for (; ;) {
     let data = null
     try { data = await requestOnce() } catch (e) { data = null }
-    const urlA = data && data.urls && data.urls[0] && data.urls[0].imageUrl
-    const urlB = data && data.raw && data.raw.data && data.raw.data.images && data.raw.data.images[0] && data.raw.data.images[0].imageUrl
+    const urlItem = data && data.urls && data.urls[0]
+    const urlA = (typeof urlItem === 'string' ? urlItem : (urlItem && (urlItem.url || urlItem.imageUrl)))
+    const rawItem = data && data.raw && data.raw.data && data.raw.data[0]
+    const urlB = (rawItem && (rawItem.url || rawItem.imageUrl)) ||
+      (data && data.raw && data.raw.data && data.raw.data.images && data.raw.data.images[0] && data.raw.data.images[0].imageUrl)
     const msgText = String((data && (data.message || data.msg || data.meg)) || '').trim()
     const hasErrorMsg = !!msgText && /失败|异常|error|敏感/i.test(msgText)
     if (data && (urlA || urlB || hasErrorMsg)) {

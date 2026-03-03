@@ -345,31 +345,30 @@
               </div> -->
 
               <!-- 历史记录 -->
-              <div class="version-history-section" style="margin-top: 12px;">
-                <div v-if="sceneHistoryLoading" class="skeleton-image" style="height:100px;"></div>
-                <div v-else-if="sortedSceneHistory && sortedSceneHistory.length" class="version-list"
-                  style="display:flex;flex-direction:column;gap:12px;">
+              <div class="version-history-section">
+                <div v-if="sceneHistoryLoading" class="skeleton-image version-skeleton"></div>
+                <div v-else-if="sortedSceneHistory && sortedSceneHistory.length" class="version-list">
                   <div v-for="v in sortedSceneHistory" :key="v.id || v.createdAt || v.created_at"
-                    class="chat-message-wrapper" style="display:flex;flex-direction:column;gap:8px;">
-                    <div v-if="String(v.userPrompt || '').trim()" class="chat-bubble chat-right"
-                      style="margin-left:auto; max-width:80%; background: var(--bg-tertiary); color: var(--text-primary); border:1px solid var(--border-primary); border-radius:14px; padding:10px 12px;">
+                    class="chat-message-wrapper version-item">
+                    <div v-if="String(v.userPrompt || '').trim()" class="version-prompt">
                       <span>{{ v.userPrompt }}</span>
                     </div>
-                    <div class="chat-bubble chat-left" style="padding:10px;border-radius:12px;">
-                      <div style="font-size:12px;opacity:0.6;margin-bottom:8px;">{{ formatDisplayTime(v.createdAt ||
-                        v.created_at) }}
+                    <div class="version-card">
+                      <div class="version-meta">
+                        <div class="version-time">{{ formatDisplayTime(v.createdAt || v.created_at) }}</div>
+                        <div v-if="String(v.changeType || v.change_type || '').trim()" class="version-type">
+                          {{ String(v.changeType || v.change_type).trim() }}
+                        </div>
                       </div>
                       <template v-if="isVideo(v.content)">
-                        <video :src="preferMp4(cleanUrl(v.content))"
-                          style="width:100%;height:auto;border-radius:10px;object-fit:contain;" muted playsinline
-                          preload="none" controls></video>
+                        <video :src="preferMp4(cleanUrl(v.content))" class="version-media" muted playsinline preload="none"
+                          controls></video>
                       </template>
                       <template v-else>
-                        <img :src="cleanUrl(v.content)" alt="版本图"
-                          style="width:100%;height:auto;border-radius:10px;object-fit:contain;cursor:pointer;"
-                          decoding="async" @click="openVersionPreview(v.content)" />
+                        <img :src="cleanUrl(v.content)" alt="版本图" class="version-media version-image" decoding="async"
+                          @click="openVersionPreview(v.content)" />
                       </template>
-                      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">
+                      <div class="version-actions">
                         <button class="bottom-btn apply-btn" @click.stop="applySceneVersionItem(v)">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                             <polyline points="20,6 9,17 4,12" stroke="currentColor" stroke-width="2" />
@@ -763,7 +762,7 @@
             </button>
             <!-- 字幕叠加层 -->
             <div
-              v-if="subtitleEnabled && subtitleLayoutReady && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || subtitleText || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))"
+              v-if="subtitleEnabled && subtitleLayoutReady && !isVideoConverting && !isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex) && !isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) && scenes[activeSceneIndex] && (isEditingSubtitle || subtitleText || (scenes[activeSceneIndex].scene_script && scenes[activeSceneIndex].scene_script.dialogue_or_narration))"
               class="subtitle-overlay"
               :class="{ 'fullscreen-mode': isFullscreen, 'portrait-mode': aspectRatio === '9:16' }"
               :style="subtitleOverlayStyle">
@@ -1598,24 +1597,40 @@ export default {
           try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
         } catch (e) { void 0 }
         if (!list.length) return
-        const firstSceneNumber = String(list[0].scene_number || '').trim()
-        if (!firstSceneNumber) return
-        const text = await getStoryboardSceneDetail({ videoId, sceneNumber: firstSceneNumber, token })
-        let json
-        try { json = JSON.parse(text) } catch { json = null }
-        const data = json && json.data ? json.data : null
-        if (data) {
-          const refImg = this.cleanUrl(data.reference_image_url || '')
-          const vurl = this.cleanUrl(data.fallback_mp4 || data.video_url || '')
-          const match = list.find(x => String((x && x.scene_number) || '').trim() === firstSceneNumber) || null
-          const listV = this.cleanUrl((match && (match.fallback_mp4 || match.video_url)) || '')
-          const isBlocked = this.isRegeneratingNowStatus(listV || vurl) || this.isModifyingStatus(listV || vurl)
-          const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
-          const vLocal = (!isBlocked && vurl) ? await this.getLocalUrl(vurl) : ''
-          const audioUrl = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
-          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isBlocked ? null : (vLocal || vurl || null), audio_url: audioUrl }
-          this.syncPreviewPlayback()
+        const active = this.scenes[this.activeSceneIndex] || {}
+        const activeKey = String(active.scene_number || '').trim()
+        const activeOi = Number(active.order_index)
+        let match = null
+        if (activeKey) match = list.find(x => String((x && x.scene_number) || '').trim() === activeKey) || null
+        if (!match && Number.isFinite(activeOi) && activeOi > 0) match = list.find(x => Number(x && (x.order_index || x.orderIndex)) === activeOi) || null
+        if (!match) match = list[0] || null
+        if (!match) return
+        const refImg = this.cleanUrl(match.reference_image_url || '')
+        const vurl = this.cleanUrl(match.fallback_mp4 || match.video_url || '')
+        const rawAudio = ('audio_url' in match) ? match.audio_url : undefined
+        const audioUrl = (rawAudio === null) ? null : this.cleanUrl(rawAudio || '')
+        const isBlocked = this.isRegeneratingNowStatus(vurl) || this.isModifyingStatus(vurl)
+        const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
+        const vLocal = (!isBlocked && vurl) ? await this.getLocalUrl(vurl) : ''
+        const audioLocal = audioUrl ? await this.getLocalUrl(audioUrl) : audioUrl
+        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isBlocked ? null : (vLocal || vurl || null), audio_url: audioLocal }
+        if (active) {
+          const script = match && match.scene_script ? match.scene_script : null
+          if (script) {
+            const scriptObj = Object.assign({}, active.scene_script || {})
+            if (script.shot_title) scriptObj.shot_title = script.shot_title
+            if (script.visual_description) scriptObj.visual_description = script.visual_description
+            if (script.camera_direction) scriptObj.camera_direction = script.camera_direction
+            if (script.dialogue_or_narration) scriptObj.dialogue_or_narration = script.dialogue_or_narration
+            if (this.$set) this.$set(active, 'scene_script', scriptObj); else active.scene_script = scriptObj
+            if (script.dialogue_or_narration) {
+              try { this.subtitleText = String(script.dialogue_or_narration || '') } catch (e) { void 0 }
+            }
+          }
+          if (rawAudio === null) active.audio_url = null
+          else if (audioUrl) active.audio_url = audioUrl
         }
+        this.syncPreviewPlayback()
       } catch (e) { void 0 }
     })
     Promise.resolve().then(async() => {
@@ -3790,111 +3805,7 @@ export default {
       if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
       this.updatingKeySet.add(k)
       try {
-        const sceneNumber = String(scene.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
-        const token = (this.userStore && this.userStore.token) || ''
-        const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
-        let json
-        try { json = JSON.parse(text) } catch { json = null }
-        const data = json && json.data ? json.data : null
-        console.log(data)
-        console.log(this.scenes)
-        if (data) {
-          const refImg = this.cleanUrl(data.reference_image_url || scene.thumbnail || '')
-          // 优先使用 fallback_mp4，其次 video_url，保留 "replace image" 等特殊值
-          const rawVideoUrl = data.fallback_mp4 || data.video_url || ''
-          const vurl = this.cleanUrl(rawVideoUrl)
-          console.log(vurl, 1111)
-          const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
-          const vlocal = vurl ? await this.getLocalUrl(vurl) : ''
-          const incomingKey = String(data.scene_number || '').trim()
-          const targetIndex = this.activeSceneIndex
-          const duration = Number(data.duration) ? Number(data.duration) * 1000 : undefined
-
-          if (targetIndex >= 0 && targetIndex < this.scenes.length) {
-            const target = this.scenes[targetIndex]
-            console.log(target, 333333)
-            if (refImg) target.thumbnail = refImg
-            target.audio_url = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
-            console.log(target.audio_url, 555)
-            // 检查是否是真正的视频 URL（排除 "replace image" 等特殊值）
-            const isRealVideo = vurl && this.isVideo(vurl)
-            if (isRealVideo) {
-              const first = (target && Array.isArray(target.clips) && target.clips[0]) || null
-              const existingVid = this.cleanUrl((target && target.video_url) || (first && first.url) || '')
-              const alreadyProcessed = !!(target && target.hasVideo) && (!!existingVid && this.isVideo(existingVid))
-              if (!(alreadyProcessed && existingVid === vurl)) {
-                if (!(this.pendingVideoSet instanceof Set)) this.pendingVideoSet = new Set()
-                this.pendingVideoSet.add(k)
-                this.queueVideoForScene(targetIndex, vurl, undefined, incomingKey, k, duration)
-              } else {
-                // 已存在视频，检查是否需要更新时长
-                if (duration && first) {
-                  first.durationMs = duration
-                  if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
-                  this.durationMap.set(vurl, duration)
-                  if (vlocal) this.durationMap.set(vlocal, duration)
-                }
-              }
-            } else if (!this.isVideoGenerating && (!Array.isArray(target.clips) || !target.clips.length)) {
-              target.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
-            }
-            // 当 video_url 是 "replace image" 时，标记场景为图片状态
-            const isReplaceImage = vurl && vurl.toLowerCase() === 'replaceimage'
-            const isModifying = this.isModifyingStatus(vurl)
-            if (isReplaceImage) {
-              target.video_url = 'replaceimage'
-              target.hasVideo = false
-              // 关键：把 clips 也更新为图片 URL，否则 getActiveSceneVideoUrl() 会返回旧的视频 URL
-              target.clips = [{ url: refLocal || refImg, durationMs: 5000 }]
-            } else if (isModifying) {
-              target.video_url = 'modifying'
-              target.hasVideo = false
-              target.clips = []
-            }
-            this.clearClipErrorsForIndex(targetIndex)
-
-            const oi = Number(data.order_index || data.orderIndex)
-            if (Number.isFinite(oi) && oi > 0) {
-              target.order_index = oi
-              target.title = `分镜${oi}`
-              const map = this._orderIndexMap instanceof Map ? this._orderIndexMap : new Map()
-              if (incomingKey) map.set(incomingKey, oi)
-              this._orderIndexMap = map
-              this.sortScenesByServerOrder()
-              this.updateTimeMarkers()
-            }
-            const content = (data && data.prompt && data.prompt.content) ? data.prompt.content : ((data && data.scene_script && data.scene_script.content) ? data.scene_script.content : null)
-            if (content) {
-              const scriptObj = Object.assign({}, target.scene_script || {})
-              if (content.shot_title) scriptObj.shot_title = content.shot_title
-              if (content.visual_description) scriptObj.visual_description = content.visual_description
-              if (content.dialogue_or_narration) scriptObj.dialogue_or_narration = content.dialogue_or_narration
-              if (content.camera_direction) scriptObj.camera_direction = content.camera_direction
-              if (this.$set) this.$set(target, 'scene_script', scriptObj); else target.scene_script = scriptObj
-              try { this.subtitleText = String(content.dialogue_or_narration || '') } catch (e) { /* no-op */ }
-              if (content.visual_description) target.description = content.visual_description
-              if (!target.scene_number) target.scene_number = incomingKey || content.shot_id || undefined
-            }
-          }
-          const target = this.scenes[targetIndex] || {}
-          const firstClip = (target && Array.isArray(target.clips) && target.clips[0]) || null
-          const clipUrl = this.cleanUrl((firstClip && firstClip.url) || '')
-          const targetVid = this.cleanUrl(target && target.video_url || '')
-          console.log(vlocal)
-          console.log(vurl)
-          console.log(targetVid)
-          console.log(clipUrl)
-
-          // const nextVideo = vlocal || vurl || (this.isVideo(targetVid) ? targetVid : (this.isVideo(clipUrl) ? clipUrl : ''))
-          const nextVideo = (this.isVideo(vurl) ? (vlocal || vurl) : null)
-          const sdAudio = ('audio_url' in data && data.audio_url === null) ? null : this.cleanUrl(data.audio_url || '')
-          // 确保 reference_image_url 有回退值
-          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: nextVideo, audio_url: sdAudio }
-          console.log(this.sceneDetail, 2222222)
-          if (targetIndex === this.activeSceneIndex) this.syncPreviewPlayback()
-        } else {
-          this.refreshSidebarFromLocal()
-        }
+        await this.updateLeftPreviewFromImagesDetail()
       } catch (e) {
         this.refreshSidebarFromLocal()
       } finally {
@@ -4154,22 +4065,32 @@ export default {
         if (!match) return
         const refImg = this.cleanUrl(match.reference_image_url || '')
         let vurl = this.cleanUrl(match.fallback_mp4 || match.video_url || '')
+        const rawAudio = ('audio_url' in match) ? match.audio_url : undefined
+        const audioUrl = (rawAudio === null) ? null : this.cleanUrl(rawAudio || '')
         const isMod = this.isModifyingStatus(vurl) || this.isRegeneratingNowStatus(vurl)
         if (!this.isVideo(vurl)) vurl = ''
         const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
         const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
-        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isMod ? null : ((vLocal || vurl) || null) }
+        const audioLocal = audioUrl ? await this.getLocalUrl(audioUrl) : audioUrl
+        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isMod ? null : ((vLocal || vurl) || null), audio_url: audioLocal }
         if (activeIdx >= 0 && activeIdx < this.scenes.length) {
           const sc = this.scenes[activeIdx]
           const shotTitle = (match && match.scene_script && match.scene_script.shot_title) || match.shot_title || ''
           const visualDesc = (match && match.scene_script && match.scene_script.visual_description) || match.visual_description || ''
           const cameraDir = (match && match.scene_script && match.scene_script.camera_direction) || match.camera_direction || ''
+          const narration = (match && match.scene_script && match.scene_script.dialogue_or_narration) || match.dialogue_or_narration || ''
           const scriptObj = Object.assign({}, sc.scene_script || {})
           if (shotTitle) scriptObj.shot_title = shotTitle
           if (visualDesc) scriptObj.visual_description = visualDesc
           if (cameraDir) scriptObj.camera_direction = cameraDir
+          if (narration) scriptObj.dialogue_or_narration = narration
           if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
           if (visualDesc) sc.description = visualDesc
+          if (rawAudio === null) sc.audio_url = null
+          else if (audioUrl) sc.audio_url = audioUrl
+          if (narration) {
+            try { this.subtitleText = String(narration || '') } catch (e) { void 0 }
+          }
           if (isMod) {
             sc.video_url = this.isRegeneratingNowStatus(match.fallback_mp4 || match.video_url || '') ? 'Re-generating_now' : 'modifying'
             sc.hasVideo = false
@@ -4222,6 +4143,10 @@ export default {
               this.pendingVideoSet.add(pendingKey)
               this.isVideoGenerating = true
               this.queueVideoForScene(idx, rawV, Number.isFinite(oi) ? oi : undefined, key, pendingKey)
+              if (idx === this.activeSceneIndex) {
+                try { await this.fetchSceneHistoryForActiveScene() } catch (e) { void 0 }
+                try { await this.loadSubtitleState() } catch (e) { void 0 }
+              }
               clearForKey()
             }
           } catch (e) { void 0 }
@@ -4744,7 +4669,6 @@ export default {
         }
         try {
           const q = await queryRegenerateImage({ videoId, type, name, generateUuid, token })
-          const url = (q && q.urls && q.urls[0] && q.urls[0].imageUrl) || (q && q.raw && q.raw.data && q.raw.data.images && q.raw.data.images[0] && q.raw.data.images[0].imageUrl)
           const msgText = String((q && (q.message || q.msg || q.meg)) || '').trim()
           const isSensitive = (q && q.success === false) || /敏感/i.test(msgText)
           if (isSensitive) {
@@ -4753,13 +4677,19 @@ export default {
             setTimeout(() => { this.toastVisible = false }, 2000)
             return
           }
-          if (msgText) {
+          if (msgText && q && q.success === false) {
             console.warn('重生成分镜图片接口返回错误:', msgText)
             this.toastText = '生成失败'
             setTimeout(() => { this.toastVisible = false }, 2000)
             return
           }
-          if (url) {
+          const urlCandidate = (q && q.urls && q.urls[0]) || ''
+          const urlObj = (q && q.raw && q.raw.data && q.raw.data[0]) || null
+          const url =
+            (typeof urlCandidate === 'string' ? urlCandidate : (urlCandidate && (urlCandidate.url || urlCandidate.imageUrl))) ||
+            (urlObj && (urlObj.url || urlObj.imageUrl)) ||
+            ''
+          if (q && q.success === true && url) {
             const cleaned = this.cleanUrl(url)
             const refLocal = await this.getLocalUrl(cleaned)
             if (this.activeSceneIndex >= 0 && this.activeSceneIndex < this.scenes.length) {
@@ -4769,14 +4699,20 @@ export default {
               this.sceneDetail = { reference_image_url: refLocal || cleaned, video_url: this.sceneDetail.video_url }
               this.clearClipErrorsForIndex(this.activeSceneIndex)
             }
+            try { await this.fetchSceneHistoryForActiveScene() } catch (e) { void 0 }
+            try { await this.loadSubtitleState() } catch (e) { void 0 }
             this.toastText = '生成成功'
             setTimeout(() => { this.toastVisible = false }, 2000)
+            return
           }
+          this.toastText = '生成失败'
+          setTimeout(() => { this.toastVisible = false }, 2000)
         } catch (e) {
           console.warn('查询重生成分镜图片失败:', e)
           this.toastText = '生成失败'
           setTimeout(() => { this.toastVisible = false }, 2000)
         }
+
       } catch (e) {
         console.warn('重新生成分镜图片失败:', e)
         this.toastText = '生成失败'
@@ -6892,6 +6828,91 @@ export default {
 
 .bottom-btn:hover {
   color: #111827;
+}
+
+.version-history-section {
+  margin-top: 12px;
+}
+
+.version-skeleton {
+  height: 100px;
+}
+
+.version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.version-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.version-prompt {
+  margin-left: auto;
+  max-width: 80%;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.version-card {
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+}
+
+.version-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.version-time {
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.version-type {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-secondary);
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  flex: none;
+}
+
+.version-media {
+  width: 100%;
+  height: auto;
+  max-height: 180px;
+  border-radius: 10px;
+  object-fit: cover;
+  display: block;
+  border: 1px solid var(--border-secondary);
+}
+
+.version-image {
+  cursor: pointer;
+}
+
+.version-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 
 /* 输入框区域 */
