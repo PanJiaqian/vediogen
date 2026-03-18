@@ -239,9 +239,9 @@
               {{ project.modelName }}
             </button>
             <div v-if="modelMenuOpen" class="model-options" @click.stop>
-              <button type="button" class="model-option" :class="{ active: project.modelName === 'seedream4.5' }"
-                @click="selectModel('seedream4.5')">
-                seedream4.5
+              <button type="button" class="model-option" :class="{ active: project.modelName === 'seedream5.0' }"
+                @click="selectModel('seedream5.0')">
+                seedream5.0
               </button>
             </div>
           </div>
@@ -319,7 +319,7 @@ export default {
         createdAt: '',
         duration: '',
         aspectRatio: '16:9',
-        modelName: 'seedream4.5',
+        modelName: 'seedream5.0',
         wordCount: '',
         videoType: '',
         contentSummary: '',
@@ -390,7 +390,7 @@ export default {
       this.modelMenuOpen = !this.modelMenuOpen
     },
     selectModel(v) {
-      this.project.modelName = String(v || '').trim() || 'seedream4.5'
+      this.project.modelName = String(v || '').trim() || 'seedream5.0'
       this.modelMenuOpen = false
     },
     onModelDropdownOutside(e) {

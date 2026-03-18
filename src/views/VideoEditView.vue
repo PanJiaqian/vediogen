@@ -103,6 +103,16 @@
                     @click="selectConvertModel('wan2.2-i2v-plus')">
                     万相2.2-plus
                   </button>
+                  <button type="button" class="convert-model-option"
+                    :class="{ active: selectedConvertModelName === 'wan2.5-i2v-preview' }"
+                    @click="selectConvertModel('wan2.5-i2v-preview')">
+                    万相2.5
+                  </button>
+                  <button type="button" class="convert-model-option"
+                    :class="{ active: selectedConvertModelName === 'wan2.6-i2v' }"
+                    @click="selectConvertModel('wan2.6-i2v')">
+                    万相2.6
+                  </button>
                 </div>
               </div>
             </div>
@@ -740,7 +750,7 @@
             </div>
             <video v-else-if="shouldShowVideo" ref="previewVideo" :src="preferMp4(sceneDetail.video_url)"
               :poster="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
-              preload="metadata" playsinline muted :controls="isFullscreen" :controlslist="isFullscreen ? 'nofullscreen' : null" class="video-image" @loadedmetadata="updateSubtitleMaxWidth"></video>
+              preload="metadata" playsinline :controls="isFullscreen" :controlslist="isFullscreen ? 'nofullscreen' : null" class="video-image" @loadedmetadata="updateSubtitleMaxWidth"></video>
             <img v-else-if="shouldShowImage" :src="cleanUrl(sceneDetail.reference_image_url)"
               :alt="scenes[activeSceneIndex] ? scenes[activeSceneIndex].title : '预览'" class="video-image"
               ref="previewImage" decoding="async" fetchpriority="high" @error="onPreviewImgError"
@@ -3205,7 +3215,6 @@ export default {
 
         if (!el) return
         if (!this.isPlaying) return
-        try { el.muted = true } catch (e) { void 0 }
         try { el.playsInline = true } catch (e) { void 0 }
         const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
         const src = this.preferMp4((this.sceneDetail && this.sceneDetail.video_url) || (sc && Array.isArray(sc.clips) && sc.clips[0] && sc.clips[0].url) || (sc && sc.video_url) || '')
@@ -5030,8 +5039,64 @@ export default {
     },
     convertModelDisplayName() {
       const v = String(this.selectedConvertModelName || '').trim()
+      if (v === 'wan2.6-i2v') return '万相2.6'
+      if (v === 'wan2.5-i2v-preview') return '万相2.5'
       if (v === 'wan2.2-i2v-plus') return '万相2.2-plus'
       return '万相2.2-flash'
+    },
+    resolveExportPublicUrl(payload) {
+      const data = payload && typeof payload === 'object' ? payload : {}
+      const nested = data.data && typeof data.data === 'object' ? data.data : {}
+      const candidates = [
+        data.video_url,
+        data.videoUrl,
+        data.oss_url,
+        data.ossUrl,
+        data.download_url,
+        data.downloadUrl,
+        data.file_url,
+        data.fileUrl,
+        data.url,
+        nested.video_url,
+        nested.videoUrl,
+        nested.oss_url,
+        nested.ossUrl,
+        nested.download_url,
+        nested.downloadUrl,
+        nested.file_url,
+        nested.fileUrl,
+        nested.url
+      ]
+      for (const raw of candidates) {
+        const url = this.cleanUrl(raw || '')
+        if (url && /^https?:\/\//i.test(url)) return url
+      }
+      return ''
+    },
+    resolveExportFilename(payload, videoId) {
+      const data = payload && typeof payload === 'object' ? payload : {}
+      const nested = data.data && typeof data.data === 'object' ? data.data : {}
+      let filename = String(data.filename || data.file_name || data.fileName || nested.filename || nested.file_name || nested.fileName || this.successFilename || '').trim()
+      if (!filename) filename = `work_${videoId}.mp4`
+      if (filename && !/\.mp4$/i.test(filename)) filename = `${filename}.mp4`
+      return filename
+    },
+    triggerBrowserDownload(url, filename) {
+      const directUrl = this.cleanUrl(url || '')
+      if (!directUrl) return false
+      try {
+        const a = document.createElement('a')
+        a.href = directUrl
+        if (filename) a.download = filename
+        a.target = '_blank'
+        a.rel = 'noopener'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        return true
+      } catch (e) {
+        return false
+      }
     },
     async exportVideo() {
       const ctrl = this.exportAbortController && this.exportAbortController.abort ? this.exportAbortController : null
@@ -5068,7 +5133,7 @@ export default {
               this.exportProgressPct = Math.max(Number(this.exportProgressPct) || 0, next)
             }
           } catch (e) { /* no-op */ }
-          const hasUrl = !!String(data.video_url || '').trim()
+          const hasUrl = !!this.resolveExportPublicUrl(data)
           const done = hasUrl || (Number(data.progress) >= 1)
           if (done) {
             finalData = data
@@ -5088,6 +5153,12 @@ export default {
           throw new Error('export stream ended')
         }
 
+        const publicUrl = this.resolveExportPublicUrl(finalData)
+        const fallbackFilename = this.resolveExportFilename(finalData, videoId)
+        if (publicUrl) this.successPreviewUrl = publicUrl
+        this.successFilename = fallbackFilename
+        this.exportManualUrl = publicUrl || ''
+
         try {
           const p = Number(finalData && finalData.progress)
           const pct = Number.isFinite(p) ? (p > 1 ? p : (p * 100)) : (Number(this.exportProgressPct) || 0)
@@ -5101,13 +5172,8 @@ export default {
         if (!resp || resp.status !== 200 || !resp.ok || !resp.blob) throw new Error('download failed')
 
         const objUrl = URL.createObjectURL(resp.blob)
-
-        const publicUrl = this.cleanUrl(finalData.video_url || '')
-        this.successPreviewUrl = publicUrl || this.successPreviewUrl
-        if (finalData.filename) this.successFilename = String(finalData.filename || '')
-
-        this.exportManualUrl = publicUrl || objUrl
-        let filename = String(finalData.filename || this.successFilename || '').trim()
+        this.exportManualUrl = this.exportManualUrl || objUrl
+        let filename = fallbackFilename
         try {
           const headers = resp.headers
           const cd = headers && headers.get ? headers.get('content-disposition') : ''
@@ -5116,19 +5182,32 @@ export default {
           if (fn) filename = fn
         } catch (e) { /* no-op */ }
         if (filename && !/\.mp4$/i.test(filename)) filename = `${filename}.mp4`
-
-        const a = document.createElement('a')
-        a.href = objUrl
-        a.download = filename || `work_${videoId}.mp4`
-        a.target = '_blank'
-        a.rel = 'noopener'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
+        this.successFilename = filename || this.successFilename
+        const doneByBlob = this.triggerBrowserDownload(objUrl, filename || `work_${videoId}.mp4`)
+        if (!doneByBlob && publicUrl) {
+          this.triggerBrowserDownload(publicUrl, filename || `work_${videoId}.mp4`)
+        }
 
         this.exportProgressPct = 100
         this.exportProgressDone = true
       } catch (e) {
+        if (!this.exportProgressDone) {
+          const directUrl = this.resolveExportPublicUrl(finalData)
+          const projectId = this.$route.params.id
+          const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+          const filename = this.resolveExportFilename(finalData, videoId)
+          if (directUrl) {
+            this.successPreviewUrl = directUrl
+            this.successFilename = filename
+            this.exportManualUrl = directUrl
+            const doneByDirect = this.triggerBrowserDownload(directUrl, filename)
+            if (doneByDirect) {
+              this.exportProgressPct = 100
+              this.exportProgressDone = true
+              return
+            }
+          }
+        }
         if (signal && signal.aborted && !abortedForDone) return
         this.exportProgressDone = false
         this.exportProgressVisible = false
@@ -5319,28 +5398,18 @@ export default {
       try {
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-        const token = (this.userStore && this.userStore.token) || ''
-        if (!token) {
-          /* no-op */
-          return
-        }
-        // 优先使用后端返回的可公开访问地址，借助浏览器原生下载条目
-        const directUrl = this.cleanUrl(this.successPreviewUrl || '')
         let filename = this.successFilename || ''
         if (!filename) filename = `work_${videoId}.mp4`
         if (filename && !/\.mp4$/i.test(filename)) filename = `${filename}.mp4`
+        const directUrl = this.resolveExportPublicUrl({ video_url: this.successPreviewUrl || this.exportManualUrl })
         if (directUrl) {
-          const a = document.createElement('a')
-          a.href = directUrl
-          a.download = filename
-          a.target = '_blank'
-          a.rel = 'noopener'
-          document.body.appendChild(a)
-          a.click()
-          document.body.removeChild(a)
+          const doneByDirect = this.triggerBrowserDownload(directUrl, filename)
+          if (doneByDirect) return
+        }
+        const token = (this.userStore && this.userStore.token) || ''
+        if (!token) {
           return
         }
-        // 回退：走受保护下载接口，生成本地对象链接后触发下载
         const resp = await exportWorksVideoDownload({ videoId, token })
         if (!resp || resp.status !== 200 || !resp.ok || !resp.blob) {
           this.toastText = '下载失败'
@@ -5357,14 +5426,7 @@ export default {
           if (fn) filename = fn
         } catch (e) { /* no-op */ }
         if (filename && !/\.mp4$/i.test(filename)) filename = `${filename}.mp4`
-        const a = document.createElement('a')
-        a.href = url
-        a.download = filename
-        a.target = '_blank'
-        a.rel = 'noopener'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
+        this.triggerBrowserDownload(url, filename)
         setTimeout(() => { try { URL.revokeObjectURL(url) } catch (e) { /* no-op */ } }, 1000)
       } catch (e) {
         this.toastText = '下载失败'
@@ -7545,7 +7607,7 @@ export default {
   background: var(--bg-primary);
   border-radius: 12px;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
-  overflow: hidden;
+  /* 移除 overflow: hidden 以允许下拉列表超出弹窗显示 */
 }
 
 .convert-modal-header {
@@ -7650,6 +7712,15 @@ export default {
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   z-index: 10;
+  max-height: 150px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.convert-model-options::-webkit-scrollbar {
+  display: none;
+  width: 0;
 }
 
 .convert-model-option {

@@ -885,10 +885,14 @@ export default {
       if (this.notifWsTimer) { clearTimeout(this.notifWsTimer); this.notifWsTimer = null }
       const t = encodeURIComponent(String(token).trim())
       const candidates = [
-        `wss://www.xydriftcraft.com:1770/ws/notification?token=${t}`,
-        `wss://www.xydriftcraft.com:1770/ws/notification?${t}`,
-        `wss://www.xydriftcraft.com:1770/ws/notification?token-${t}`,
-        `wss://www.xydriftcraft.com:1770/notification/ws?token=${t}`
+        `ws://182.92.68.240:1770/ws/notification?token=${t}`,
+        `ws://182.92.68.240:1770/ws/notification?${t}`,
+        `ws://182.92.68.240:1770/ws/notification?token-${t}`,
+        `ws://182.92.68.240:1770/notification/ws?token=${t}`
+        // `wss://www.xydriftcraft.com:1770/ws/notification?token=${t}`,
+        // `wss://www.xydriftcraft.com:1770/ws/notification?${t}`,
+        // `wss://www.xydriftcraft.com:1770/ws/notification?token-${t}`,
+        // `wss://www.xydriftcraft.com:1770/notification/ws?token=${t}`
       ]
       const tryConnect = (i) => {
         if (i >= candidates.length) { this.scheduleNotifWsReconnect(); return }
