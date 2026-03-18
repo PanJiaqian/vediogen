@@ -491,6 +491,7 @@ export default {
       }
     },
     selectVersion(idx) {
+      const prevVideoId = this.videoId
       this.selectedVersionIndex = idx
       const v = this.versions[idx]
       if (!v) return
@@ -506,6 +507,13 @@ export default {
       try {
         const projectId = this.$route.params.id
         if (this.videoId) localStorage.setItem(`project:videoId:${projectId}`, String(this.videoId))
+        if (this.videoId && String(prevVideoId) !== String(this.videoId)) {
+          localStorage.removeItem(`video-edit:scenes:${projectId}`)
+          localStorage.removeItem(`project:storyboard_raw:${projectId}`)
+          localStorage.removeItem(`video-edit:entryMode:${projectId}`)
+          localStorage.removeItem(`video-edit:viewStoryboard:${projectId}`)
+          localStorage.removeItem(`video-edit:loading:${projectId}`)
+        }
       } catch (e) { /* no-op */ }
 
       const token = (this.userStore && this.userStore.token) || ''
@@ -731,7 +739,13 @@ export default {
         console.warn('未登录，无法生成分镜图片')
         return
       }
-      try { localStorage.setItem(`project:aspectRatio:${projectId}`, String((this.project && this.project.aspectRatio) || '16:9')) } catch (e) { void 0 }
+      try {
+        localStorage.setItem(`project:aspectRatio:${projectId}`, String((this.project && this.project.aspectRatio) || '16:9'))
+        localStorage.removeItem(`video-edit:scenes:${projectId}`)
+        localStorage.removeItem(`project:storyboard_raw:${projectId}`)
+        localStorage.removeItem(`video-edit:viewStoryboard:${projectId}`)
+        localStorage.setItem(`video-edit:loading:${projectId}`, '1')
+      } catch (e) { void 0 }
       this.$router.push(`/generation-steps/${projectId}`)
     },
     saveProject() {

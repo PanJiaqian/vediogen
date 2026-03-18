@@ -512,8 +512,18 @@
                     <span class="voice-setting-title">语种选择</span>
                     <div v-if="!voiceName" class="no-voice-tip">请先选择音色</div>
                     <select v-else v-model="voiceLanguage" class="filter-select" style="min-width: 140px;">
-                      <option v-for="lang in supportedLanguages" :key="lang" :value="lang">{{ toZhLanguage(lang) }}
-                      </option>
+                      <option value="Chinese">中文</option>
+                      <option value="English">英语</option>
+                      <option value="Japanese">日语</option>
+                      <option value="Korean">韩语</option>
+                      <option value="French">法语</option>
+                      <option value="German">德语</option>
+                      <option value="Spanish">西班牙语</option>
+                      <option value="Italian">意大利语</option>
+                      <option value="Russian">俄语</option>
+                      <option value="Portuguese">葡萄牙语</option>
+                      <option value="Hindi">印地语</option>
+                      <option value="Arabic">阿拉伯语</option>
                     </select>
                   </div>
                 </div>
@@ -1254,6 +1264,7 @@ export default {
       exportTimer: null,
       exportAbortController: null,
       isConverting: false,
+      entrySkeleton: false,
       isVideoConverting: false,
       sceneDetail: { reference_image_url: '', video_url: '' },
       isEditingTitle: false,
@@ -1420,6 +1431,7 @@ export default {
     let initialLoading = false
     try { initialLoading = localStorage.getItem(`video-edit:loading:${projectId}`) === '1' } catch (e) { initialLoading = false }
     if (initialLoading) this.isConverting = true
+    if (initialLoading) this.entrySkeleton = true
     try {
       const aspect = localStorage.getItem(`project:aspectRatio:${projectId}`)
       if (aspect) this.aspectRatio = aspect
@@ -1526,6 +1538,7 @@ export default {
     if (initialLoading) {
       setTimeout(() => {
         this.isConverting = false
+        this.entrySkeleton = false
         try { localStorage.removeItem(`video-edit:loading:${projectId}`) } catch (e) { void 0 }
       }, 800)
     }
@@ -1935,6 +1948,7 @@ export default {
     // 判断指定分镜是否应该显示骨架屏
     shouldShowSkeletonForScene() {
       return (sceneIndex) => {
+        if (this.entrySkeleton) return true
         const scene = this.scenes[sceneIndex]
         if (!scene) return false
         if (this.isSceneUpdating(scene, sceneIndex)) return true
@@ -3880,13 +3894,22 @@ export default {
               sc.order_index = oi
               if (key) idxMap.set(key, oi)
             }
-            const content = item && item.scene_script && item.scene_script.content ? item.scene_script.content : null
-            if (content) {
-              const parts = []
-              if (content.shot_title) parts.push(content.shot_title)
-              if (content.visual_description) parts.push(content.visual_description)
-              const desc = parts.length ? parts.join('：') : ''
-              if (desc) sc.description = desc
+            const scriptContent = item && item.scene_script && item.scene_script.content ? item.scene_script.content : null
+            const shotTitle = (scriptContent && scriptContent.shot_title) || (item && item.scene_script && item.scene_script.shot_title) || ''
+            const visualDesc = (scriptContent && scriptContent.visual_description) || (item && item.scene_script && item.scene_script.visual_description) || ''
+            const cameraDir = (scriptContent && scriptContent.camera_direction) || (item && item.scene_script && item.scene_script.camera_direction) || ''
+            const narration = (scriptContent && scriptContent.dialogue_or_narration) || (item && item.scene_script && item.scene_script.dialogue_or_narration) || ''
+            if (shotTitle || visualDesc || cameraDir || narration) {
+              const scriptObj = Object.assign({}, sc.scene_script || {})
+              if (shotTitle) scriptObj.shot_title = shotTitle
+              if (visualDesc) scriptObj.visual_description = visualDesc
+              if (cameraDir) scriptObj.camera_direction = cameraDir
+              if (narration) scriptObj.dialogue_or_narration = narration
+              if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
+              if (visualDesc) sc.description = visualDesc
+              if (narration && idx === this.activeSceneIndex) {
+                try { this.subtitleText = String(narration || '') } catch (e) { void 0 }
+              }
             }
             if (!sc.scene_number) sc.scene_number = key || undefined
           }
@@ -3940,8 +3963,11 @@ export default {
                 const sc = this.scenes[idx]
                 const refImg = this.cleanUrl(item.reference_image_url || '')
                 const vurl = this.cleanUrl(item.fallback_mp4 || item.video_url || '')
-                const shotTitle = (item && item.scene_script && item.scene_script.shot_title) || item.shot_title || ''
-                const visualDesc = (item && item.scene_script && item.scene_script.visual_description) || item.visual_description || ''
+                const scriptContent = item && item.scene_script && item.scene_script.content ? item.scene_script.content : null
+                const shotTitle = (scriptContent && scriptContent.shot_title) || (item && item.scene_script && item.scene_script.shot_title) || item.shot_title || ''
+                const visualDesc = (scriptContent && scriptContent.visual_description) || (item && item.scene_script && item.scene_script.visual_description) || item.visual_description || ''
+                const cameraDir = (scriptContent && scriptContent.camera_direction) || (item && item.scene_script && item.scene_script.camera_direction) || item.camera_direction || ''
+                const narration = (scriptContent && scriptContent.dialogue_or_narration) || (item && item.scene_script && item.scene_script.dialogue_or_narration) || item.dialogue_or_narration || ''
                 const sceneKey = String(item.scene_number || '').trim()
                 if (sceneKey) map.set(sceneKey, { video_url: this.isVideo(vurl) ? vurl : '', reference_image_url: refImg })
                 if (Number.isFinite(oi) && oi > 0) map.set(`oi:${oi}`, { video_url: this.isVideo(vurl) ? vurl : '', reference_image_url: refImg })
@@ -3986,12 +4012,17 @@ export default {
                     anyVideoQueued = true
                   }
                 }
-                if (shotTitle || visualDesc) {
+                if (shotTitle || visualDesc || cameraDir || narration) {
                   const scriptObj = Object.assign({}, sc.scene_script || {})
                   if (shotTitle) scriptObj.shot_title = shotTitle
                   if (visualDesc) scriptObj.visual_description = visualDesc
+                  if (cameraDir) scriptObj.camera_direction = cameraDir
+                  if (narration) scriptObj.dialogue_or_narration = narration
                   if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
                   if (visualDesc) sc.description = visualDesc
+                  if (narration && idx === this.activeSceneIndex) {
+                    try { this.subtitleText = String(narration || '') } catch (e) { void 0 }
+                  }
                 }
                 if (Number.isFinite(oi) && oi > 0) {
                   sc.order_index = oi
@@ -4084,10 +4115,11 @@ export default {
         this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isMod ? null : ((vLocal || vurl) || null), audio_url: audioLocal }
         if (activeIdx >= 0 && activeIdx < this.scenes.length) {
           const sc = this.scenes[activeIdx]
-          const shotTitle = (match && match.scene_script && match.scene_script.shot_title) || match.shot_title || ''
-          const visualDesc = (match && match.scene_script && match.scene_script.visual_description) || match.visual_description || ''
-          const cameraDir = (match && match.scene_script && match.scene_script.camera_direction) || match.camera_direction || ''
-          const narration = (match && match.scene_script && match.scene_script.dialogue_or_narration) || match.dialogue_or_narration || ''
+          const scriptContent = match && match.scene_script && match.scene_script.content ? match.scene_script.content : null
+          const shotTitle = (scriptContent && scriptContent.shot_title) || (match && match.scene_script && match.scene_script.shot_title) || match.shot_title || ''
+          const visualDesc = (scriptContent && scriptContent.visual_description) || (match && match.scene_script && match.scene_script.visual_description) || match.visual_description || ''
+          const cameraDir = (scriptContent && scriptContent.camera_direction) || (match && match.scene_script && match.scene_script.camera_direction) || match.camera_direction || ''
+          const narration = (scriptContent && scriptContent.dialogue_or_narration) || (match && match.scene_script && match.scene_script.dialogue_or_narration) || match.dialogue_or_narration || ''
           const scriptObj = Object.assign({}, sc.scene_script || {})
           if (shotTitle) scriptObj.shot_title = shotTitle
           if (visualDesc) scriptObj.visual_description = visualDesc

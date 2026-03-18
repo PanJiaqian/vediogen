@@ -136,6 +136,7 @@ export default {
     this.startSSE()
     this.startGenerationTimeout()
     const projectId = this.$route.params.id
+    try { localStorage.setItem(`video-edit:loading:${projectId}`, '1') } catch (e) { void 0 }
     const dest = `/video-edit/${projectId}`
     if (this.redirectTimer) clearTimeout(this.redirectTimer)
     this.redirectTimer = setTimeout(() => {
