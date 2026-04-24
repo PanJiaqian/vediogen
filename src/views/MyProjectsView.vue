@@ -95,6 +95,11 @@ export default {
     this.fetchMyWorksList()
   },
   methods: {
+    // 统一格式化分镜中的说话角色，缺失时兼容旧数据回退为“旁白”。
+    formatVoiceRoleLabel(voiceRole) {
+      const label = String(voiceRole || '').trim()
+      return label || '旁白'
+    },
     async fetchMyWorksList() {
       try {
         this.isLoading = true
@@ -207,7 +212,7 @@ export default {
               const descParts = []
               if (content.visual_description) descParts.push(content.visual_description)
               if (content.camera_direction) descParts.push(`机位：${content.camera_direction}`)
-              if (content.dialogue_or_narration) descParts.push(`旁白：${content.dialogue_or_narration}`)
+              if (content.dialogue_or_narration) descParts.push(`${this.formatVoiceRoleLabel(content.voice_role)}：${content.dialogue_or_narration}`)
               const rawUrl = String(item.reference_image_url || '').trim()
               const cleanedUrl = rawUrl.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
               return { id: idx + 1, title, description: descParts.join(' | '), thumbnail: cleanedUrl, scene_number: item.scene_number }
@@ -247,7 +252,7 @@ export default {
                 const descParts = []
                 if (content.visual_description) descParts.push(content.visual_description)
                 if (content.camera_direction) descParts.push(`机位：${content.camera_direction}`)
-                if (content.dialogue_or_narration) descParts.push(`旁白：${content.dialogue_or_narration}`)
+                if (content.dialogue_or_narration) descParts.push(`${this.formatVoiceRoleLabel(content.voice_role)}：${content.dialogue_or_narration}`)
                 const rawUrl = String(item.reference_image_url || '').trim()
                 const cleanedUrl = rawUrl.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
                 return { id: idx + 1, title, description: descParts.join(' | '), thumbnail: cleanedUrl, scene_number: item.scene_number }

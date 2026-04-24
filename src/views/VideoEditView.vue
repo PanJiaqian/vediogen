@@ -93,7 +93,7 @@
                   {{ convertModelDisplayName() }}
                 </button>
                 <div v-if="convertModelMenuOpen" class="convert-model-options" @click.stop>
-                  <button type="button" class="convert-model-option"
+                  <!-- <button type="button" class="convert-model-option"
                     :class="{ active: selectedConvertModelName === 'wan2.2-i2v-flash' }"
                     @click="selectConvertModel('wan2.2-i2v-flash')">
                     万相2.2-flash
@@ -102,7 +102,7 @@
                     :class="{ active: selectedConvertModelName === 'wan2.2-i2v-plus' }"
                     @click="selectConvertModel('wan2.2-i2v-plus')">
                     万相2.2-plus
-                  </button>
+                  </button> -->
                   <button type="button" class="convert-model-option"
                     :class="{ active: selectedConvertModelName === 'wan2.5-i2v-preview' }"
                     @click="selectConvertModel('wan2.5-i2v-preview')">
@@ -116,12 +116,14 @@
                 </div>
               </div>
             </div>
-            <div class="convert-tip" v-if="!canConfirmConvert">积分不足，请充值</div>
+            <div class="convert-tip" v-if="!selectedConvertModelName || !canConfirmConvert">
+              {{ !selectedConvertModelName ? '请先选择视频模型' : '积分不足，请充值' }}
+            </div>
           </div>
         </div>
         <div class="convert-modal-footer">
           <button class="convert-cancel-btn" @click="closeConvertConfirmModal">取消</button>
-          <button class="convert-confirm-btn" :disabled="!canConfirmConvert" @click="confirmConvert">确认</button>
+          <button class="convert-confirm-btn" :disabled="!selectedConvertModelName || !canConfirmConvert" @click="confirmConvert">确认</button>
         </div>
       </div>
     </div>
@@ -309,7 +311,7 @@
               </div>
 
               <!-- 底部操作按钮（移动到图片提示词下方） -->
-              <div class="bottom-actions">
+              <div class="bottom-actions" @click="videoTrackModelMenuOpen = false">
                 <!-- <button class="bottom-btn download-btn" @click="downloadImageDirect(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail)">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2" />
@@ -332,13 +334,35 @@
                   </svg>
                   重新生成
                 </button>
-                <button v-else class="bottom-btn regenerate-btn" @click="handleRegenerateActiveSceneVideo">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
-                  </svg>
-                  重新生成
-                </button>
+                <template v-else>
+                  <button class="bottom-btn regenerate-btn" @click="handleRegenerateActiveSceneVideo">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <polyline points="23,4 23,10 17,10" stroke="currentColor" stroke-width="2" />
+                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                    重新生成
+                  </button>
+                  <div class="video-track-model-picker" @click.stop>
+                    <button type="button" class="video-track-model-trigger" @click.stop="toggleVideoTrackModelMenu">
+                      <span class="video-track-model-label">视频模型</span>
+                      <span class="video-track-model-value">{{ videoTrackModelDisplayName() }}</span>
+                    </button>
+                    <div v-if="videoTrackModelMenuOpen" class="video-track-model-menu">
+                      <button type="button" class="video-track-model-option"
+                        :class="{ active: selectedVideoTrackModelName === 'wan2.6-i2v' }"
+                        @click.stop="selectVideoTrackModel('wan2.6-i2v')">
+                        万相2.6
+                        <span class="video-track-model-option-tip">默认推荐</span>
+                      </button>
+                      <button type="button" class="video-track-model-option"
+                        :class="{ active: selectedVideoTrackModelName === 'wan2.5-i2v-preview' }"
+                        @click.stop="selectVideoTrackModel('wan2.5-i2v-preview')">
+                        万相2.5
+                        <span class="video-track-model-option-tip">稳定可控</span>
+                      </button>
+                    </div>
+                  </div>
+                </template>
               </div>
 
               <!-- 图片展示 -->
@@ -411,11 +435,31 @@
             <!-- 固定的输入框区域 -->
             <div class="input-section">
               <div class="input-container">
-                <textarea v-model="sceneInput" class="scene-input" placeholder="输入你想要对当前画面修改的内容"
+                <textarea v-model="sceneInput" class="scene-input"
+                  placeholder="输入你想要对当前画面修改的内容"
                   maxlength="250"></textarea>
-                <div class="char-counter">{{ (sceneInput || '').length }}/250</div>
+                <div class="char-counter" :class="{ 'char-counter-with-model': isActiveSceneVideoTrack }">{{ (sceneInput || '').length }}/250</div>
                 <div class="input-actions">
-                  <button class="input-action-btn send-btn" @click="sendSceneInput">
+                  <div v-if="isActiveSceneVideoTrack" class="video-model-pill-wrapper">
+                    <button type="button" class="video-model-pill">
+                      <span class="video-model-pill-label">视频模型</span>
+                      <span class="video-model-pill-value">{{ videoTrackModelDisplayName() }}</span>
+                    </button>
+                    <div class="video-model-pill-menu">
+                      <button type="button" class="video-model-pill-option"
+                        :class="{ active: selectedVideoTrackModelName === 'wan2.6-i2v' }"
+                        @click.stop="selectVideoTrackModel('wan2.6-i2v')">
+                        万相2.6
+                      </button>
+                      <button type="button" class="video-model-pill-option"
+                        :class="{ active: selectedVideoTrackModelName === 'wan2.5-i2v-preview' }"
+                        @click.stop="selectVideoTrackModel('wan2.5-i2v-preview')">
+                        万相2.5
+                      </button>
+                    </div>
+                  </div>
+                  <button class="input-action-btn send-btn" :disabled="isActiveSceneVideoTrack && !selectedVideoTrackModelName"
+                    @click="sendSceneInput">
                     ↑
                   </button>
                 </div>
@@ -937,8 +981,26 @@
                         <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
                         <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" stroke="currentColor" stroke-width="2" />
                       </svg>
-                      <span class="track-title">分镜{{ (Number(scene.order_index) > 0 ? Number(scene.order_index) : '')
-                      }}</span>
+                      <div class="track-title-wrap">
+                        <span class="track-title">分镜{{ (Number(scene.order_index) > 0 ? Number(scene.order_index) : '')
+                        }}</span>
+                        <button
+                          v-if="shouldShowSceneMuteButton(scene)"
+                          class="track-mute-btn"
+                          :class="{ muted: isSceneMuted(scene, index) }"
+                          :title="getSceneMuteTitle(scene, index)"
+                          @click.stop="toggleSceneMutedStatus(scene, index)">
+                          <svg v-if="isSceneMuted(scene, index)" width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <path d="M4 9h4l5-4v14l-5-4H4z" stroke="currentColor" stroke-width="2" />
+                            <path d="M18 9l-6 6M12 9l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                          </svg>
+                          <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none">
+                            <path d="M4 9h4l5-4v14l-5-4H4z" stroke="currentColor" stroke-width="2" />
+                            <path d="M16 9a4 4 0 0 1 0 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M18.5 6.5a8 8 0 0 1 0 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                          </svg>
+                        </button>
+                      </div>
                       <!-- 操作按钮 -->
                       <div class="track-actions">
                         <button class="action-btn copy-btn" @click="copyScene(index)" title="复制分镜">
@@ -1179,7 +1241,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, regenerateStoryboardVideo, updateVideoTitle, exportWorksVideoStream, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene, uploadBackgroundMusic as uploadBackgroundMusicApi, getWorksVideoDetail, getSubtitleState, updateSubtitleState, deleteBackgroundMusic as deleteBackgroundMusicApi, deleteAliTts } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, regenerateStoryboardVideo, updateVideoTitle, exportWorksVideoStream, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene, uploadBackgroundMusic as uploadBackgroundMusicApi, getWorksVideoDetail, getSubtitleState, updateSubtitleState, deleteBackgroundMusic as deleteBackgroundMusicApi, deleteAliTts, toggleSceneMuted as toggleSceneMutedApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
 
@@ -1266,7 +1328,7 @@ export default {
       isConverting: false,
       entrySkeleton: false,
       isVideoConverting: false,
-      sceneDetail: { reference_image_url: '', video_url: '' },
+      sceneDetail: { reference_image_url: '', video_url: '', audio_url: '', is_muted: false },
       isEditingTitle: false,
       editingTitle: '',
       toastVisible: false,
@@ -1297,8 +1359,10 @@ export default {
       , convertScenesCount: 0
       , canConfirmConvert: false
       , isDark: false
-      , selectedConvertModelName: 'wan2.2-i2v-flash'
+      , selectedConvertModelName: ''
+      , selectedVideoTrackModelName: 'wan2.6-i2v'
       , convertModelMenuOpen: false
+      , videoTrackModelMenuOpen: false
       , selectedDurationMode: 'voice-crop'
       , aspectRatio: '16:9'
       , showReplaceCropModal: false
@@ -1368,6 +1432,7 @@ export default {
       , voiceSceneAudioDuration: 0
       , voiceSceneCurrentTime: 0
       , voiceScenePlaying: false
+      , togglingSceneMuteKey: ''
     }
   },
   beforeUnmount() {
@@ -1576,6 +1641,7 @@ export default {
         let imgResp = null
         try { imgResp = JSON.parse(imgText) } catch { imgResp = null }
         const list = imgResp && imgResp.code === 0 && Array.isArray(imgResp.data) ? imgResp.data : []
+        this.applySceneMutedMap(this.buildSceneMutedMap(list))
         try {
           const modSet = new Set()
           const regenSet = new Set()
@@ -1636,7 +1702,7 @@ export default {
         const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
         const vLocal = (!isBlocked && vurl) ? await this.getLocalUrl(vurl) : ''
         const audioLocal = audioUrl ? await this.getLocalUrl(audioUrl) : audioUrl
-        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isBlocked ? null : (vLocal || vurl || null), audio_url: audioLocal }
+        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isBlocked ? null : (vLocal || vurl || null), audio_url: audioLocal, is_muted: !!(match && match.is_muted) }
         if (active) {
           const script = match && match.scene_script ? match.scene_script : null
           if (script) {
@@ -1644,6 +1710,7 @@ export default {
             if (script.shot_title) scriptObj.shot_title = script.shot_title
             if (script.visual_description) scriptObj.visual_description = script.visual_description
             if (script.camera_direction) scriptObj.camera_direction = script.camera_direction
+            if (script.voice_role) scriptObj.voice_role = script.voice_role
             if (script.dialogue_or_narration) scriptObj.dialogue_or_narration = script.dialogue_or_narration
             if (this.$set) this.$set(active, 'scene_script', scriptObj); else active.scene_script = scriptObj
             if (script.dialogue_or_narration) {
@@ -1652,6 +1719,7 @@ export default {
           }
           if (rawAudio === null) active.audio_url = null
           else if (audioUrl) active.audio_url = audioUrl
+          this.setSceneMuteState(active, this.activeSceneIndex, !!(match && match.is_muted))
         }
         this.syncPreviewPlayback()
       } catch (e) { void 0 }
@@ -1679,15 +1747,7 @@ export default {
         const data = resp && resp.code === 0 ? (resp.data || resp) : null
         const url = this.cleanUrl((data && (data.background_music_url || (data.work && data.work.backgroundMusicUrl))) || '')
         if (url) {
-          this.musicAudioUrl = url
-          this.musicAudioName = '背景音乐'
-          const el = new Audio(url)
-          try { el.crossOrigin = 'anonymous' } catch (e) { void 0 }
-          el.addEventListener('loadedmetadata', () => { this.musicAudioDuration = Number(el.duration) || 0 })
-          el.addEventListener('timeupdate', () => { this.musicCurrentTime = Number(el.currentTime) || 0 })
-          el.addEventListener('ended', () => { this.musicPlaying = false })
-          this.musicAudioEl = el
-          this.musicPlaying = false
+          this.setMusicAudioSource(url, '背景音乐')
         }
       } catch (e) { void 0 }
     })
@@ -1701,6 +1761,7 @@ export default {
         let imgResp = null
         try { imgResp = JSON.parse(imgText) } catch { imgResp = null }
         const list = imgResp && imgResp.code === 0 && Array.isArray(imgResp.data) ? imgResp.data : []
+        this.applySceneMutedMap(this.buildSceneMutedMap(list))
         try {
           const modSet = new Set()
           const regenSet = new Set()
@@ -1871,6 +1932,10 @@ export default {
       if (clip) return clip
       return si || ''
     },
+    isActiveSceneVideoTrack() {
+      const scene = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+      return this.determineSceneType(scene) === 'video'
+    },
     // 动态时间显示：当前播放时间和总时长
     currentTimeText() {
       const totalSeconds = this.getTotalSeconds()
@@ -2006,7 +2071,7 @@ export default {
         const rawVid = (first && first.url) || (sc && sc.video_url)
         const vid = (rawVid === null || this.isModifyingStatus(rawVid) || this.isRegeneratingNowStatus(rawVid)) ? null : this.cleanUrl(rawVid || '')
         const audio = this.cleanUrl((sc && sc.audio_url) || '')
-        this.sceneDetail = { reference_image_url: ref, video_url: vid, audio_url: audio }
+        this.sceneDetail = { reference_image_url: ref, video_url: vid, audio_url: audio, is_muted: this.isSceneMuted(sc, this.activeSceneIndex) }
         try {
           const t = sc && sc.scene_script && sc.scene_script.dialogue_or_narration ? String(sc.scene_script.dialogue_or_narration) : ''
           this.subtitleText = t
@@ -2046,14 +2111,7 @@ export default {
         this.voiceSceneAudioDuration = 0
         this.voiceSceneCurrentTime = 0
         if (url && !explicitNull) {
-          this.voiceSceneAudioUrl = url
-          const el = new Audio(url)
-          try { el.crossOrigin = 'anonymous' } catch (e) { void 0 }
-          el.addEventListener('loadedmetadata', () => { this.voiceSceneAudioDuration = Number(el.duration) || 0 })
-          el.addEventListener('timeupdate', () => { this.voiceSceneCurrentTime = Number(el.currentTime) || 0 })
-          el.addEventListener('ended', () => { this.voiceScenePlaying = false })
-          this.voiceSceneAudioEl = el
-          this.voiceScenePlaying = false
+          this.setVoiceSceneAudioSource(url)
         }
       } catch (e) { void 0 }
     },
@@ -2091,6 +2149,149 @@ export default {
     }
   },
   methods: {
+    // 统一格式化分镜中的说话角色，缺失时兼容旧数据回退为“旁白”。
+    formatVoiceRoleLabel(voiceRole) {
+      const label = String(voiceRole || '').trim()
+      return label || '旁白'
+    },
+    // 统一创建音频播放器，兼容不同资源返回头下的时长回填。
+    createAudioPlayer(url, handlers = {}) {
+      const el = new Audio()
+      // try { el.crossOrigin = 'anonymous' } catch (e) { void 0 } // 移除跨域限制，避免 OSS 未配置 CORS 时无法加载音频
+      try { el.preload = 'metadata' } catch (e) { void 0 }
+      
+      const syncDuration = () => {
+        let duration = Number(el.duration) || 0
+        if (duration === Infinity) {
+          // 处理部分流式音频返回 Infinity 的情况，先赋一个预估值或不更新，等 seek 到末尾再取
+          return
+        }
+        if (duration > 0 && typeof handlers.onDuration === 'function') {
+          handlers.onDuration(duration)
+        }
+      }
+
+      el.addEventListener('loadedmetadata', syncDuration)
+      el.addEventListener('durationchange', syncDuration)
+      el.addEventListener('loadeddata', syncDuration)
+      el.addEventListener('canplay', syncDuration)
+      el.addEventListener('canplaythrough', syncDuration)
+      
+      // 监听错误事件，避免静默失败
+      el.addEventListener('error', (e) => {
+        console.error('Audio load error:', e, url)
+      })
+
+      if (typeof handlers.onTimeUpdate === 'function') {
+        el.addEventListener('timeupdate', () => { 
+          handlers.onTimeUpdate(Number(el.currentTime) || 0) 
+        })
+      }
+      if (typeof handlers.onEnded === 'function') {
+        el.addEventListener('ended', handlers.onEnded)
+      }
+
+      el.src = url
+      try { el.load() } catch (e) { void 0 }
+      return el
+    },
+    buildSceneMutedMap(list) {
+      const mutedMap = new Map()
+      const arr = Array.isArray(list) ? list : []
+      for (const item of arr) {
+        const key = String((item && item.scene_number) || '').trim()
+        if (!key) continue
+        mutedMap.set(key, !!(item && item.is_muted))
+      }
+      return mutedMap
+    },
+    applySceneMutedMap(mutedMap) {
+      if (!(mutedMap instanceof Map) || mutedMap.size <= 0) return
+      const arr = Array.isArray(this.scenes) ? this.scenes : []
+      for (let i = 0; i < arr.length; i++) {
+        const sc = arr[i]
+        const key = String((sc && sc.scene_number) || '').trim()
+        if (!key || !mutedMap.has(key)) continue
+        this.setSceneMuteState(sc, i, mutedMap.get(key))
+      }
+    },
+    setSceneMuteState(scene, index, muted) {
+      if (scene) {
+        if (this.$set) this.$set(scene, 'is_muted', !!muted)
+        else scene.is_muted = !!muted
+      }
+      if (Number(index) === Number(this.activeSceneIndex)) {
+        this.sceneDetail = Object.assign({}, this.sceneDetail || {}, { is_muted: !!muted })
+      }
+    },
+    isSceneMuted(scene, index) {
+      if (scene && typeof scene.is_muted === 'boolean') return scene.is_muted
+      if (Number(index) === Number(this.activeSceneIndex) && this.sceneDetail && typeof this.sceneDetail.is_muted === 'boolean') {
+        return this.sceneDetail.is_muted
+      }
+      return false
+    },
+    shouldShowSceneMuteButton(scene) {
+      const sceneUrl = this.cleanUrl((scene && scene.video_url) || '')
+      const firstClip = scene && Array.isArray(scene.clips) ? scene.clips[0] : null
+      const clipUrl = this.cleanUrl((firstClip && firstClip.url) || '')
+      return this.isVideo(sceneUrl || clipUrl || '')
+    },
+    getSceneMuteTitle(scene, index) {
+      return this.isSceneMuted(scene, index) ? '当前原声为无声，点击切换为有声' : '当前原声为有声，点击切换为无声'
+    },
+    async toggleSceneMutedStatus(scene, index) {
+      try {
+        const projectId = this.$route.params.id
+        const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
+        const token = (this.userStore && this.userStore.token) || ''
+        const sceneNumber = String((scene && scene.scene_number) || '').trim()
+        const sceneKey = this.getSceneKey(scene, index)
+        if (!videoId || !token || !sceneNumber || this.togglingSceneMuteKey === sceneKey) return
+        this.togglingSceneMuteKey = sceneKey
+        const resp = await toggleSceneMutedApi({ token, videoId: String(videoId), sceneNumber })
+        const ok = !!(resp && ((resp.code === 0) || resp.success === true))
+        if (ok) {
+          const data = resp && resp.data ? resp.data : resp
+          const nextMuted = !!(data && data.is_muted)
+          this.setSceneMuteState(scene, index, nextMuted)
+          this.toastText = nextMuted ? '已切换为无声' : '已切换为有声'
+        } else {
+          this.toastText = (resp && (resp.message || resp.msg)) || '切换失败'
+        }
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      } catch (e) {
+        this.toastText = '切换失败'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+      } finally {
+        this.togglingSceneMuteKey = ''
+      }
+    },
+    setMusicAudioSource(url, name = '背景音乐') {
+      this.musicAudioUrl = url
+      this.musicAudioName = name
+      this.musicAudioDuration = 0
+      this.musicCurrentTime = 0
+      this.musicAudioEl = this.createAudioPlayer(url, {
+        onDuration: (duration) => { this.musicAudioDuration = duration },
+        onTimeUpdate: (currentTime) => { this.musicCurrentTime = currentTime },
+        onEnded: () => { this.musicPlaying = false }
+      })
+      this.musicPlaying = false
+    },
+    setVoiceSceneAudioSource(url) {
+      this.voiceSceneAudioUrl = url
+      this.voiceScenePlaying = false
+      this.voiceSceneAudioDuration = 0
+      this.voiceSceneCurrentTime = 0
+      this.voiceSceneAudioEl = this.createAudioPlayer(url, {
+        onDuration: (duration) => { this.voiceSceneAudioDuration = duration },
+        onTimeUpdate: (currentTime) => { this.voiceSceneCurrentTime = currentTime },
+        onEnded: () => { this.voiceScenePlaying = false }
+      })
+    },
     applySubtitleText() {
       try {
         const projectId = this.$route.params.id
@@ -2498,15 +2699,7 @@ export default {
         if (this.musicAudioEl) { try { this.musicAudioEl.pause() } catch (err) { void 0 } this.musicAudioEl = null }
         this.musicAudioFile = f
         const url = URL.createObjectURL(f)
-        this.musicAudioUrl = url
-        this.musicAudioName = String(f.name || '音乐')
-        const el = new Audio(url)
-        try { el.crossOrigin = 'anonymous' } catch (e) { void 0 }
-        el.addEventListener('loadedmetadata', () => { this.musicAudioDuration = Number(el.duration) || 0 })
-        el.addEventListener('timeupdate', () => { this.musicCurrentTime = Number(el.currentTime) || 0 })
-        el.addEventListener('ended', () => { this.musicPlaying = false })
-        this.musicAudioEl = el
-        this.musicPlaying = false
+        this.setMusicAudioSource(url, String(f.name || '音乐'))
       } catch (err) { void 0 }
     },
     toggleMusicPlay() {
@@ -3521,7 +3714,7 @@ export default {
             const parts = []
             if (script.shot_title) parts.push(script.shot_title)
             if (script.visual_description) parts.push(script.visual_description)
-            if (script.dialogue_or_narration) parts.push(`旁白：${script.dialogue_or_narration}`)
+            if (script.dialogue_or_narration) parts.push(`${this.formatVoiceRoleLabel(script.voice_role)}：${script.dialogue_or_narration}`)
             scene.description = parts.join('\n')
           }
           const k = this.getSceneKey(this.scenes[idx] || {}, idx)
@@ -3869,10 +4062,11 @@ export default {
             if (item.audio_url) {
               if (this.$set) this.$set(sc, 'audio_url', this.cleanUrl(item.audio_url)); else sc.audio_url = this.cleanUrl(item.audio_url)
               if (idx === this.activeSceneIndex) {
-                this.sceneDetail = { reference_image_url: sc.thumbnail, video_url: sc.video_url, audio_url: sc.audio_url }
+                this.sceneDetail = { reference_image_url: sc.thumbnail, video_url: sc.video_url, audio_url: sc.audio_url, is_muted: this.isSceneMuted(sc, idx) }
                 this.syncPreviewPlayback()
               }
             }
+            if ('is_muted' in item) this.setSceneMuteState(sc, idx, !!item.is_muted)
             const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
             const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
             if (refImg) sc.thumbnail = refImg
@@ -3898,12 +4092,14 @@ export default {
             const shotTitle = (scriptContent && scriptContent.shot_title) || (item && item.scene_script && item.scene_script.shot_title) || ''
             const visualDesc = (scriptContent && scriptContent.visual_description) || (item && item.scene_script && item.scene_script.visual_description) || ''
             const cameraDir = (scriptContent && scriptContent.camera_direction) || (item && item.scene_script && item.scene_script.camera_direction) || ''
+            const voiceRole = (scriptContent && scriptContent.voice_role) || (item && item.scene_script && item.scene_script.voice_role) || ''
             const narration = (scriptContent && scriptContent.dialogue_or_narration) || (item && item.scene_script && item.scene_script.dialogue_or_narration) || ''
-            if (shotTitle || visualDesc || cameraDir || narration) {
+            if (shotTitle || visualDesc || cameraDir || voiceRole || narration) {
               const scriptObj = Object.assign({}, sc.scene_script || {})
               if (shotTitle) scriptObj.shot_title = shotTitle
               if (visualDesc) scriptObj.visual_description = visualDesc
               if (cameraDir) scriptObj.camera_direction = cameraDir
+              if (voiceRole) scriptObj.voice_role = voiceRole
               if (narration) scriptObj.dialogue_or_narration = narration
               if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
               if (visualDesc) sc.description = visualDesc
@@ -3929,7 +4125,7 @@ export default {
           const vurl = this.cleanUrl(activeItem.fallback_mp4 || activeItem.video_url || '')
           const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
           const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
-          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || null }
+          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || null, audio_url: this.cleanUrl(activeItem.audio_url || active.audio_url || ''), is_muted: !!activeItem.is_muted }
         }
       } catch (e) { void 0 }
     },
@@ -3967,10 +4163,12 @@ export default {
                 const shotTitle = (scriptContent && scriptContent.shot_title) || (item && item.scene_script && item.scene_script.shot_title) || item.shot_title || ''
                 const visualDesc = (scriptContent && scriptContent.visual_description) || (item && item.scene_script && item.scene_script.visual_description) || item.visual_description || ''
                 const cameraDir = (scriptContent && scriptContent.camera_direction) || (item && item.scene_script && item.scene_script.camera_direction) || item.camera_direction || ''
+                const voiceRole = (scriptContent && scriptContent.voice_role) || (item && item.scene_script && item.scene_script.voice_role) || item.voice_role || ''
                 const narration = (scriptContent && scriptContent.dialogue_or_narration) || (item && item.scene_script && item.scene_script.dialogue_or_narration) || item.dialogue_or_narration || ''
                 const sceneKey = String(item.scene_number || '').trim()
                 if (sceneKey) map.set(sceneKey, { video_url: this.isVideo(vurl) ? vurl : '', reference_image_url: refImg })
                 if (Number.isFinite(oi) && oi > 0) map.set(`oi:${oi}`, { video_url: this.isVideo(vurl) ? vurl : '', reference_image_url: refImg })
+                if ('is_muted' in item) this.setSceneMuteState(sc, idx, !!item.is_muted)
                 if (refImg) {
                   sc.thumbnail = refImg
                   if (!Array.isArray(sc.clips) || !sc.clips.length) sc.clips = [{ url: refImg, durationMs: 5000 }]
@@ -3983,7 +4181,7 @@ export default {
                   sc.clips = []
                   if (idx === this.activeSceneIndex) {
                     const activeThumb = this.cleanUrl(sc.thumbnail || '')
-                    this.sceneDetail = { reference_image_url: activeThumb, video_url: null }
+                    this.sceneDetail = { reference_image_url: activeThumb, video_url: null, audio_url: this.cleanUrl(sc.audio_url || ''), is_muted: this.isSceneMuted(sc, idx) }
                   }
                   if (isRegen && sceneKey) {
                     this.startRegenerateVideoPolling(sceneKey)
@@ -3997,7 +4195,7 @@ export default {
                   sc.clips = [{ url: refImg, durationMs: 5000 }]
                   if (idx === this.activeSceneIndex) {
                     const activeThumb = this.cleanUrl(sc.thumbnail || '')
-                    this.sceneDetail = { reference_image_url: activeThumb, video_url: isReplaceImage ? 'replaceimage' : null }
+                    this.sceneDetail = { reference_image_url: activeThumb, video_url: isReplaceImage ? 'replaceimage' : null, audio_url: this.cleanUrl(sc.audio_url || ''), is_muted: this.isSceneMuted(sc, idx) }
                   }
                 } else if (vurl && this.isVideo(vurl)) {
                   const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
@@ -4012,11 +4210,12 @@ export default {
                     anyVideoQueued = true
                   }
                 }
-                if (shotTitle || visualDesc || cameraDir || narration) {
+                if (shotTitle || visualDesc || cameraDir || voiceRole || narration) {
                   const scriptObj = Object.assign({}, sc.scene_script || {})
                   if (shotTitle) scriptObj.shot_title = shotTitle
                   if (visualDesc) scriptObj.visual_description = visualDesc
                   if (cameraDir) scriptObj.camera_direction = cameraDir
+                  if (voiceRole) scriptObj.voice_role = voiceRole
                   if (narration) scriptObj.dialogue_or_narration = narration
                   if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
                   if (visualDesc) sc.description = visualDesc
@@ -4112,23 +4311,26 @@ export default {
         const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
         const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
         const audioLocal = audioUrl ? await this.getLocalUrl(audioUrl) : audioUrl
-        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isMod ? null : ((vLocal || vurl) || null), audio_url: audioLocal }
+        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isMod ? null : ((vLocal || vurl) || null), audio_url: audioLocal, is_muted: !!(match && match.is_muted) }
         if (activeIdx >= 0 && activeIdx < this.scenes.length) {
           const sc = this.scenes[activeIdx]
           const scriptContent = match && match.scene_script && match.scene_script.content ? match.scene_script.content : null
           const shotTitle = (scriptContent && scriptContent.shot_title) || (match && match.scene_script && match.scene_script.shot_title) || match.shot_title || ''
           const visualDesc = (scriptContent && scriptContent.visual_description) || (match && match.scene_script && match.scene_script.visual_description) || match.visual_description || ''
           const cameraDir = (scriptContent && scriptContent.camera_direction) || (match && match.scene_script && match.scene_script.camera_direction) || match.camera_direction || ''
+          const voiceRole = (scriptContent && scriptContent.voice_role) || (match && match.scene_script && match.scene_script.voice_role) || match.voice_role || ''
           const narration = (scriptContent && scriptContent.dialogue_or_narration) || (match && match.scene_script && match.scene_script.dialogue_or_narration) || match.dialogue_or_narration || ''
           const scriptObj = Object.assign({}, sc.scene_script || {})
           if (shotTitle) scriptObj.shot_title = shotTitle
           if (visualDesc) scriptObj.visual_description = visualDesc
           if (cameraDir) scriptObj.camera_direction = cameraDir
+          if (voiceRole) scriptObj.voice_role = voiceRole
           if (narration) scriptObj.dialogue_or_narration = narration
           if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
           if (visualDesc) sc.description = visualDesc
           if (rawAudio === null) sc.audio_url = null
           else if (audioUrl) sc.audio_url = audioUrl
+          this.setSceneMuteState(sc, activeIdx, !!(match && match.is_muted))
           if (narration) {
             try { this.subtitleText = String(narration || '') } catch (e) { void 0 }
           }
@@ -4246,9 +4448,10 @@ export default {
                 if (targetIndex === this.activeSceneIndex) {
                   const img = this.cleanUrl(sc.thumbnail || (data.reference_image_url || ''))
                   const imgLocal = img ? await this.getLocalUrl(img) : ''
-                  this.sceneDetail = { reference_image_url: imgLocal || img, video_url: vFinal, audio_url: this.cleanUrl((data && data.audio_url) || '') }
+                this.sceneDetail = { reference_image_url: imgLocal || img, video_url: vFinal, audio_url: this.cleanUrl((data && data.audio_url) || ''), is_muted: !!(data && data.is_muted) }
                   this.updateActiveSceneDurationFromVideo()
                 }
+              this.setSceneMuteState(sc, targetIndex, !!(data && data.is_muted))
               }
               clearForKey()
             } catch (e) { void 0 }
@@ -4270,6 +4473,7 @@ export default {
         let title = ''
         let visual = ''
         let cameraDir = ''
+        let voiceRole = ''
         let narration = ''
         try {
           const text = await getStoryboardSceneDetail({ videoId, sceneNumber, token })
@@ -4281,6 +4485,7 @@ export default {
             title = String(content.shot_title || '').trim()
             visual = String(content.visual_description || '').trim()
             cameraDir = String(content.camera_direction || '').trim()
+            voiceRole = String(content.voice_role || '').trim()
             narration = String(content.dialogue_or_narration || '').trim()
           }
         } catch (e) { void 0 }
@@ -4300,15 +4505,17 @@ export default {
               title = String((match.scene_script && match.scene_script.shot_title) || match.shot_title || '').trim()
               visual = String((match.scene_script && match.scene_script.visual_description) || match.visual_description || '').trim()
               cameraDir = String((match.scene_script && match.scene_script.camera_direction) || match.camera_direction || '').trim()
+              voiceRole = String((match.scene_script && match.scene_script.voice_role) || match.voice_role || '').trim()
               narration = String((match.scene_script && match.scene_script.dialogue_or_narration) || match.dialogue_or_narration || '').trim()
             }
           } catch (e) { void 0 }
         }
-        if (title || visual || narration || cameraDir) {
+        if (title || visual || narration || cameraDir || voiceRole) {
           const scriptObj = Object.assign({}, sc.scene_script || {})
           if (title) scriptObj.shot_title = title
           if (visual) scriptObj.visual_description = visual
           if (cameraDir) scriptObj.camera_direction = cameraDir
+          if (voiceRole) scriptObj.voice_role = voiceRole
           if (narration) scriptObj.dialogue_or_narration = narration
           if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
         }
@@ -4847,7 +5054,16 @@ export default {
           this.sceneDetail = { reference_image_url: ref, video_url: null, audio_url: audio }
         }
 
-        const resp = await regenerateStoryboardVideo({ videoId: String(videoId), shotId: String(sceneNumber), modelName: 'wan2.2-i2v-flash', token })
+        const currentModelName = String(this.selectedVideoTrackModelName || '').trim()
+        if (!currentModelName) {
+          if (this.pendingVideoSet instanceof Set) this.pendingVideoSet.delete(pendingKey)
+          restore()
+          this.toastText = '请先选择视频模型'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
+        const resp = await regenerateStoryboardVideo({ videoId: String(videoId), shotId: String(sceneNumber), modelName: currentModelName, token })
         const ok = !!(resp && typeof resp === 'object' ? ((resp.code === 0) || resp.success === true) : true)
         if (!ok) {
           if (this.pendingVideoSet instanceof Set) this.pendingVideoSet.delete(pendingKey)
@@ -4888,7 +5104,13 @@ export default {
       const projectId = this.$route.params.id
       const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
       const token = (this.userStore && this.userStore.token) || ''
-      const modelName = String(this.selectedConvertModelName || '').trim() || 'wan2.2-i2v-flash'
+      const modelName = String(this.selectedConvertModelName || '').trim()
+      if (!modelName) {
+        this.toastText = '请先选择视频模型'
+        this.toastVisible = true
+        setTimeout(() => { this.toastVisible = false }, 2000)
+        return
+      }
       try {
         if (!token) { return }
         let balance = 0
@@ -4957,7 +5179,7 @@ export default {
                 const parts = []
                 if (script.shot_title) parts.push(script.shot_title)
                 if (script.visual_description) parts.push(script.visual_description)
-                if (script.dialogue_or_narration) parts.push(`旁白：${script.dialogue_or_narration}`)
+                if (script.dialogue_or_narration) parts.push(`${this.formatVoiceRoleLabel(script.voice_role)}：${script.dialogue_or_narration}`)
                 sc.description = parts.join('\n')
               }
 
@@ -5020,7 +5242,13 @@ export default {
         if (!token) { return }
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-        const modelName = this.selectedConvertModelName
+        const modelName = String(this.selectedConvertModelName || '').trim()
+        if (!modelName) {
+          this.convertEstimateTotal = 0
+          this.canConfirmConvert = false
+          this.convertConfirmVisible = true
+          return
+        }
         let estimate = null
         try { estimate = await getBillingEstimate({ videoId, genType: 'video', modelName, token }) } catch (e) { estimate = null }
         const total = estimate && typeof estimate === 'object' ? Number(estimate.total_price || (estimate.data && estimate.data.total_price) || 0) : 0
@@ -5044,7 +5272,12 @@ export default {
         if (!token) return
         const projectId = this.$route.params.id
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-        const modelName = this.selectedConvertModelName
+        const modelName = String(this.selectedConvertModelName || '').trim()
+        if (!modelName) {
+          this.convertEstimateTotal = 0
+          this.canConfirmConvert = false
+          return
+        }
         let estimate = null
         try { estimate = await getBillingEstimate({ videoId, genType: 'video', modelName, token }) } catch (e) { estimate = null }
         const total = estimate && typeof estimate === 'object' ? Number(estimate.total_price || (estimate.data && estimate.data.total_price) || 0) : 0
@@ -5057,7 +5290,7 @@ export default {
       this.convertModelMenuOpen = false
     },
     confirmConvert() {
-      if (!this.canConfirmConvert) return
+      if (!this.selectedConvertModelName || !this.canConfirmConvert) return
       this.convertConfirmVisible = false
       this.convertToVideo()
     },
@@ -5065,12 +5298,24 @@ export default {
       this.convertModelMenuOpen = !this.convertModelMenuOpen
     },
     selectConvertModel(v) {
-      this.selectedConvertModelName = String(v || '').trim() || 'wan2.2-i2v-flash'
+      this.selectedConvertModelName = String(v || '').trim()
       this.convertModelMenuOpen = false
       this.reestimateConvertBilling()
     },
+    // 视频轨道模型用于分镜视频重新生成和左侧提示词修改。
+    toggleVideoTrackModelMenu() {
+      this.videoTrackModelMenuOpen = !this.videoTrackModelMenuOpen
+    },
+    selectVideoTrackModel(v) {
+      this.selectedVideoTrackModelName = String(v || '').trim() || 'wan2.6-i2v'
+      this.videoTrackModelMenuOpen = false
+    },
+    videoTrackModelDisplayName() {
+      return String(this.selectedVideoTrackModelName || '').trim() === 'wan2.5-i2v-preview' ? '万相2.5' : '万相2.6'
+    },
     convertModelDisplayName() {
       const v = String(this.selectedConvertModelName || '').trim()
+      if (!v) return '请选择模型'
       if (v === 'wan2.6-i2v') return '万相2.6'
       if (v === 'wan2.5-i2v-preview') return '万相2.5'
       if (v === 'wan2.2-i2v-plus') return '万相2.2-plus'
@@ -5390,12 +5635,8 @@ export default {
               this.voiceScenePlaying = false
               this.voiceSceneAudioDuration = 0
               this.voiceSceneCurrentTime = 0
-              const el = new Audio(appliedAudio)
-              try { el.crossOrigin = 'anonymous' } catch (e) { void 0 }
-              el.addEventListener('loadedmetadata', () => { this.voiceSceneAudioDuration = Number(el.duration) || 0 })
-              el.addEventListener('timeupdate', () => { this.voiceSceneCurrentTime = Number(el.currentTime) || 0 })
-              el.addEventListener('ended', () => { this.voiceScenePlaying = false })
-              this.voiceSceneAudioEl = el
+              this.voiceSceneAudioEl = null
+              this.setVoiceSceneAudioSource(appliedAudio)
             }
           } catch (e) { void 0 }
           try {
@@ -5405,11 +5646,13 @@ export default {
               const shotTitle = String(script.shot_title || (sc.scene_script && sc.scene_script.shot_title) || '').trim()
               const visualDesc = String(script.visual_description || (sc.scene_script && sc.scene_script.visual_description) || '').trim()
               const cameraDir = String(script.camera_direction || (sc.scene_script && sc.scene_script.camera_direction) || '').trim()
+              const voiceRole = String(script.voice_role || (sc.scene_script && sc.scene_script.voice_role) || '').trim()
               const narration = String(script.dialogue_or_narration || (sc.scene_script && sc.scene_script.dialogue_or_narration) || '').trim()
               const next = Object.assign({}, sc.scene_script || {})
               if (shotTitle) next.shot_title = shotTitle
               if (visualDesc) next.visual_description = visualDesc
               if (cameraDir) next.camera_direction = cameraDir
+              if (voiceRole) next.voice_role = voiceRole
               if (narration) next.dialogue_or_narration = narration
               if (this.$set) this.$set(sc, 'scene_script', next); else sc.scene_script = next
               if (visualDesc) sc.description = visualDesc
@@ -5847,7 +6090,13 @@ export default {
         const sc = this.scenes[this.activeSceneIndex] || {}
         const shotId = String(sc.scene_number || (Array.isArray(this._shotOrder) ? this._shotOrder[this.activeSceneIndex] : `shot_${this.activeSceneIndex + 1}`))
         const type = this.determineSceneType(sc)
-        const modelname = type === 'video' ? 'wan2.2-i2v-flash' : 'doubao-seedream-4-0-250828'
+        const modelname = type === 'video' ? String(this.selectedVideoTrackModelName || '').trim() : 'doubao-seedream-4-0-250828'
+        if (type === 'video' && !modelname) {
+          this.toastText = '请先选择视频模型'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
         if (!token) { return }
         const k = this.getSceneKey(sc, this.activeSceneIndex)
         if (!(this.updatingKeySet instanceof Set)) this.updatingKeySet = new Set()
@@ -5993,10 +6242,12 @@ export default {
                         const title = String(content.shot_title || '').trim()
                         const visual = String(content.visual_description || '').trim()
                         const cameraDir = String(content.camera_direction || '').trim()
+                        const voiceRole = String(content.voice_role || '').trim()
                         const narration = String(content.dialogue_or_narration || '').trim()
                         if (title) prev.shot_title = title
                         if (visual) prev.visual_description = visual
                         if (cameraDir) prev.camera_direction = cameraDir
+                        if (voiceRole) prev.voice_role = voiceRole
                         if (narration) prev.dialogue_or_narration = narration
                         if (this.$set) this.$set(sc, 'scene_script', prev); else sc.scene_script = prev
                         if (visual) sc.description = visual
@@ -6903,6 +7154,8 @@ export default {
 /* 底部操作按钮 */
 .bottom-actions {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 20px;
 }
@@ -6922,6 +7175,83 @@ export default {
 
 .bottom-btn:hover {
   color: #111827;
+}
+
+.video-track-model-picker {
+  position: relative;
+}
+
+.video-track-model-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.08));
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.video-track-model-trigger:hover {
+  border-color: rgba(99, 102, 241, 0.28);
+  box-shadow: 0 8px 18px rgba(99, 102, 241, 0.12);
+}
+
+.video-track-model-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.video-track-model-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4f46e5;
+}
+
+.video-track-model-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 180px;
+  padding: 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 16px;
+  background: var(--bg-primary);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+  z-index: 12;
+}
+
+.video-track-model-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.video-track-model-option:hover {
+  background: var(--bg-secondary);
+}
+
+.video-track-model-option.active {
+  background: rgba(79, 70, 229, 0.1);
+  color: #4338ca;
+}
+
+.video-track-model-option-tip {
+  font-size: 11px;
+  color: var(--text-tertiary);
 }
 
 .version-history-section {
@@ -7046,14 +7376,16 @@ export default {
 
 .scene-input {
   width: 100%;
-  height: 60px;
-  padding: 12px 50px 12px 12px;
+  min-height: 60px;
+  padding: 12px 12px 0 12px;
+  margin-bottom: 40px;
   border: none;
   border-radius: 8px;
   font-size: 14px;
   resize: none;
   outline: none;
   background: transparent;
+  box-sizing: border-box;
 }
 
 .scene-input:focus {
@@ -7069,6 +7401,7 @@ export default {
   right: 8px;
   bottom: 8px;
   display: flex;
+  align-items: center;
   gap: 4px;
 }
 
@@ -7078,6 +7411,10 @@ export default {
   right: 60px;
   font-size: 12px;
   color: var(--text-tertiary);
+}
+
+.char-counter-with-model {
+  right: 168px;
 }
 
 .input-action-btn {
@@ -7098,6 +7435,11 @@ export default {
   background: var(--bg-quaternary);
 }
 
+.input-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .send-btn {
   background: var(--primary-color);
   color: white;
@@ -7106,6 +7448,91 @@ export default {
 
 .send-btn:hover {
   background: var(--primary-hover);
+}
+
+.send-btn:disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+.video-model-pill-wrapper {
+  position: relative;
+}
+
+.video-model-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(79, 70, 229, 0.16);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(59, 130, 246, 0.08));
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.video-model-pill:hover {
+  border-color: rgba(79, 70, 229, 0.3);
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.12);
+}
+
+.video-model-pill-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.video-model-pill-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #4338ca;
+}
+
+.video-model-pill-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  min-width: 132px;
+  padding: 6px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 14px;
+  background: var(--bg-primary);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: all 0.18s ease;
+  z-index: 12;
+}
+
+.video-model-pill-wrapper:hover .video-model-pill-menu,
+.video-model-pill-wrapper:focus-within .video-model-pill-menu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.video-model-pill-option {
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.video-model-pill-option:hover {
+  background: var(--bg-secondary);
+}
+
+.video-model-pill-option.active {
+  background: rgba(79, 70, 229, 0.12);
+  color: #4338ca;
 }
 
 .input-footer {
@@ -7975,7 +8402,7 @@ input:checked+.slider:before {
   font-size: 12px;
   color: var(--text-tertiary);
   font-weight: 500;
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
 .track-title {
@@ -7990,6 +8417,7 @@ input:checked+.slider:before {
 .track-actions {
   display: flex;
   gap: 4px;
+  margin-left: auto;
 }
 
 .action-btn {
@@ -8072,6 +8500,36 @@ input:checked+.slider:before {
   object-fit: contain;
   /* 完整显示缩略图 */
   background: var(--bg-primary);
+}
+
+.track-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.track-mute-btn {
+  width: 16px;
+  height: 16px;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+.track-mute-btn.muted {
+  color: #ff4d4f;
+}
+
+.track-mute-btn:hover {
+  color: var(--primary-color);
 }
 
 .track-audio {

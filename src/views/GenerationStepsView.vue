@@ -86,7 +86,7 @@
 </template>
 
 <script>
-import { storyboardPictureGenStream, getScriptDetailByVideo } from '@/api'
+import { storyboardPictureGenStream, getScriptDetailByVideo, batchSubmitStoryboardVoiceover } from '@/api'
 import { useUserStore } from '@/stores/user'
 import ErrorModal from '@/components/ErrorModal.vue'
 import Header from '@/components/Header.vue'
@@ -235,6 +235,7 @@ export default {
       if (!token) {
         return
       }
+      this.triggerStoryboardVoiceoverBatch(videoId, token)
       let attempts = 0
       while (attempts < 3) {
         try {
@@ -273,6 +274,26 @@ export default {
             return
           }
         }
+      }
+    },
+    async triggerStoryboardVoiceoverBatch(videoId, token) {
+      if (!videoId || !token) return
+      if (this._storyboardVoiceoverStarted) return
+      this._storyboardVoiceoverStarted = true
+      try {
+        const resp = await batchSubmitStoryboardVoiceover({ videoId, token })
+        if (!resp) {
+          console.warn('一键生成剧本分镜配音接口未返回结果')
+          return
+        }
+        if (resp.success === false) {
+          const msg = resp.message || resp.error_message || '未知错误'
+          console.warn('一键生成剧本分镜配音启动失败:', msg, resp)
+          return
+        }
+        console.log('一键生成剧本分镜配音已启动:', resp)
+      } catch (e) {
+        console.warn('一键生成剧本分镜配音请求失败:', e)
       }
     },
     startGenerationTimeout() {

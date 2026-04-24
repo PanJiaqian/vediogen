@@ -1,5 +1,5 @@
 // 后端接口封装
-const BASE_URL = 'http://182.92.68.240:1770'
+const BASE_URL = 'http://182.92.68.240:1790'
 
 function buildAuthHeaders(token) {
   const headers = new Headers()
@@ -211,6 +211,31 @@ export async function storyboardPictureGenStream({ videoId, aspectRatio, token, 
     } catch (err) {
       console.warn('分镜生成 SSE 最后块解析失败:', err)
     }
+  }
+}
+
+// 一键生成剧本分镜配音（POST）
+export async function batchSubmitStoryboardVoiceover({ videoId, token, languageType, voice }) {
+  const url = `${BASE_URL}/api/ali-tts/batch-submit-by-video`
+  const headers = buildAuthHeaders(token)
+  headers.append('Content-Type', 'application/json')
+  const payload = { videoId: String(videoId) }
+  if (languageType) payload.languageType = String(languageType)
+  if (voice) payload.voice = String(voice)
+  const requestOptions = {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(payload),
+    redirect: 'follow'
+  }
+  const res = await fetch(url, requestOptions)
+  if (res.status === 401) {
+    try { window.dispatchEvent(new CustomEvent('auth-401')) } catch (e) { console.warn('auth-401 事件分发失败:', e) }
+  }
+  try {
+    return await res.json()
+  } catch (e) {
+    try { return JSON.parse(await res.text()) } catch { return null }
   }
 }
 
@@ -691,6 +716,18 @@ export async function deleteAliTts({ token, videoId, shotId }) {
   headers.append('Content-Type', 'application/json')
   const body = JSON.stringify({ videoId: String(videoId), shotId: String(shotId) })
   const requestOptions = { method: 'POST', headers, body, redirect: 'follow' }
+  const res = await fetch(url, requestOptions)
+  try { return await res.json() } catch (e) { try { return JSON.parse(await res.text()) } catch { return null } }
+}
+
+// POST 切换分镜原声静音状态
+export async function toggleSceneMuted({ token, videoId, sceneNumber }) {
+  const url = `${BASE_URL}/detail/storyboard/scene/toggleMuted`
+  const headers = buildAuthHeaders(token)
+  const formData = new FormData()
+  formData.append('videoId', String(videoId))
+  formData.append('sceneNumber', String(sceneNumber))
+  const requestOptions = { method: 'POST', headers, body: formData, redirect: 'follow' }
   const res = await fetch(url, requestOptions)
   try { return await res.json() } catch (e) { try { return JSON.parse(await res.text()) } catch { return null } }
 }
@@ -1696,7 +1733,7 @@ export async function clipStoryboardVideo({ videoId, sceneNumber, start_frame, e
 
 export async function regenerateStoryboardVideo({ videoId, shotId, modelName, sceneNumber, token }) {
   const sid = String(shotId || sceneNumber || '').trim()
-  const mn = String('wan2.2-i2v-flash').trim()
+  const mn = String(modelName || '').trim()
   const url = `${BASE_URL}/api/video/storyboard/regenerate?videoId=${encodeURIComponent(videoId)}&shotId=${encodeURIComponent(sid)}&modelName=${encodeURIComponent(mn)}`
   const requestOptions = {
     method: 'POST',
@@ -1790,6 +1827,7 @@ export async function getWorksVideoDetail({ id, token }) {
 export default {
   scriptModifyStream,
   storyboardPictureGenStream,
+  batchSubmitStoryboardVoiceover,
   getMaterialsList,
   uploadMaterial,
   getCreativeWorkList,
@@ -1817,6 +1855,7 @@ export default {
   , replaceStoryboardImage
   , getSceneVersionHistory
   , applySceneVersion
+  , toggleSceneMuted
   , deleteConversation
   , exportWorksVideo
   , exportWorksVideoStream

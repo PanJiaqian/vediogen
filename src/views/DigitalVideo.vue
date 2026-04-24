@@ -1405,6 +1405,11 @@ export default {
     }
   },
   methods: {
+    // 统一格式化分镜中的说话角色，缺失时兼容旧数据回退为“旁白”。
+    formatVoiceRoleLabel(voiceRole) {
+      const label = String(voiceRole || '').trim()
+      return label || '旁白'
+    },
     toggleTheme() {
       this.isDark = !this.isDark
       if (this.isDark) {
@@ -2250,7 +2255,7 @@ export default {
             const parts = []
             if (script.shot_title) parts.push(script.shot_title)
             if (script.visual_description) parts.push(script.visual_description)
-            if (script.dialogue_or_narration) parts.push(`旁白：${script.dialogue_or_narration}`)
+            if (script.dialogue_or_narration) parts.push(`${this.formatVoiceRoleLabel(script.voice_role)}：${script.dialogue_or_narration}`)
             scene.description = parts.join('\n')
           }
           const k = this.getSceneKey(this.scenes[idx] || {}, idx)
@@ -2622,10 +2627,14 @@ export default {
         const content = sc.scene_script && sc.scene_script.content ? sc.scene_script.content : null
         const title = content && content.shot_title ? String(content.shot_title).trim() : ''
         const visual = content && content.visual_description ? String(content.visual_description).trim() : ''
-        if (title || visual) {
+        const voiceRole = content && content.voice_role ? String(content.voice_role).trim() : ''
+        const narration = content && content.dialogue_or_narration ? String(content.dialogue_or_narration).trim() : ''
+        if (title || visual || voiceRole || narration) {
           const scriptObj = Object.assign({}, sc.scene_script || {})
           if (title) scriptObj.shot_title = title
           if (visual) scriptObj.visual_description = visual
+          if (voiceRole) scriptObj.voice_role = voiceRole
+          if (narration) scriptObj.dialogue_or_narration = narration
           if (this.$set) this.$set(sc, 'scene_script', scriptObj); else sc.scene_script = scriptObj
         }
       } catch (e) { void 0 }

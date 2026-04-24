@@ -147,7 +147,7 @@
                 <div>镜头：{{ shot.shot_title }}</div>
                 <div>画面：{{ shot.visual_description }}</div>
                 <div>机位：{{ shot.camera_direction }}</div>
-                <div>旁白：{{ shot.dialogue_or_narration }}</div>
+                <div>{{ formatVoiceRoleLabel(shot.voice_role) }}：{{ shot.dialogue_or_narration }}</div>
               </div>
             </div>
           </div>
@@ -386,6 +386,11 @@ export default {
     }
   },
   methods: {
+    // 统一格式化分镜中的说话角色，缺失时兼容旧数据回退为“旁白”。
+    formatVoiceRoleLabel(voiceRole) {
+      const label = String(voiceRole || '').trim()
+      return label || '旁白'
+    },
     toggleModelMenu() {
       this.modelMenuOpen = !this.modelMenuOpen
     },
@@ -714,7 +719,7 @@ export default {
               const descParts = []
               if (content.visual_description) descParts.push(content.visual_description)
               if (content.camera_direction) descParts.push(`机位：${content.camera_direction}`)
-              if (content.dialogue_or_narration) descParts.push(`旁白：${content.dialogue_or_narration}`)
+              if (content.dialogue_or_narration) descParts.push(`${this.formatVoiceRoleLabel(content.voice_role)}：${content.dialogue_or_narration}`)
               const rawUrl = String(item.reference_image_url || '').trim()
               const cleanedUrl = rawUrl.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
               return { id: idx + 1, title, description: descParts.join(' | '), thumbnail: cleanedUrl, scene_number: item.scene_number }
@@ -1106,6 +1111,7 @@ export default {
                   shot_title: c.shot_title || '',
                   visual_description: c.visual_description || '',
                   camera_direction: c.camera_direction || '',
+                  voice_role: c.voice_role || '',
                   dialogue_or_narration: c.dialogue_or_narration || '',
                   shot_code: item.shot_code || c.shot_id || ''
                 })
@@ -1135,6 +1141,7 @@ export default {
                     shot_title: c.shot_title || '',
                     visual_description: c.visual_description || '',
                     camera_direction: c.camera_direction || '',
+                    voice_role: c.voice_role || '',
                     dialogue_or_narration: c.dialogue_or_narration || '',
                     shot_code: item.shot_code || c.shot_id || ''
                   })
@@ -1169,6 +1176,7 @@ export default {
                     shot_title: c.shot_title || '',
                     visual_description: c.visual_description || '',
                     camera_direction: c.camera_direction || '',
+                    voice_role: c.voice_role || '',
                     dialogue_or_narration: c.dialogue_or_narration || '',
                     shot_code: item.shot_code || c.shot_id || ''
                   })
@@ -1192,6 +1200,7 @@ export default {
                   shot_title: c.shot_title || '',
                   visual_description: c.visual_description || '',
                   camera_direction: c.camera_direction || '',
+                  voice_role: c.voice_role || '',
                   dialogue_or_narration: c.dialogue_or_narration || '',
                   shot_code: item.shot_code || c.shot_id || ''
                 })
@@ -1224,11 +1233,13 @@ export default {
           if (Array.isArray(sb.shots)) {
             const visuals = sb.shots.map(sh => sh.visual_description).filter(Boolean)
             const cameras = sb.shots.map(sh => sh.camera_direction).filter(Boolean)
-            const dialogues = sb.shots.map(sh => sh.dialogue_or_narration).filter(Boolean)
+            const dialogues = sb.shots
+              .filter(sh => sh && sh.dialogue_or_narration)
+              .map(sh => `${this.formatVoiceRoleLabel(sh.voice_role)}：${sh.dialogue_or_narration}`)
             if (visuals.length) vivid = visuals.join('；')
             const parts = []
             if (cameras.length) parts.push(`镜头：${cameras.join('，')}`)
-            if (dialogues.length) parts.push(`旁白：${dialogues.join('，')}`)
+            if (dialogues.length) parts.push(dialogues.join('，'))
             if (parts.length) action = parts.join(' | ')
           }
           return { opening, vivid, action }
