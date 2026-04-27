@@ -25,4 +25,49 @@ export function shouldRenderImage(u) {
   const url = cleanUrl(u)
   return !!url && !isGenerateFailed(url)
 }
-export async function getLocalMediaUrl(videoId, url) { try { const u = cleanUrl(url); return u } catch (e) { return cleanUrl(url) } }
+
+/**
+ * 将 OSS 音频地址转换为后端可播放代理地址，规避直连 OSS 时的播放头兼容问题。
+ *
+ * @param {string} url 原始媒体地址
+ * @returns {string} 可直接交给浏览器音频播放器的地址
+ *
+ * @example
+ * getPlayableAudioUrl('https://example.com/tts/demo.mp3')
+ */
+export function getPlayableAudioUrl(url) {
+  const u = cleanUrl(url)
+  if (!u) return ''
+  const lower = u.toLowerCase()
+  const isAudio = /\.(mp3|wav|m4a|aac|ogg|oga|flac)(\?|#|$)/i.test(lower) || /^data:audio\//i.test(lower)
+  if (!isAudio) return u
+  if (/\/uploadfile\//i.test(u)) return u
+  try {
+    const parsed = new URL(u)
+    const objectKey = parsed.pathname.replace(/^\/+/, '')
+    if (!objectKey) return u
+    return `http://182.92.68.240:1790/uploadfile/${objectKey}`
+  } catch (e) {
+    return u
+  }
+}
+
+/**
+ * 兼容本地媒体地址适配，当前保留既有接口形态。
+ *
+ * @param {string|number} videoId 视频标识
+ * @param {string} url 原始媒体地址
+ * @returns {Promise<string>} 处理后的可访问地址
+ *
+ * @example
+ * await getLocalMediaUrl('123', 'https://example.com/a.mp3')
+ */
+export async function getLocalMediaUrl(videoId, url) {
+  try {
+    const u = cleanUrl(url)
+    void videoId
+    return getPlayableAudioUrl(u)
+  } catch (e) {
+    return getPlayableAudioUrl(url)
+  }
+}

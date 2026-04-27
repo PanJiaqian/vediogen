@@ -1243,7 +1243,7 @@ import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
 import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, regenerateStoryboardVideo, updateVideoTitle, exportWorksVideoStream, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene, uploadBackgroundMusic as uploadBackgroundMusicApi, getWorksVideoDetail, getSubtitleState, updateSubtitleState, deleteBackgroundMusic as deleteBackgroundMusicApi, deleteAliTts, toggleSceneMuted as toggleSceneMutedApi } from '@/api'
 import { useUserStore } from '@/stores/user'
-import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil } from '@/utils/media'
+import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil, getPlayableAudioUrl as getPlayableAudioUrlUtil } from '@/utils/media'
 
 export default {
   name: 'VideoEditView',
@@ -2270,11 +2270,12 @@ export default {
       }
     },
     setMusicAudioSource(url, name = '背景音乐') {
-      this.musicAudioUrl = url
+      const playableUrl = this.getPlayableAudioUrl(url)
+      this.musicAudioUrl = playableUrl
       this.musicAudioName = name
       this.musicAudioDuration = 0
       this.musicCurrentTime = 0
-      this.musicAudioEl = this.createAudioPlayer(url, {
+      this.musicAudioEl = this.createAudioPlayer(playableUrl, {
         onDuration: (duration) => { this.musicAudioDuration = duration },
         onTimeUpdate: (currentTime) => { this.musicCurrentTime = currentTime },
         onEnded: () => { this.musicPlaying = false }
@@ -2282,11 +2283,12 @@ export default {
       this.musicPlaying = false
     },
     setVoiceSceneAudioSource(url) {
-      this.voiceSceneAudioUrl = url
+      const playableUrl = this.getPlayableAudioUrl(url)
+      this.voiceSceneAudioUrl = playableUrl
       this.voiceScenePlaying = false
       this.voiceSceneAudioDuration = 0
       this.voiceSceneCurrentTime = 0
-      this.voiceSceneAudioEl = this.createAudioPlayer(url, {
+      this.voiceSceneAudioEl = this.createAudioPlayer(playableUrl, {
         onDuration: (duration) => { this.voiceSceneAudioDuration = duration },
         onTimeUpdate: (currentTime) => { this.voiceSceneCurrentTime = currentTime },
         onEnded: () => { this.voiceScenePlaying = false }
@@ -3390,6 +3392,10 @@ export default {
       const projectId = this.$route.params.id
       const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
       return await getLocalMediaUrlUtil(videoId, u)
+    },
+    // 统一把音频地址适配为可播放代理地址，避免浏览器直接读取 OSS 音频失败。
+    getPlayableAudioUrl(u) {
+      return getPlayableAudioUrlUtil(u)
     },
     async toggleFullscreen() {
       try {
