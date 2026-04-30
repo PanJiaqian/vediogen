@@ -3005,43 +3005,65 @@ export default {
         this.isVoiceLoading = true
         const text = String(this.voiceScript || '').trim() || String((this.scenes[this.activeSceneIndex] && this.scenes[this.activeSceneIndex].scene_script && this.scenes[this.activeSceneIndex].scene_script.dialogue_or_narration) || (this.scenes[this.activeSceneIndex] && this.scenes[this.activeSceneIndex].scene_script && this.scenes[this.activeSceneIndex].scene_script.visual_description) || '').trim() || '今天很适合吃点好吃的，喝点小酒，快来找我玩吧！'
         const languageType = this.voiceLanguage || 'Chinese'
-        const voice = this.voiceName || 'cherry'
+        const voice = this.voiceName || 'longanyang'
 
-        const cacheKey = `ali-tts-cache:${voice}:${languageType}:${text}`
-        try {
-          const cachedUrl = localStorage.getItem(cacheKey)
-          if (cachedUrl) {
-            this.isVoiceLoading = false
-            this.voiceAudioUrl = this.cleanUrl(cachedUrl)
-            const el = new Audio(this.voiceAudioUrl)
-            el.addEventListener('ended', () => { this.isVoiceAuditionPlaying = false })
-            this.voiceAudioEl = el
-            try { await el.play(); this.isVoiceAuditionPlaying = true } catch (e) { this.isVoiceAuditionPlaying = false }
-            return
-          }
-        } catch (e) { /* no-op */ }
-
+        this.voiceAudioUrl = ''
         const submit = await aliTtsSubmit({ text, languageType, voice, token })
-        const taskId = (submit && submit.task_id) || (submit && submit.data && submit.data.task_id) || (typeof submit === 'string' ? (() => { try { const o = JSON.parse(submit); return o && (o.task_id || (o.data && o.data.task_id)) } catch { return '' } })() : '')
+        const submitObj = typeof submit === 'string' ? (() => { try { return JSON.parse(submit) } catch { return null } })() : submit
+        const directUrl = this.cleanUrl((submitObj && (submitObj.audio_url || submitObj.result_url)) || '')
+        const taskId = (submitObj && submitObj.task_id) || (submitObj && submitObj.data && submitObj.data.task_id) || ''
+        const status = String((submitObj && (submitObj.task_status || submitObj.status)) || '').trim().toUpperCase()
+        const needQuery = !!(submitObj && submitObj.need_query)
+        if (directUrl) {
+          this.isVoiceLoading = false
+          this.voiceAuditionTaskId = taskId || ''
+          this.voiceAudioUrl = directUrl
+          const el = new Audio(this.voiceAudioUrl)
+          el.addEventListener('ended', () => { this.isVoiceAuditionPlaying = false })
+          this.voiceAudioEl = el
+          try { await el.play(); this.isVoiceAuditionPlaying = true } catch (e) { this.isVoiceAuditionPlaying = false }
+          return
+        }
+        if (status === 'FAILED') {
+          this.isVoiceLoading = false
+          this.toastText = (submitObj && (submitObj.error_message || submitObj.message)) || '语音生成失败'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
         if (!taskId) { this.isVoiceLoading = false; this.toastText = '语音任务创建失败'; this.toastVisible = true; setTimeout(() => { this.toastVisible = false }, 2000); return }
         this.voiceAuditionTaskId = taskId
         if (this.voicePollTimer) { try { clearInterval(this.voicePollTimer) } catch (e) { void 0 } this.voicePollTimer = null }
+        if (!needQuery) {
+          this.isVoiceLoading = false
+          this.toastText = '语音生成中，请稍后重试'
+          this.toastVisible = true
+          setTimeout(() => { this.toastVisible = false }, 2000)
+          return
+        }
         this.voicePollTimer = setInterval(async() => {
           try {
             const q = await aliTtsQuery({ taskId, token })
             const obj = typeof q === 'string' ? (() => { try { return JSON.parse(q) } catch { return null } })() : q
-            const status = obj && obj.status
-            const url = obj && obj.result_url
-            if (status === 'SUCCEEDED' && url) {
+            const queryStatus = String((obj && (obj.task_status || obj.status)) || '').trim().toUpperCase()
+            const url = this.cleanUrl((obj && (obj.audio_url || obj.result_url)) || '')
+            if (queryStatus === 'SUCCEEDED' && url) {
+              if (this.voiceAuditionTaskId !== taskId) { return }
               try { clearInterval(this.voicePollTimer) } catch (e) { void 0 }
               this.voicePollTimer = null
               this.isVoiceLoading = false
-              try { localStorage.setItem(cacheKey, this.cleanUrl(url)) } catch (e) { /* no-op */ }
-              this.voiceAudioUrl = this.cleanUrl(url)
+              this.voiceAudioUrl = url
               const el = new Audio(this.voiceAudioUrl)
               el.addEventListener('ended', () => { this.isVoiceAuditionPlaying = false })
               this.voiceAudioEl = el
               try { await el.play(); this.isVoiceAuditionPlaying = true } catch (e) { this.isVoiceAuditionPlaying = false }
+            } else if (queryStatus === 'FAILED') {
+              try { clearInterval(this.voicePollTimer) } catch (e) { void 0 }
+              this.voicePollTimer = null
+              this.isVoiceLoading = false
+              this.toastText = (obj && (obj.error_message || obj.message)) || '语音生成失败'
+              this.toastVisible = true
+              setTimeout(() => { this.toastVisible = false }, 2000)
             }
           } catch (e) { /* no-op */ }
         }, 3000)

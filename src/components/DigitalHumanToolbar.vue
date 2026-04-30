@@ -337,20 +337,7 @@ export default {
         const languageType = this.voiceLanguage || 'Chinese'
         const voice = this.voiceName || 'cherry'
 
-        const cacheKey = `ali-tts-cache:${voice}:${languageType}:${text}`
-        try {
-          const cachedUrl = localStorage.getItem(cacheKey)
-          if (cachedUrl) {
-            this.isVoiceLoading = false
-            this.voiceAudioUrl = cachedUrl
-            const el = new Audio(cachedUrl)
-            el.addEventListener('ended', () => { this.isPlaying = false })
-            this.voiceAudioEl = el
-            try { await el.play(); this.isPlaying = true } catch (e) { this.isPlaying = false }
-            return
-          }
-        } catch (e) { void e }
-
+        this.voiceAudioUrl = ''
         const submit = await aliTtsSubmit({ text, languageType, voice, token })
         const taskId = (submit && submit.task_id) || (submit && submit.data && submit.data.task_id) || (typeof submit === 'string' ? (() => { try { const o = JSON.parse(submit); return o && (o.task_id || (o.data && o.data.task_id)) } catch { return '' } })() : '')
         if (!taskId) { this.isVoiceLoading = false; return }
@@ -362,11 +349,11 @@ export default {
             const status = obj && obj.status
             const url = obj && obj.result_url
             if (status === 'SUCCEEDED' && url) {
+              if (!this.voicePollTimer) { return }
               try { clearInterval(this.voicePollTimer) } catch (e) { void e }
               this.voicePollTimer = null
               this.isVoiceLoading = false
               const u = String(url).trim()
-              try { localStorage.setItem(cacheKey, u) } catch (e) { void e }
               this.voiceAudioUrl = u
               const el = new Audio(u)
               el.addEventListener('ended', () => { this.isPlaying = false })
