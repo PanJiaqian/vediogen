@@ -4,6 +4,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { performanceMonitor, lazyLoadImages } from './utils/performance'
+import { enableTraditionalChineseDisplay } from './utils/traditionalChinese'
 
 // 创建Vue应用实例
 const app = createApp(App)
@@ -37,6 +38,9 @@ app.config.errorHandler = (err, vm, info) => {
 
 // 挂载应用
 app.mount('#app')
+
+// 将所有页面展示文案统一转换为繁体中文，覆盖静态文案与动态渲染内容
+enableTraditionalChineseDisplay()
 
 // 页面加载完成后的优化
 document.addEventListener('DOMContentLoaded', () => {

@@ -12,6 +12,7 @@
     "performance": "node scripts/build-optimize.js"
   },
   "dependencies": {
+    "@odict/opencc-js": "^1.2.0",
     "core-js": "^3.8.3",
     "hls.js": "^1.6.15",
     "marked": "^17.0.0",
