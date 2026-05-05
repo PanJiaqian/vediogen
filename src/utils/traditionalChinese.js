@@ -1,4 +1,4 @@
-import { Converter } from '@odict/opencc-js/cn2t'
+import { Converter } from '@odict/opencc-js'
 
 const DISPLAY_ATTRS = ['placeholder', 'title', 'alt', 'aria-label']
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'CODE', 'PRE', 'KBD', 'SAMP'])

@@ -43,6 +43,17 @@
           </router-link>
         </li>
 
+        <li class="nav-item">
+          <router-link to="/material-library" class="nav-link" active-class="nav-link--active">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+              <polyline points="21 15 16 10 5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span class="nav-text">素材库</span>
+          </router-link>
+        </li>
+
         <!-- <li class="nav-item nav-item--with-badge">
           <router-link to="/digital-human" class="nav-link" active-class="nav-link--active">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

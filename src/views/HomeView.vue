@@ -114,6 +114,38 @@
                   </div>
                 </div>
               </div>
+
+              <!-- 严肃开关 -->
+              <div class="action-item-wrapper tooltip-wrapper">
+                <div class="serious-switch-container">
+                  <span class="serious-label">严肃</span>
+                  <label class="switch">
+                    <input type="checkbox" v-model="isSeriousMode">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+                <div class="tooltip-text">开启后，创作过程会严格按照您的输入要求，不会过多的联想设计其他没有提及的情节，适合专业作家创作</div>
+              </div>
+
+              <!-- 附件上传图标 -->
+              <div class="action-item-wrapper tooltip-wrapper">
+                <button class="action-btn icon-only-btn" @click="triggerAttachmentUpload">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" class="attachment-icon">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+                  </svg>
+                </button>
+                <div class="tooltip-text">可上传10个真实素材用于创作</div>
+                <input ref="attachmentInput" type="file" multiple accept="image/*,video/*" @change="handleAttachmentUpload" style="display: none;" />
+              </div>
+
+              <!-- 附件缩略图堆叠展开区域 -->
+              <div v-if="attachments.length > 0" class="attachments-stack-container">
+                <div v-for="(file, index) in attachments" :key="index" class="attachment-stack-card">
+                  <img v-if="file.type === 'image'" :src="file.url" alt="preview" />
+                  <video v-else-if="file.type === 'video'" :src="file.url" />
+                  <button class="remove-attachment-btn" @click.stop="removeAttachment(index)">×</button>
+                </div>
+              </div>
             </div>
             <div class="right-actions">
               <div class="input-counter">
@@ -289,7 +321,9 @@ export default {
       uploadSubmitting: false,
       uploadPreviewVisible: false,
       uploadPreviewType: '',
-      uploadPreviewSrc: ''
+      uploadPreviewSrc: '',
+      isSeriousMode: false,
+      attachments: []
     }
   },
   computed: {
@@ -476,6 +510,36 @@ export default {
     showMessage(text, type = 'success') {
       this.message = { show: true, text, type }
       setTimeout(() => { this.message.show = false }, 3000)
+    },
+    triggerAttachmentUpload() {
+      if (this.attachments.length >= 10) {
+        this.showMessage('最多只能上传10个素材', 'error')
+        return
+      }
+      this.$refs.attachmentInput && this.$refs.attachmentInput.click()
+    },
+    handleAttachmentUpload(event) {
+      const files = event.target.files
+      if (!files || files.length === 0) return
+      
+      const remainingSlots = 10 - this.attachments.length
+      const filesToProcess = Array.from(files).slice(0, remainingSlots)
+      
+      filesToProcess.forEach(file => {
+        const type = file.type.startsWith('video/') ? 'video' : 'image'
+        const url = URL.createObjectURL(file)
+        this.attachments.push({ file, type, url })
+      })
+      
+      // 清空 input，允许重复上传同一个文件
+      event.target.value = ''
+    },
+    removeAttachment(index) {
+      const attachment = this.attachments[index]
+      if (attachment && attachment.url) {
+        URL.revokeObjectURL(attachment.url)
+      }
+      this.attachments.splice(index, 1)
     },
     handleSearch() {
       // 未登录时拦截
@@ -1015,6 +1079,221 @@ export default {
 
 .paint-icon:after {
   transform: rotate(-45deg);
+}
+
+.action-item-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.attachments-stack-container {
+  display: flex;
+  align-items: center;
+  margin-left: 12px;
+  position: relative;
+  height: 36px;
+  padding: 0 4px;
+  transition: all 0.3s ease;
+}
+
+.attachment-stack-card {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: 2px solid var(--bg-primary);
+  background: var(--bg-secondary);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  z-index: 1;
+}
+
+/* 默认未悬浮时：将后续卡片向左折叠堆叠 */
+.attachments-stack-container .attachment-stack-card:not(:first-child) {
+  margin-left: -24px;
+}
+
+/* 根据顺序提高层级，确保最左边的在最上层，并添加随机倾斜感 */
+.attachments-stack-container .attachment-stack-card:nth-child(1) { z-index: 10; transform: rotate(-5deg); }
+.attachments-stack-container .attachment-stack-card:nth-child(2) { z-index: 9; transform: rotate(8deg); }
+.attachments-stack-container .attachment-stack-card:nth-child(3) { z-index: 8; transform: rotate(-12deg); }
+.attachments-stack-container .attachment-stack-card:nth-child(4) { z-index: 7; transform: rotate(6deg); }
+.attachments-stack-container .attachment-stack-card:nth-child(5) { z-index: 6; transform: rotate(-8deg); }
+.attachments-stack-container .attachment-stack-card:nth-child(6) { z-index: 5; transform: rotate(10deg); }
+.attachments-stack-container .attachment-stack-card:nth-child(7) { z-index: 4; transform: rotate(-6deg); }
+.attachments-stack-container .attachment-stack-card:nth-child(8) { z-index: 3; transform: rotate(12deg); }
+.attachments-stack-container .attachment-stack-card:nth-child(9) { z-index: 2; transform: rotate(-10deg); }
+.attachments-stack-container .attachment-stack-card:nth-child(10) { z-index: 1; transform: rotate(5deg); }
+
+/* 悬浮展开时：增加间距，但保留原有的创意倾斜角度 */
+.attachments-stack-container:hover .attachment-stack-card:not(:first-child) {
+  margin-left: -10px;
+}
+
+.attachments-stack-container:hover .attachment-stack-card:nth-child(1) { transform: translateX(0) rotate(-4deg); }
+.attachments-stack-container:hover .attachment-stack-card:nth-child(2) { transform: translateX(5px) rotate(6deg); }
+.attachments-stack-container:hover .attachment-stack-card:nth-child(3) { transform: translateX(10px) rotate(-8deg); }
+.attachments-stack-container:hover .attachment-stack-card:nth-child(4) { transform: translateX(15px) rotate(4deg); }
+.attachments-stack-container:hover .attachment-stack-card:nth-child(5) { transform: translateX(20px) rotate(-6deg); }
+.attachments-stack-container:hover .attachment-stack-card:nth-child(6) { transform: translateX(25px) rotate(8deg); }
+.attachments-stack-container:hover .attachment-stack-card:nth-child(7) { transform: translateX(30px) rotate(-4deg); }
+.attachments-stack-container:hover .attachment-stack-card:nth-child(8) { transform: translateX(35px) rotate(10deg); }
+.attachments-stack-container:hover .attachment-stack-card:nth-child(9) { transform: translateX(40px) rotate(-8deg); }
+.attachments-stack-container:hover .attachment-stack-card:nth-child(10) { transform: translateX(45px) rotate(4deg); }
+
+/* 鼠标精确悬浮到某张卡片时：扶正并放大 */
+.attachments-stack-container:hover .attachment-stack-card:hover {
+  transform: translateY(-8px) scale(1.3) rotate(0deg) !important;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  z-index: 20 !important;
+}
+
+.attachment-stack-card img,
+.attachment-stack-card video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background-color: var(--bg-tertiary);
+}
+
+.remove-attachment-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 12px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 2;
+}
+
+.attachment-stack-card:hover .remove-attachment-btn {
+  opacity: 1;
+}
+
+.serious-switch-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  height: 30px;
+}
+
+.serious-label {
+  font-size: 0.87rem;
+  color: var(--text-tertiary);
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 28px;
+  height: 16px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 12px;
+  width: 12px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: var(--primary-color, #3b82f6);
+}
+
+input:checked + .slider:before {
+  transform: translateX(12px);
+}
+
+.slider.round {
+  border-radius: 16px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+
+.icon-only-btn {
+  padding: 0.5rem;
+  width: 30px;
+  justify-content: center;
+}
+
+.attachment-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Tooltip styles */
+.tooltip-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.tooltip-text {
+  visibility: hidden;
+  width: max-content;
+  max-width: 200px;
+  background-color: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  text-align: left;
+  border-radius: 6px;
+  padding: 8px 12px;
+  position: absolute;
+  z-index: 10;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  pointer-events: none;
+}
+
+.tooltip-wrapper:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
 }
 
 .search-submit-btn {

@@ -12,12 +12,25 @@
             <video v-if="isVideo" ref="previewVideo" :src="clean(videoUrl)" :poster="clean(imageUrl)"
               class="preview-video" muted loop playsinline preload="metadata"></video>
             <img v-else :src="clean(imageUrl)" class="preview-image" />
+            
+            <!-- 严肃纠正遮罩层 -->
+            <div v-if="isCorrecting" class="correcting-overlay">
+              <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <div class="correcting-text">{{ correctionText }}</div>
+              </div>
+            </div>
+            
+            <!-- 气泡提示 -->
+            <div v-if="showCorrectionToast" class="correction-toast">
+              <span>✓ 当前内容和原要求一致，无需修改</span>
+            </div>
           </div>
         </div>
         <div class="timeline-area">
           <div class="duration-label">{{ selectedSeconds }}s</div>
           <div ref="timeline" class="timeline" @mousedown="onMouseDown">
-            <button class="play-btn" @click="togglePlay">
+            <button class="play-btn" @click="togglePlay" :disabled="isCorrecting">
               <span v-if="!playing">▶</span>
               <span v-else>⏸</span>
             </button>
@@ -28,10 +41,18 @@
               </div>
               <div class="handle handle-end" :style="endStyle" @mousedown.stop="onHandleDown('end', $event)"></div>
             </div>
+            
+            <!-- 轨道严肃纠正遮罩层 -->
+            <div v-if="isCorrecting" class="timeline-correcting-overlay">
+              <div class="loading-spinner timeline-spinner"></div>
+            </div>
           </div>
         </div>
         <div class="footer">
-          <button class="reset-btn" @click="reset">重置修改</button>
+          <div class="left-actions">
+            <button class="reset-btn" @click="reset">重置修改</button>
+            <button class="serious-btn" @click="handleSeriousCorrect" :disabled="isCorrecting">严肃纠正</button>
+          </div>
           <button class="apply-btn" @click="apply">应用修改</button>
         </div>
       </div>
@@ -57,13 +78,22 @@ export default {
       playing: false,
       startPct: 0,
       endPct: 100,
-      dragTarget: null
+      dragTarget: null,
+      isCorrecting: false,
+      correctionText: '',
+      showCorrectionToast: false
     }
   },
   watch: {
     visible(v) {
       if (v) this.reset()
-      if (!v) this.stopPlayback()
+      if (!v) {
+        this.stopPlayback()
+        this.isCorrecting = false
+        this.showCorrectionToast = false
+        clearTimeout(this._correctionTimer)
+        clearTimeout(this._toastTimer)
+      }
     }
   },
   computed: {
@@ -102,6 +132,43 @@ export default {
     }
   },
   methods: {
+    /**
+     * 模拟严肃纠正流程
+     * 依次显示：回溯素材设计(5s) -> 反思纠正步骤(3s) -> 正在生成中(5s)
+     */
+    async handleSeriousCorrect() {
+      if (this.isCorrecting) return
+      this.isCorrecting = true
+      
+      const delay = (ms) => new Promise(resolve => {
+        this._correctionTimer = setTimeout(resolve, ms)
+      })
+      
+      try {
+        this.showCorrectionToast = false
+        this.correctionText = '回溯素材设计'
+        await delay(5000)
+        if (!this.isCorrecting) return
+        
+        this.correctionText = '反思纠正步骤'
+        await delay(3000)
+        if (!this.isCorrecting) return
+        
+        this.correctionText = '正在生成中'
+        await delay(5000)
+        if (!this.isCorrecting) return
+        
+        // 流程结束，显示提示气泡
+        this.showCorrectionToast = true
+        this._toastTimer = setTimeout(() => {
+          this.showCorrectionToast = false
+        }, 3000) // 气泡显示3秒后自动消失
+      } finally {
+        this.isCorrecting = false
+        this.correctionText = ''
+        clearTimeout(this._correctionTimer)
+      }
+    },
     clean(u) {
       return cleanUrl(u)
     },
@@ -195,6 +262,7 @@ export default {
       this.playing = false
     },
     onMouseDown(e) {
+      if (this.isCorrecting) return
       const inner = this.$refs.trackInner || this.$refs.timeline
       const rect = inner.getBoundingClientRect()
       const x = e.clientX - rect.left
@@ -207,6 +275,7 @@ export default {
       this.updatePct(pct)
     },
     onHandleDown(target, e) {
+      if (this.isCorrecting) return
       this.dragTarget = target
       document.addEventListener('mousemove', this.onMouseMove)
       document.addEventListener('mouseup', this.onMouseUp)
@@ -309,6 +378,116 @@ export default {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  position: relative;
+}
+
+.correcting-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-primary, #ffffff);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  /* 添加毛玻璃效果和更细腻的背景过渡 */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--bg-tertiary, #f3f4f6);
+  border-radius: 50%;
+  border-top-color: var(--success-color, #10b981);
+  border-right-color: rgba(16, 185, 129, 0.4);
+  animation: spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+  margin-bottom: 0;
+}
+
+/* 深色模式下的蓝色加载圈 */
+:root[data-theme="dark"] .loading-spinner {
+  border-top-color: var(--primary-color, #3b82f6);
+  border-right-color: rgba(59, 130, 246, 0.4);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.correcting-text {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: var(--text-primary, #111827);
+  background: linear-gradient(90deg, var(--text-primary, #111827), var(--success-color, #10b981), var(--text-primary, #111827));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 2s linear infinite;
+}
+
+.correction-toast {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(17, 24, 39, 0.85);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: toastSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toastSlideDown {
+  from { opacity: 0; transform: translate(-50%, -20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* 深色模式下的气泡样式微调 */
+:root[data-theme="dark"] .correction-toast {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 深色模式下的蓝色渐变文字 */
+:root[data-theme="dark"] .correcting-text {
+  background: linear-gradient(90deg, var(--text-primary, #e5e7eb), var(--primary-color, #3b82f6), var(--text-primary, #e5e7eb));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes shimmer {
+  to { background-position: 200% center; }
 }
 
 .preview-video,
@@ -343,6 +522,29 @@ export default {
   border-radius: 12px;
   padding: 16px 40px 16px 56px;
   overflow: hidden;
+}
+
+.timeline-correcting-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-tertiary, #f3f4f6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.timeline-spinner {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+  margin-bottom: 0;
 }
 
 .track-inner {
@@ -412,12 +614,31 @@ export default {
   padding-top: 16px;
 }
 
+.left-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .reset-btn {
   background: none;
   border: none;
   color: var(--error-color);
   cursor: pointer;
   font-size: 14px;
+}
+
+.serious-btn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary, #999);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.serious-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .apply-btn {

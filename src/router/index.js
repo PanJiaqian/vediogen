@@ -18,6 +18,11 @@ const routes = [
     component: () => import(/* webpackChunkName: "asset-library" */ '../views/AssetLibraryView.vue')
   },
   {
+    path: '/material-library',
+    name: 'MaterialLibrary',
+    component: () => import(/* webpackChunkName: "material-library" */ '../views/MaterialLibraryView.vue')
+  },
+  {
     path: '/digital-human',
     name: 'DigitalHuman',
     component: () => import(/* webpackChunkName: "digital-human" */ '../views/DigitalHumanView.vue')
@@ -86,7 +91,7 @@ router.beforeEach((to, from, next) => {
     }, 50)
     return next({ name: 'Home', query: { invited: String(code || '') } })
   }
-  const protectedNames = ['MyProjects', 'AssetLibrary', 'DigitalHuman']
+  const protectedNames = ['MyProjects', 'AssetLibrary', 'MaterialLibrary', 'DigitalHuman']
   try {
     const { useUserStore } = require('../stores/user')
     const userStore = useUserStore()
