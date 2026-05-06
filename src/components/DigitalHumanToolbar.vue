@@ -45,7 +45,7 @@
               <span v-else>▶</span>
             </div>
             <div class="voice-options">
-              <span class="voice-option">{{ voiceName }}</span>
+              <span class="voice-option">{{ voiceDisplayName }}</span>
               <span class="voice-option">{{ voiceGender }}</span>
               <span class="voice-option">{{ voiceAge }}</span>
               <!-- <span class="voice-option">{{ voiceStyle }}</span> -->
@@ -179,7 +179,7 @@
     </div>
     <div v-if="toastVisible" class="floating-toast">{{ toastText }}</div>
     <ToneSelector v-if="showToneSelector" :visible="true" @close="showToneSelector = false" @select="handleToneSelect"
-      :token="userStore.token" modelName="qwen3-TTS-Flash" />
+      :token="userStore.token" modelName="cosyvoice-v3-flash" />
 
   </div>
 </template>
@@ -231,7 +231,8 @@ export default {
       voiceAudioUrl: '',
       toastVisible: false,
       toastText: '',
-      voiceName: 'cherry',
+      voiceName: 'longanyang',
+      voiceDisplayName: '龙安洋',
       voiceLanguage: 'Chinese',
       voiceGender: '女性',
       voiceAge: '青年',
@@ -239,7 +240,7 @@ export default {
       showToneSelector: false,
       activeTab: 'text', // text | upload
       uploadVolume: 100,
-      supportedLanguages: [],
+      supportedLanguages: ['Chinese', 'English'],
       uploadAudioEl: null,
       uploadAudioFile: null,
       uploadAudioUrl: '',
@@ -256,16 +257,42 @@ export default {
   },
   mounted() {
     try {
-      if (this.voiceName && (!this.supportedLanguages || this.supportedLanguages.length === 0)) {
-        this.supportedLanguages = [
-          'Chinese', 'English', 'Japanese', 'Korean', 'French',
-          'German', 'Spanish', 'Italian', 'Russian', 'Portuguese',
-          'Hindi', 'Arabic'
-        ]
-      }
+      this.supportedLanguages = this.normalizeSupportedLanguages(this.supportedLanguages)
+      this.voiceLanguage = this.syncVoiceLanguageWithSupported(this.voiceLanguage, this.supportedLanguages)
     } catch (e) { /* no-op */ }
   },
   methods: {
+    /**
+     * 归一化音色支持语种列表，确保下拉框只展示当前音色实际可用语种。
+     * @param {string[]|string} languages 原始语种数据
+     * @returns {string[]} 规范后的语种数组
+     * @example normalizeSupportedLanguages(['Chinese', 'English'])
+     */
+    normalizeSupportedLanguages(languages) {
+      const source = Array.isArray(languages) ? languages : ((languages && [languages]) || [])
+      const normalized = []
+      source.forEach(item => {
+        const value = String(item || '').trim()
+        if (value && !normalized.includes(value)) {
+          normalized.push(value)
+        }
+      })
+      return normalized
+    },
+    /**
+     * 根据当前音色支持语种修正语种选择器的值。
+     * @param {string} currentLanguage 当前语种
+     * @param {string[]} supportedLanguages 当前音色支持语种
+     * @returns {string} 最终可用语种
+     * @example syncVoiceLanguageWithSupported('Japanese', ['Chinese', 'English'])
+     */
+    syncVoiceLanguageWithSupported(currentLanguage, supportedLanguages) {
+      const normalized = this.normalizeSupportedLanguages(supportedLanguages)
+      if (normalized.length === 0) {
+        return currentLanguage || 'Chinese'
+      }
+      return normalized.includes(currentLanguage) ? currentLanguage : normalized[0]
+    },
     async updateDHSubtitle() {
       try {
         const token = (this.userStore && this.userStore.token) || ''
@@ -289,9 +316,10 @@ export default {
       }
     },
     handleToneSelect(selected) {
-      this.voiceName = selected.name || selected.voiceName
-      this.voiceLanguage = selected.language
-      this.supportedLanguages = Array.isArray(selected.supportedLanguages) ? selected.supportedLanguages : ((selected.language && [selected.language]) || [])
+      this.voiceName = selected.voiceName
+      this.voiceDisplayName = selected.name || selected.voiceName
+      this.supportedLanguages = this.normalizeSupportedLanguages(Array.isArray(selected.supportedLanguages) ? selected.supportedLanguages : ((selected.language && [selected.language]) || []))
+      this.voiceLanguage = this.syncVoiceLanguageWithSupported(selected.language, this.supportedLanguages)
       this.voiceGender = this.toZhGender(selected.gender) || this.voiceGender
       this.voiceAge = selected.age || this.voiceAge
       this.voiceStyle = selected.style || this.voiceStyle
@@ -335,7 +363,7 @@ export default {
         this.isVoiceLoading = true
         const text = String(this.textInput || '').trim() || '你好，欢迎体验数字人朗读'
         const languageType = this.voiceLanguage || 'Chinese'
-        const voice = this.voiceName || 'cherry'
+        const voice = this.voiceName || 'longanyang'
 
         this.voiceAudioUrl = ''
         const submit = await aliTtsSubmit({ text, languageType, voice, token })

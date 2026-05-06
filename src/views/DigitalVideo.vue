@@ -56,7 +56,7 @@
     </div>
 
     <ToneSelector v-if="showToneSelector" :visible="true" @close="showToneSelector = false" @select="handleToneSelect"
-      :token="userStore.token" modelName="qwen3-TTS-Flash" />
+      :token="userStore.token" modelName="cosyvoice-v3-flash" />
 
     <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
     <PointsModal :visible="showPointsModal" :userInfo="mergedUserInfo" @close="showPointsModal = false" />
@@ -250,7 +250,7 @@
                     </svg>
                   </button>
                   <div class="voice-card-tags">
-                    <span class="voice-tag">{{ voiceName }}</span>
+                    <span class="voice-tag">{{ voiceDisplayName }}</span>
                     <span class="voice-tag">{{ voiceGender }}</span>
                     <span class="voice-tag">{{ voiceAge }}</span>
                     <!-- <span class="voice-tag">{{ voiceStyle }}</span> -->
@@ -772,9 +772,10 @@ export default {
       voiceGender: '女性',
       voiceAge: '中年',
       voiceStyle: '普通话',
-      voiceName: '芊悦', // 默认音色
+      voiceName: 'longanyang', // 默认音色
+      voiceDisplayName: '龙安洋',
       voiceLanguage: 'Chinese', // 默认为 Chinese
-      supportedLanguages: [],
+      supportedLanguages: ['Chinese', 'English'],
       showLanguageSelector: false,
       showToneSelector: false,
       voiceEmotion: '默认',
@@ -3074,10 +3075,42 @@ export default {
         setTimeout(() => { this.toastVisible = false }, 2000)
       }
     },
+    /**
+     * 归一化音色支持语种列表，确保配音语种选择器与当前音色能力一致。
+     * @param {string[]|string} languages 原始语种数据
+     * @returns {string[]} 去重后的语种数组
+     * @example normalizeSupportedLanguages(['Chinese', 'English'])
+     */
+    normalizeSupportedLanguages(languages) {
+      const source = Array.isArray(languages) ? languages : ((languages && [languages]) || [])
+      const normalized = []
+      source.forEach(item => {
+        const value = String(item || '').trim()
+        if (value && !normalized.includes(value)) {
+          normalized.push(value)
+        }
+      })
+      return normalized
+    },
+    /**
+     * 根据当前音色支持语种自动修正语种选择值。
+     * @param {string} currentLanguage 当前语种
+     * @param {string[]} supportedLanguages 当前音色支持语种
+     * @returns {string} 最终语种值
+     * @example syncVoiceLanguageWithSupported('Japanese', ['Chinese', 'English'])
+     */
+    syncVoiceLanguageWithSupported(currentLanguage, supportedLanguages) {
+      const normalized = this.normalizeSupportedLanguages(supportedLanguages)
+      if (normalized.length === 0) {
+        return currentLanguage || 'Chinese'
+      }
+      return normalized.includes(currentLanguage) ? currentLanguage : normalized[0]
+    },
     handleToneSelect(selected) {
       this.voiceName = selected.voiceName
-      this.voiceLanguage = selected.language
-      this.supportedLanguages = Array.isArray(selected.supportedLanguages) ? selected.supportedLanguages : ((selected.language && [selected.language]) || [])
+      this.voiceDisplayName = selected.name || selected.voiceName
+      this.supportedLanguages = this.normalizeSupportedLanguages(Array.isArray(selected.supportedLanguages) ? selected.supportedLanguages : ((selected.language && [selected.language]) || []))
+      this.voiceLanguage = this.syncVoiceLanguageWithSupported(selected.language, this.supportedLanguages)
       this.voiceGender = this.toZhGender(selected.gender) || this.voiceGender
       this.voiceAge = selected.age || this.voiceAge
       this.voiceStyle = selected.style || this.voiceStyle

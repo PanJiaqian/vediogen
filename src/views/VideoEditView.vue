@@ -52,7 +52,7 @@
     </div>
 
     <ToneSelector v-if="showToneSelector" :visible="true" @close="showToneSelector = false" @select="handleToneSelect"
-      :token="userStore.token" modelName="qwen3-TTS-Flash" />
+      :token="userStore.token" modelName="cosyvoice-v3-flash" />
 
     <MembershipModal :visible="showMembershipModal" @close="showMembershipModal = false" />
     <PointsModal :visible="showPointsModal" @close="showPointsModal = false" />
@@ -538,7 +538,7 @@
                     </svg>
                   </button>
                   <div class="voice-card-tags">
-                    <span class="voice-tag">{{ voiceName }}</span>
+                    <span class="voice-tag">{{ voiceDisplayName }}</span>
                     <span class="voice-tag">{{ voiceGender }}</span>
                     <span class="voice-tag">{{ voiceAge }}</span>
                     <!-- <span class="voice-tag">{{ voiceStyle }}</span> -->
@@ -556,18 +556,7 @@
                     <span class="voice-setting-title">语种选择</span>
                     <div v-if="!voiceName" class="no-voice-tip">请先选择音色</div>
                     <select v-else v-model="voiceLanguage" class="filter-select" style="min-width: 140px;">
-                      <option value="Chinese">中文</option>
-                      <option value="English">英语</option>
-                      <option value="Japanese">日语</option>
-                      <option value="Korean">韩语</option>
-                      <option value="French">法语</option>
-                      <option value="German">德语</option>
-                      <option value="Spanish">西班牙语</option>
-                      <option value="Italian">意大利语</option>
-                      <option value="Russian">俄语</option>
-                      <option value="Portuguese">葡萄牙语</option>
-                      <option value="Hindi">印地语</option>
-                      <option value="Arabic">阿拉伯语</option>
+                      <option v-for="lang in supportedLanguages" :key="lang" :value="lang">{{ toZhLanguage(lang) }}</option>
                     </select>
                   </div>
                 </div>
@@ -1241,7 +1230,7 @@ import LipSyncView from '@/views/LipSyncView.vue'
 import CanvasEditView from '@/views/CanvasEditView.vue'
 import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
-import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, regenerateStoryboardVideo, updateVideoTitle, exportWorksVideoStream, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene, uploadBackgroundMusic as uploadBackgroundMusicApi, getWorksVideoDetail, getSubtitleState, updateSubtitleState, deleteBackgroundMusic as deleteBackgroundMusicApi, deleteAliTts, toggleSceneMuted as toggleSceneMutedApi } from '@/api'
+import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, regenerateStoryboardVideo, updateVideoTitle, exportWorksVideoStream, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene, uploadBackgroundMusic as uploadBackgroundMusicApi, getWorksVideoDetail, getSubtitleState, updateSubtitleState, deleteBackgroundMusic as deleteBackgroundMusicApi, deleteAliTts, toggleSceneMuted as toggleSceneMutedApi, batchSubmitStoryboardVoiceover } from '@/api'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil, getPlayableAudioUrl as getPlayableAudioUrlUtil } from '@/utils/media'
 
@@ -1282,9 +1271,10 @@ export default {
       voiceGender: '女性',
       voiceAge: '青年',
       voiceStyle: '普通话',
-      voiceName: '芊悦',
+      voiceName: 'longanyang',
+      voiceDisplayName: '龙安洋',
       voiceLanguage: 'Chinese', // 默认为 Chinese
-      supportedLanguages: [],
+      supportedLanguages: ['Chinese', 'English'],
       showLanguageSelector: false,
       showToneSelector: false,
       voiceEmotion: '默认',
@@ -1611,11 +1601,7 @@ export default {
     if (!this._entryIsGenerate) { this.pollImagesActive = true; this.pollStoryboardImagesDetail() }
     this.precacheSceneThumbnails()
     if (this.voiceName && (!this.supportedLanguages || this.supportedLanguages.length === 0)) {
-      this.supportedLanguages = [
-        'Chinese', 'English', 'Japanese', 'Korean', 'French',
-        'German', 'Spanish', 'Italian', 'Russian', 'Portuguese',
-        'Hindi', 'Arabic'
-      ]
+        this.supportedLanguages = ['Chinese', 'English']
     }
     // this.$nextTick(() => { this.tryAttachHls() })
     Promise.resolve().then(async() => {
@@ -4152,6 +4138,7 @@ export default {
             try { resp = JSON.parse(text) } catch { resp = null }
             const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
             if (list.length) {
+              await this.triggerStoryboardVoiceoverBatchIfNeeded(projectId, curVideoId, token, list)
               const map = new Map()
               const idxMap = new Map()
               let anyVideoQueued = false
@@ -4274,6 +4261,38 @@ export default {
           try { localStorage.removeItem(`video-edit:viewStoryboard:${projectId}`) } catch (e) { void 0 }
         }
         this.pollImagesActive = false
+      }
+    },
+    /**
+     * 在编辑页真正拿到分镜列表后补发一次批量配音，避免 SSE 事件结构变化导致完全不触发。
+     * @param {string} projectId 项目 ID
+     * @param {string|number} videoId 视频 ID
+     * @param {string} token 登录令牌
+     * @param {Array} sceneList 当前分镜列表
+     * @returns {Promise<void>}
+     * @example await this.triggerStoryboardVoiceoverBatchIfNeeded('1', '1', token, list)
+     */
+    async triggerStoryboardVoiceoverBatchIfNeeded(projectId, videoId, token, sceneList) {
+      if (!projectId || !videoId || !token || !Array.isArray(sceneList) || sceneList.length === 0) return
+      const guardKey = `video-edit:voiceoverBatchStarted:${projectId}`
+      if (this._storyboardVoiceoverStarted) return
+      try {
+        if (localStorage.getItem(guardKey) === '1') {
+          this._storyboardVoiceoverStarted = true
+          return
+        }
+      } catch (e) { /* no-op */ }
+      try {
+        const resp = await batchSubmitStoryboardVoiceover({ videoId, token })
+        if (!resp || resp.success === false) {
+          console.warn('编辑页补发一键分镜配音失败:', resp)
+          return
+        }
+        this._storyboardVoiceoverStarted = true
+        try { localStorage.setItem(guardKey, '1') } catch (e) { /* no-op */ }
+        console.log('编辑页补发一键分镜配音成功:', resp)
+      } catch (e) {
+        console.warn('编辑页补发一键分镜配音请求失败:', e)
       }
     },
     async updateLeftPreviewFromImagesDetail() {
@@ -5591,10 +5610,42 @@ export default {
         setTimeout(() => { this.toastVisible = false }, 2000)
       }
     },
+    /**
+     * 归一化音色支持语种列表，确保下拉框仅展示当前音色支持的语种。
+     * @param {string[]|string} languages 原始语种数据
+     * @returns {string[]} 去重后的语种数组
+     * @example normalizeSupportedLanguages(['Chinese', 'English'])
+     */
+    normalizeSupportedLanguages(languages) {
+      const source = Array.isArray(languages) ? languages : ((languages && [languages]) || [])
+      const normalized = []
+      source.forEach(item => {
+        const value = String(item || '').trim()
+        if (value && !normalized.includes(value)) {
+          normalized.push(value)
+        }
+      })
+      return normalized
+    },
+    /**
+     * 根据当前音色支持语种自动修正语种选择值。
+     * @param {string} currentLanguage 当前语种
+     * @param {string[]} supportedLanguages 当前音色支持语种
+     * @returns {string} 最终语种值
+     * @example syncVoiceLanguageWithSupported('Japanese', ['Chinese', 'English'])
+     */
+    syncVoiceLanguageWithSupported(currentLanguage, supportedLanguages) {
+      const normalized = this.normalizeSupportedLanguages(supportedLanguages)
+      if (normalized.length === 0) {
+        return currentLanguage || 'Chinese'
+      }
+      return normalized.includes(currentLanguage) ? currentLanguage : normalized[0]
+    },
     handleToneSelect(selected) {
-      this.voiceName = selected.name || selected.voiceName
-      this.voiceLanguage = selected.language
-      this.supportedLanguages = Array.isArray(selected.supportedLanguages) ? selected.supportedLanguages : ((selected.language && [selected.language]) || [])
+      this.voiceName = selected.voiceName
+      this.voiceDisplayName = selected.name || selected.voiceName
+      this.supportedLanguages = this.normalizeSupportedLanguages(Array.isArray(selected.supportedLanguages) ? selected.supportedLanguages : ((selected.language && [selected.language]) || []))
+      this.voiceLanguage = this.syncVoiceLanguageWithSupported(selected.language, this.supportedLanguages)
       this.voiceGender = this.toZhGender(selected.gender) || this.voiceGender
       this.voiceAge = selected.age || this.voiceAge
       this.voiceStyle = selected.style || this.voiceStyle
