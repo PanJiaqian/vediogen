@@ -129,7 +129,7 @@ export default {
     },
     modelName: {
       type: String,
-      default: 'qwen3-TTS-Flash'
+      default: 'cosyvoice-v3-flash'
     }
   },
   emits: ['close', 'select'],
@@ -234,8 +234,51 @@ export default {
       return map[s] || g
     },
     getDisplayLanguage(tone) {
-      const lang = (tone.supportedLanguages && tone.supportedLanguages[0]) || tone.language
+      const languages = this.normalizeSupportedLanguages(tone.supportedLanguages)
+      const lang = languages[0] || tone.language
       return this.toZhLanguage(lang)
+    },
+    /**
+     * 将接口返回的语言列表归一化为前端统一值。
+     * @param {string[]|string} languages 原始语言列表
+     * @returns {string[]} 归一化后的语言列表
+     * @example normalizeSupportedLanguages(['中文（普通话）', '英文'])
+     */
+    normalizeSupportedLanguages(languages) {
+      const source = Array.isArray(languages) ? languages : ((languages && [languages]) || [])
+      const normalized = []
+      source.forEach(item => {
+        const value = this.normalizeLanguageValue(item)
+        if (value && !normalized.includes(value)) {
+          normalized.push(value)
+        }
+      })
+      return normalized
+    },
+    /**
+     * 将中文描述或别名映射为接口提交使用的标准语言值。
+     * @param {string} language 原始语言描述
+     * @returns {string} 标准语言值
+     * @example normalizeLanguageValue('中文（粤语）')
+     */
+    normalizeLanguageValue(language) {
+      const raw = String(language || '').trim()
+      if (!raw) return ''
+      const lower = raw.toLowerCase()
+      if (lower.includes('cantonese') || lower.includes('yue') || raw.includes('粤语')) return 'Cantonese'
+      if (lower.includes('japanese') || raw.includes('日语')) return 'Japanese'
+      if (lower.includes('korean') || raw.includes('韩语')) return 'Korean'
+      if (lower.includes('english') || raw.includes('英文') || raw.includes('英语')) return 'English'
+      if (lower.includes('french') || raw.includes('法语')) return 'French'
+      if (lower.includes('german') || raw.includes('德语')) return 'German'
+      if (lower.includes('spanish') || raw.includes('西班牙语')) return 'Spanish'
+      if (lower.includes('italian') || raw.includes('意大利语')) return 'Italian'
+      if (lower.includes('russian') || raw.includes('俄语')) return 'Russian'
+      if (lower.includes('portuguese') || raw.includes('葡萄牙语')) return 'Portuguese'
+      if (lower.includes('hindi') || raw.includes('印地语')) return 'Hindi'
+      if (lower.includes('arabic') || raw.includes('阿拉伯语')) return 'Arabic'
+      if (lower.includes('chinese') || raw.includes('中文') || raw.includes('普通话') || raw.includes('东北话') || raw.includes('陕西话')) return 'Chinese'
+      return raw
     },
     toZhLanguage(lang) {
       const s = String(lang || '').trim().toLowerCase()
@@ -272,7 +315,10 @@ export default {
         }
 
         if (data && (data.code === 200 || data.code === 0)) {
-          this.tones = Array.isArray(data.data) ? data.data : []
+          this.tones = (Array.isArray(data.data) ? data.data : []).map(tone => ({
+            ...tone,
+            supportedLanguages: this.normalizeSupportedLanguages(tone.supportedLanguages)
+          }))
         } else {
           this.error = (data && data.message) || '获取音色列表失败'
         }
@@ -314,7 +360,7 @@ export default {
     confirmSelection() {
       if (this.selectedToneData) {
         const tone = this.selectedToneData
-        const languages = Array.isArray(tone.supportedLanguages) ? tone.supportedLanguages : []
+        const languages = this.normalizeSupportedLanguages(tone.supportedLanguages)
         const lang = languages.length > 0 ? languages[0] : (tone.language || 'Chinese')
 
         this.$emit('select', {

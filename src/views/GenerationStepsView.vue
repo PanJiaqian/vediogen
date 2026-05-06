@@ -235,7 +235,6 @@ export default {
       if (!token) {
         return
       }
-      this.triggerStoryboardVoiceoverBatch(videoId, token)
       let attempts = 0
       while (attempts < 3) {
         try {
@@ -254,6 +253,7 @@ export default {
                 if (this.generationTimeout) clearTimeout(this.generationTimeout)
                 if (this.timeoutRedirectTimer) clearTimeout(this.timeoutRedirectTimer)
                 this.timeoutPromptVisible = false
+                this.triggerStoryboardVoiceoverBatch(videoId, token)
                 if (obj.Storyboard_picture) {
                   this.handleStoryboardPicture(obj.Storyboard_picture)
                 }
@@ -278,8 +278,12 @@ export default {
     },
     async triggerStoryboardVoiceoverBatch(videoId, token) {
       if (!videoId || !token) return
+      const projectId = this.$route.params.id
+      const guardKey = `video-edit:voiceoverBatchStarted:${projectId}`
       if (this._storyboardVoiceoverStarted) return
-      this._storyboardVoiceoverStarted = true
+      try {
+        if (localStorage.getItem(guardKey) === '1') return
+      } catch (e) { /* no-op */ }
       try {
         const resp = await batchSubmitStoryboardVoiceover({ videoId, token })
         if (!resp) {
@@ -291,6 +295,8 @@ export default {
           console.warn('一键生成剧本分镜配音启动失败:', msg, resp)
           return
         }
+        this._storyboardVoiceoverStarted = true
+        try { localStorage.setItem(guardKey, '1') } catch (e) { /* no-op */ }
         console.log('一键生成剧本分镜配音已启动:', resp)
       } catch (e) {
         console.warn('一键生成剧本分镜配音请求失败:', e)
