@@ -726,7 +726,7 @@ export default {
       const subjectDropdown = this.$el?.querySelector('.subject-dropdown')
       const styleDropdown = this.$el?.querySelector('.style-dropdown')
       const subjectBtn = this.$el?.querySelector('.dropdown-container:first-child .action-btn')
-      const styleBtn = this.$el?.querySelector('.dropdown-container:last-child .action-btn')
+      const styleBtn = this.$el?.querySelector('.dropdown-container:nth-child(2) .action-btn')
 
       if (subjectDropdown && !subjectDropdown.contains(event.target) && !subjectBtn?.contains(event.target)) {
         this.showSubjectDropdown = false
