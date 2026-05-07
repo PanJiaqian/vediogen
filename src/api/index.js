@@ -50,34 +50,59 @@ export async function scriptModifyStream({ modificationSuggestions, videoId, tok
   }
   const decoder = new TextDecoder('utf-8')
   let buffer = ''
+  let eventName = 'message'
+  let dataLines = []
+
+  /**
+   * 处理单行 SSE 文本。
+   *
+   * @param {string} rawLine 原始行文本
+   */
+  const processLine = (rawLine) => {
+    const line = rawLine.replace(/\r$/, '')
+    if (!line) {
+      if (!dataLines.length) return
+      const payload = dataLines.join('\n').trim()
+      dataLines = []
+      if (!payload || payload === '[DONE]') return
+      try {
+        const obj = JSON.parse(payload)
+        if (typeof onEvent === 'function') onEvent(obj)
+      } catch (err) {
+        console.warn(`SSE ${eventName || 'message'} JSON 解析失败:`, err, payload)
+      }
+      eventName = 'message'
+      return
+    }
+    if (line.startsWith(':')) return
+    if (line.startsWith('event:')) {
+      eventName = line.slice(6).trim() || 'message'
+      return
+    }
+    if (line.startsWith('data:')) {
+      dataLines.push(line.slice(5).trim())
+    }
+  }
+
   for (; ;) {
     if (signal && signal.aborted) break
     const { done, value } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
-    const parts = buffer.split(/\n\n+/)
-    buffer = parts.pop() || ''
-    for (const part of parts) {
-      const m = part.match(/data:(.*)/s)
-      if (m && m[1]) {
-        try {
-          const obj = JSON.parse(m[1].trim())
-          if (typeof onEvent === 'function') onEvent(obj)
-        } catch (err) {
-          console.warn('SSE 流式 JSON 解析失败:', err)
-        }
-      }
+    const normalized = buffer.replace(/\r\n/g, '\n')
+    const lines = normalized.split('\n')
+    buffer = lines.pop() || ''
+    for (const line of lines) {
+      processLine(line)
     }
   }
-  // flush the rest
-  const m = buffer.match(/data:(.*)/s)
-  if (m && m[1]) {
-    try {
-      const obj = JSON.parse(m[1].trim())
-      if (typeof onEvent === 'function') onEvent(obj)
-    } catch (err) {
-      console.warn('SSE 最后块 JSON 解析失败:', err)
-    }
+  buffer += decoder.decode()
+  const tailLines = buffer.replace(/\r\n/g, '\n').split('\n')
+  for (const line of tailLines) {
+    processLine(line)
+  }
+  if (dataLines.length) {
+    processLine('')
   }
 }
 

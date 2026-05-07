@@ -15,10 +15,42 @@ export function cleanUrl(u) {
   return str
 }
 
+/**
+ * 解析后端返回的媒体失败文案，兼容统一 `bad gen`、旧版失败占位和第三方任务失败提示。
+ *
+ * @param {string} u 原始媒体字段值
+ * @returns {string} 可展示给用户的失败文案；若不是失败态则返回空字符串
+ *
+ * @example
+ * getGenerateErrorMessage('bad gen：缺少有效音频，无法生成视频')
+ */
+export function getGenerateErrorMessage(u) {
+  const s = cleanUrl(u)
+  if (!s) return ''
+  const lower = s.toLowerCase()
+  if (lower === 're-generating_now' || lower === 'modifying') return ''
+  if (lower === 'replaceimage' || lower === 'replace image' || lower === 'replace_image') return ''
+  if (/^(bad\s*gen)(\s*[:：]\s*.*)?$/i.test(s)) {
+    const detail = s.replace(/^(bad\s*gen)\s*[:：]?\s*/i, '').trim()
+    return detail || 'bad gen'
+  }
+  if (/对口型生成失败/.test(s) || /分镜视频修改失败/.test(s)) return s
+  if (/失败/.test(s)) return s
+  if (/(^|[^a-z])(failed?|error|fail)([^a-z]|$)/i.test(lower)) return s
+  return ''
+}
+
+/**
+ * 判断媒体字段是否为后端失败占位，而非真实可播放地址。
+ *
+ * @param {string} u 原始媒体字段值
+ * @returns {boolean} 是否为失败态
+ *
+ * @example
+ * isGenerateFailed('对口型生成失败，请重试')
+ */
 export function isGenerateFailed(u) {
-  const s = (u || '').toString().trim()
-  if (!s) return false
-  return /失败|fail|error/i.test(s)
+  return !!getGenerateErrorMessage(u)
 }
 
 export function shouldRenderImage(u) {

@@ -762,7 +762,7 @@
           <div class="skeleton-line" style="width: 200px; height: 32px;"></div>
         </div>
         <div v-else class="edit-controls">
-          <button v-if="isVideo(getActiveSceneVideoUrl())" class="control-btn active" @click="toggleCanvasEditMode">
+          <button v-if="shouldShowCropButton" class="control-btn active" @click="toggleCanvasEditMode">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
               <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
@@ -800,15 +800,26 @@
               @load="updateSubtitleMaxWidth" />
             <div v-else class="skeleton-image"></div>
             <div
-              v-if="!isVideo(sceneDetail.video_url) && (previewImgErrored || isGenerateFailed(sceneDetail.reference_image_url))"
-              class="video-overlay">
-              <div class="error-banner">生成失败</div>
+              v-if="activeVideoErrorText || (!isVideo(sceneDetail.video_url) && (previewImgErrored || isGenerateFailed(sceneDetail.reference_image_url)))"
+              :class="['video-overlay', { 'video-overlay--error-card': !!activeVideoErrorText }]">
+              <div v-if="activeVideoErrorText" class="video-error-card">
+                <div class="video-error-card__title">视频生成失败</div>
+                <div class="video-error-card__message">{{ activeVideoErrorText }}</div>
+                <div class="video-error-card__hint">你可以继续使用左侧功能，或重新生成当前分镜。</div>
+                <button
+                  class="video-error-card__action"
+                  :disabled="isVideoConverting || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)"
+                  @click.stop="handleRegenerateActiveSceneVideo">
+                  {{ (isVideoConverting || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex) || isVideoPendingScene(scenes[activeSceneIndex], activeSceneIndex)) ? '重新生成中...' : '重新生成当前分镜' }}
+                </button>
+              </div>
+              <div v-else class="error-banner">生成失败</div>
             </div>
             <audio ref="previewAudio" style="display:none" preload="auto"></audio>
             <input ref="replaceFileInput" type="file" accept="image/*" style="display:none"
               @change="onReplaceImageFileSelected" />
             <button
-              v-if="!isVideo(sceneDetail.video_url) && shouldRenderImage(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail) && !(isVideoConverting || isSceneUpdating(scenes[activeSceneIndex], activeSceneIndex))"
+              v-if="shouldShowReplaceButton"
               class="replace-btn" @click="triggerReplaceImageUpload">
               <span class="replace-icon">⟲</span>
               替换
@@ -1100,7 +1111,7 @@
     </div>
 
     <CropStoryboardModal :visible="showCropModal"
-      :videoUrl="cleanUrl(sceneDetail.video_url || scenes[activeSceneIndex]?.clips?.[0]?.url || '')"
+      :videoUrl="getSceneVideoUrlForThumb()"
       :imageUrl="cleanUrl(sceneDetail.reference_image_url || scenes[activeSceneIndex]?.thumbnail || '')"
       :durationMs="(scenes[activeSceneIndex] && scenes[activeSceneIndex].clips && scenes[activeSceneIndex].clips[0] && Number(scenes[activeSceneIndex].clips[0].durationMs)) || 5000"
       @close="closeCropModal" @apply="applyCropSelection" />
@@ -1232,7 +1243,7 @@ import CropStoryboardModal from '@/components/CropStoryboardModal.vue'
 import Hls from 'hls.js'
 import { getScriptDetailByVideo, generateStoryboardVideo, queryStoryboardVideoStatus, regenerateImage, queryRegenerateImage, getStoryboardSceneDetail, copyStoryboardVideo, reorderStoryboardScenes, getStoryboardImagesDetail, clipStoryboardVideo, regenerateStoryboardVideo, updateVideoTitle, exportWorksVideoStream, exportWorksVideoDownload, aliTtsSubmit, aliTtsQuery, uploadStoryboardVoiceoverAudio, digitalhumanQuery, objectDetectionByScene, getBillingEstimate, getUserBasicStatus, updateSceneStream, replaceStoryboardImage, getWorksVideoStatus, getSceneVersionHistory, applySceneVersion, updateSceneScript, updateVisualDescription, updateCameraDirection, updateShotTitle, deleteStoryboardScene, uploadBackgroundMusic as uploadBackgroundMusicApi, getWorksVideoDetail, getSubtitleState, updateSubtitleState, deleteBackgroundMusic as deleteBackgroundMusicApi, deleteAliTts, toggleSceneMuted as toggleSceneMutedApi, batchSubmitStoryboardVoiceover } from '@/api'
 import { useUserStore } from '@/stores/user'
-import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil, getPlayableAudioUrl as getPlayableAudioUrlUtil } from '@/utils/media'
+import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, getGenerateErrorMessage as getGenerateErrorMessageUtil, shouldRenderImage as shouldRenderImageUtil, getLocalMediaUrl as getLocalMediaUrlUtil, getPlayableAudioUrl as getPlayableAudioUrlUtil } from '@/utils/media'
 
 export default {
   name: 'VideoEditView',
@@ -1669,6 +1680,22 @@ export default {
               }
             }
           }
+          for (let i = 0; i < this.scenes.length; i++) {
+            const sc = this.scenes[i] || {}
+            const sn = String((sc && sc.scene_number) || '').trim()
+            if (!sn) continue
+            const item = list.find(x => String((x && x.scene_number) || '').trim() === sn) || null
+            const rawVideoValue = item ? (item.fallback_mp4 || item.video_url || '') : ''
+            const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
+            if (!videoErrorText) continue
+            this.applySceneVideoErrorState(
+              sc,
+              i,
+              videoErrorText,
+              (item && item.reference_image_url) || sc.thumbnail || '',
+              item && Object.prototype.hasOwnProperty.call(item, 'audio_url') ? item.audio_url : sc.audio_url
+            )
+          }
           try { localStorage.setItem(`video-edit:scenes:${projectId}`, JSON.stringify(this.scenes)) } catch (e) { void 0 }
         } catch (e) { void 0 }
         if (!list.length) return
@@ -1681,14 +1708,16 @@ export default {
         if (!match) match = list[0] || null
         if (!match) return
         const refImg = this.cleanUrl(match.reference_image_url || '')
-        const vurl = this.cleanUrl(match.fallback_mp4 || match.video_url || '')
+        const rawVideoValue = match.fallback_mp4 || match.video_url || ''
+        const vurl = this.cleanUrl(rawVideoValue)
+        const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
         const rawAudio = ('audio_url' in match) ? match.audio_url : undefined
         const audioUrl = (rawAudio === null) ? null : this.cleanUrl(rawAudio || '')
         const isBlocked = this.isRegeneratingNowStatus(vurl) || this.isModifyingStatus(vurl)
         const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
-        const vLocal = (!isBlocked && vurl) ? await this.getLocalUrl(vurl) : ''
+        const vLocal = (!isBlocked && !videoErrorText && vurl) ? await this.getLocalUrl(vurl) : ''
         const audioLocal = audioUrl ? await this.getLocalUrl(audioUrl) : audioUrl
-        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isBlocked ? null : (vLocal || vurl || null), audio_url: audioLocal, is_muted: !!(match && match.is_muted) }
+        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isBlocked ? null : ((videoErrorText ? rawVideoValue : '') || vLocal || vurl || null), audio_url: audioLocal, is_muted: !!(match && match.is_muted) }
         if (active) {
           const script = match && match.scene_script ? match.scene_script : null
           if (script) {
@@ -1783,6 +1812,22 @@ export default {
                 sc.clips = []
               }
             }
+          }
+          for (let i = 0; i < this.scenes.length; i++) {
+            const sc = this.scenes[i] || {}
+            const sn = String((sc && sc.scene_number) || '').trim()
+            if (!sn) continue
+            const item = list.find(x => String((x && x.scene_number) || '').trim() === sn) || null
+            const rawVideoValue = item ? (item.fallback_mp4 || item.video_url || '') : ''
+            const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
+            if (!videoErrorText) continue
+            this.applySceneVideoErrorState(
+              sc,
+              i,
+              videoErrorText,
+              (item && item.reference_image_url) || sc.thumbnail || '',
+              item && Object.prototype.hasOwnProperty.call(item, 'audio_url') ? item.audio_url : sc.audio_url
+            )
           }
         } catch (e) { void 0 }
         try {
@@ -1906,6 +1951,7 @@ export default {
     currentPreviewUrl() {
       const v = this.cleanUrl(this.sceneDetail.video_url || '')
       const img = this.cleanUrl(this.sceneDetail.reference_image_url || '')
+      if (this.getGenerateErrorMessage(v)) return img || ''
       const vLower = v.toLowerCase()
       if (vLower === 'replaceimage') return img || ''
       if (v) return v
@@ -2027,17 +2073,57 @@ export default {
       if (this.lastPreviewMode === 'image') return false
       const videoUrl = this.sceneDetail.video_url
       if (!videoUrl || videoUrl === null) return false
+      if (this.getGenerateErrorMessage(videoUrl)) return false
       const cleanedUrl = this.cleanUrl(videoUrl)
       return !!cleanedUrl && this.isVideo(cleanedUrl)
     },
+    /**
+     * 返回当前分镜的视频失败提示，优先显示后端落库到 `video_url` 的原始错误文案。
+     *
+     * @returns {string} 当前分镜可展示的失败提示
+     *
+     * @example
+     * const errorText = this.activeVideoErrorText
+     */
+    activeVideoErrorText() {
+      const scene = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+      const sceneErrorText = this.getGenerateErrorMessage(scene && scene.video_url)
+      if (sceneErrorText) return sceneErrorText
+      return this.getGenerateErrorMessage(this.sceneDetail && this.sceneDetail.video_url)
+    },
+    activeSceneRawVideoValue() {
+      const scene = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
+      const sceneVideo = scene && scene.video_url
+      if (sceneVideo !== undefined && sceneVideo !== null && String(sceneVideo).trim() !== '') return sceneVideo
+      return (this.sceneDetail && this.sceneDetail.video_url) || ''
+    },
+    isActiveSceneVideoFailed() {
+      return !!this.getGenerateErrorMessage(this.activeSceneRawVideoValue)
+    },
+    shouldShowCropButton() {
+      return this.entryMode === 'crop' && (this.isVideo(this.getActiveSceneVideoUrl()) || this.isActiveSceneVideoFailed)
+    },
+    shouldShowReplaceButton() {
+      if (this.entryMode === 'crop' || this.isActiveSceneVideoFailed) return false
+      return !this.isVideo(this.sceneDetail.video_url) &&
+        this.shouldRenderImage(this.sceneDetail.reference_image_url || this.scenes[this.activeSceneIndex]?.thumbnail) &&
+        !(this.isVideoConverting || this.isSceneUpdating(this.scenes[this.activeSceneIndex], this.activeSceneIndex))
+    },
     // 判断是否应该显示图片
     shouldShowImage() {
-      if (this.lastPreviewMode === 'video') return false
       // 如果应该显示骨架屏，则不显示图片
       if (this.shouldShowActiveSkeleton) return false
 
       // 如果有视频，则不显示图片
       if (this.shouldShowVideo) return false
+
+      // 视频生成失败时，允许继续展示参考图并覆盖错误提示
+      if (this.isActiveSceneVideoFailed) {
+        const failedImageUrl = this.sceneDetail.reference_image_url ||
+          this.scenes[this.activeSceneIndex]?.thumbnail
+        return this.shouldRenderImage(failedImageUrl)
+      }
+      if (this.lastPreviewMode === 'video' && !this.activeVideoErrorText) return false
 
       // 显示图片（没点击一键转视频，或点击了但没有视频）
       const imageUrl = this.sceneDetail.reference_image_url ||
@@ -2054,10 +2140,13 @@ export default {
         const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
         const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
         const ref = this.cleanUrl((sc && sc.thumbnail) || '')
-        const rawVid = (first && first.url) || (sc && sc.video_url)
-        const vid = (rawVid === null || this.isModifyingStatus(rawVid) || this.isRegeneratingNowStatus(rawVid)) ? null : this.cleanUrl(rawVid || '')
+        const sceneRawVideo = (sc && sc.video_url) || ''
+        const sceneErrorText = this.getGenerateErrorMessage(sceneRawVideo)
+        const rawVid = sceneRawVideo || (first && first.url) || ''
+        const vid = (rawVid === null || this.isModifyingStatus(rawVid) || this.isRegeneratingNowStatus(rawVid)) ? null : ((sceneErrorText ? sceneRawVideo : '') || this.cleanUrl(rawVid || ''))
         const audio = this.cleanUrl((sc && sc.audio_url) || '')
         this.sceneDetail = { reference_image_url: ref, video_url: vid, audio_url: audio, is_muted: this.isSceneMuted(sc, this.activeSceneIndex) }
+        this.debugActiveSceneState('watch:activeSceneIndex')
         try {
           const t = sc && sc.scene_script && sc.scene_script.dialogue_or_narration ? String(sc.scene_script.dialogue_or_narration) : ''
           this.subtitleText = t
@@ -2135,6 +2224,33 @@ export default {
     }
   },
   methods: {
+    debugActiveSceneState(source) {
+      try {
+        const idx = Number(this.activeSceneIndex)
+        const scene = Array.isArray(this.scenes) ? this.scenes[idx] : null
+        const payload = {
+          source,
+          activeSceneIndex: idx,
+          sceneNumber: scene && scene.scene_number,
+          entryMode: this.entryMode,
+          lastPreviewMode: this.lastPreviewMode,
+          sceneVideoUrl: scene && scene.video_url,
+          sceneDetailVideoUrl: this.sceneDetail && this.sceneDetail.video_url,
+          sceneThumb: scene && scene.thumbnail,
+          sceneDetailImage: this.sceneDetail && this.sceneDetail.reference_image_url,
+          activeVideoErrorText: this.activeVideoErrorText,
+          isActiveSceneVideoFailed: this.isActiveSceneVideoFailed,
+          shouldShowVideo: this.shouldShowVideo,
+          shouldShowImage: this.shouldShowImage,
+          shouldShowCropButton: this.shouldShowCropButton,
+          shouldShowReplaceButton: this.shouldShowReplaceButton
+        }
+        console.log('[video-debug]', payload)
+        try { window.__videoDebugState = payload } catch (e) { void 0 }
+      } catch (e) {
+        console.warn('[video-debug] 状态打印失败', e)
+      }
+    },
     // 统一格式化分镜中的说话角色，缺失时兼容旧数据回退为“旁白”。
     formatVoiceRoleLabel(voiceRole) {
       const label = String(voiceRole || '').trim()
@@ -2440,6 +2556,46 @@ export default {
     isModifyingStatus(v) {
       const s = String(v || '').trim().toLowerCase()
       return s === 'modifying'
+    },
+    /**
+     * 将分镜切换为视频失败态，保留参考图并释放加载中的前端状态。
+     *
+     * @param {Object} scene 分镜对象
+     * @param {number} index 分镜索引
+     * @param {string} errorText 后端返回的失败文案
+     * @param {string} referenceImageUrl 参考图地址
+     * @param {string|null} audioUrl 音频地址
+     * @returns {void}
+     *
+     * @example
+     * this.applySceneVideoErrorState(scene, 0, 'bad gen：缺少有效音频，无法生成视频', scene.thumbnail, scene.audio_url)
+     */
+    applySceneVideoErrorState(scene, index, errorText, referenceImageUrl = '', audioUrl = '') {
+      const rawError = errorText === null || errorText === undefined ? '' : String(errorText).trim()
+      const text = this.getGenerateErrorMessage(rawError)
+      if (!scene || !text) return
+      const ref = this.cleanUrl(referenceImageUrl || (scene && scene.thumbnail) || '')
+      scene.hasVideo = false
+      scene.video_url = rawError || text
+      scene.clips = ref ? [{ url: ref, durationMs: 5000 }] : []
+      try {
+        const key = this.getSceneKey(scene, index)
+        if (this.pendingVideoSet && this.pendingVideoSet.delete) this.pendingVideoSet.delete(key)
+        if (this.updatingKeySet && this.updatingKeySet.delete) this.updatingKeySet.delete(key)
+        if (this.cropPendingKeySet && this.cropPendingKeySet.delete) this.cropPendingKeySet.delete(key)
+      } catch (e) { void 0 }
+      if (!(this.pendingVideoSet instanceof Set) || this.pendingVideoSet.size === 0) {
+        this.isVideoGenerating = false
+      }
+      if (index === this.activeSceneIndex) {
+        this.sceneDetail = {
+          reference_image_url: ref,
+          video_url: rawError || text,
+          audio_url: audioUrl === null ? null : this.cleanUrl(audioUrl || (scene && scene.audio_url) || ''),
+          is_muted: this.isSceneMuted(scene, index)
+        }
+        this.debugActiveSceneState('applySceneVideoErrorState')
+      }
     },
     toggleTheme() {
       this.isDark = !this.isDark
@@ -3036,9 +3192,11 @@ export default {
             const d = detail && detail.data ? detail.data : null
             if (d) {
               const refImg = this.cleanUrl(d.reference_image_url || next || '')
-              const vurl = this.cleanUrl(d.fallback_mp4 || d.video_url || '')
+              const rawVideoValue = d.fallback_mp4 || d.video_url || ''
+              const vurl = this.cleanUrl(rawVideoValue)
+              const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
               const audioUrl = this.cleanUrl(d.audio_url || '')
-              const finalVid = vurl ? vurl : ''
+              const finalVid = videoErrorText ? rawVideoValue : (vurl ? vurl : '')
               this.sceneDetail = Object.assign({}, this.sceneDetail, { reference_image_url: refImg, video_url: finalVid, audio_url: audioUrl })
             }
           } catch (e) { void 0 }
@@ -3297,6 +3455,7 @@ export default {
       const s = this.cleanUrl(u)
       const lower = s.toLowerCase()
       if (!s) return false
+      if (this.getGenerateErrorMessage(s)) return false
       if (this.isGenerateFailed(s)) return false
       if (lower === 'replaceimage') return false
       if (/\.(png|jpe?g|gif|webp|bmp)(\?|#|$)/i.test(s)) return false
@@ -3304,11 +3463,9 @@ export default {
       if (/^data:video\//i.test(s)) return true
       if (/\.(mp4|webm|mov)(\?|#|$)/i.test(s)) return true
       if (this.isM3u8(s)) return true
-      const vcur = this.cleanUrl((this.sceneDetail && this.sceneDetail.video_url) || '')
-      if (vcur && s === vcur) return true
       const active = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
       const activeVid = this.cleanUrl((active && active.video_url) || '')
-      if (active && active.hasVideo && activeVid && s === activeVid) return true
+      if (active && active.hasVideo && activeVid && s === activeVid && !this.getGenerateErrorMessage(activeVid)) return true
       if (active && active.hasVideo && Array.isArray(active.clips)) {
         const found = active.clips.some(c => this.cleanUrl((c && c.url) || '') === s)
         if (found) return true
@@ -3330,6 +3487,18 @@ export default {
     },
     isGenerateFailed(u) {
       return isGenerateFailedUtil(u)
+    },
+    /**
+     * 解析分镜视频字段中的失败文案，兼容 `bad gen` 和历史遗留错误占位。
+     *
+     * @param {string} u 分镜视频字段原值
+     * @returns {string} 失败文案；非失败态返回空字符串
+     *
+     * @example
+     * this.getGenerateErrorMessage('分镜视频修改失败')
+     */
+    getGenerateErrorMessage(u) {
+      return getGenerateErrorMessageUtil(u)
     },
     shouldRenderImage(u) {
       return shouldRenderImageUtil(u)
@@ -3487,12 +3656,19 @@ export default {
         const el = this.$refs.previewVideo
         if (!el) return
         const rawVid = this.sceneDetail && this.sceneDetail.video_url
+        if (this.getGenerateErrorMessage(rawVid || '')) {
+          try { el.pause(); el.currentTime = 0 } catch (e) { console.warn('预览暂停失败:', e) }
+          this._lastPreviewUrl = ''
+          return
+        }
         let src = rawVid === null ? '' : this.cleanUrl(rawVid || '')
         if (!this.isVideo(src)) {
           const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
           const firstClip = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
-          const candidate = this.cleanUrl((sc && sc.video_url) || (firstClip && firstClip.url) || '')
-          if (this.isVideo(candidate) && candidate !== src) {
+          const candidateVideo = this.cleanUrl((sc && sc.video_url) || '')
+          const candidateClip = this.cleanUrl((firstClip && firstClip.url) || '')
+          const candidate = this.isVideo(candidateVideo) ? candidateVideo : (this.isVideo(candidateClip) ? candidateClip : '')
+          if (candidate && candidate !== src) {
             this.sceneDetail = Object.assign({}, this.sceneDetail, { video_url: candidate })
             src = candidate
           }
@@ -3891,20 +4067,25 @@ export default {
       const imgApi = this.cleanUrl(this.sceneDetail.reference_image_url || '')
       const rawVid = this.sceneDetail.video_url
       const isNullVid = rawVid === null
+      const errorVid = isNullVid ? '' : this.getGenerateErrorMessage(rawVid || '')
       let vidApi = isNullVid ? null : this.cleanUrl(rawVid || '')
       if (!vidApi) {
         const active = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
         const first = (active && Array.isArray(active.clips) && active.clips[0]) || null
-        const vurl = this.cleanUrl((first && first.url) || (active && active.video_url) || '')
+        const sceneRawVid = (active && active.video_url) || ''
+        const sceneErrorVid = this.getGenerateErrorMessage(sceneRawVid)
+        const vurl = sceneErrorVid || this.cleanUrl((first && first.url) || sceneRawVid || '')
+        if (sceneErrorVid) vidApi = sceneErrorVid
         if (!isNullVid && vurl && this.isVideo(vurl)) { vidApi = vurl }
       }
       if (imgApi || vidApi !== null) {
-        this.sceneDetail = { reference_image_url: imgApi, video_url: isNullVid ? null : (vidApi || '') }
+        this.sceneDetail = { reference_image_url: imgApi, video_url: isNullVid ? null : (errorVid || vidApi || '') }
         return
       }
       const active = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
       const thumb = this.cleanUrl((active && active.thumbnail) || '')
-      this.sceneDetail = { reference_image_url: thumb, video_url: isNullVid ? null : '' }
+      const sceneErrorVid = this.getGenerateErrorMessage((active && active.video_url) || '')
+      this.sceneDetail = { reference_image_url: thumb, video_url: isNullVid ? null : (sceneErrorVid || '') }
     },
     async ensurePreviewFromScenes() {
       try {
@@ -3913,7 +4094,8 @@ export default {
           return
         }
         const apiImg = this.cleanUrl(this.sceneDetail.reference_image_url || '')
-        const apiVid = this.cleanUrl(this.sceneDetail.video_url || '')
+        const apiVidError = this.getGenerateErrorMessage((this.sceneDetail && this.sceneDetail.video_url) || '')
+        const apiVid = apiVidError || this.cleanUrl(this.sceneDetail.video_url || '')
         if (apiImg || apiVid) {
           try {
             const sc = Array.isArray(this.scenes) ? this.scenes[this.activeSceneIndex] : null
@@ -3922,6 +4104,7 @@ export default {
               this.sceneDetail = Object.assign({}, this.sceneDetail, { audio_url: audio })
             }
           } catch (e) { /* no-op */ }
+          this.debugActiveSceneState('ensurePreviewFromScenes:api')
           this.syncPreviewPlayback()
           return
         }
@@ -3930,12 +4113,14 @@ export default {
           const sc = arr[i] || {}
           const ref = this.cleanUrl(sc.thumbnail || '')
           const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
-          const vid = this.cleanUrl((first && first.url) || sc.video_url || '')
+          const errorVid = this.getGenerateErrorMessage((sc && sc.video_url) || '')
+          const vid = errorVid || this.cleanUrl((first && first.url) || sc.video_url || '')
           const audio = this.cleanUrl((sc && sc.audio_url) || '')
           if (ref || vid) {
             const refLocal = ref ? await this.getLocalUrl(ref) : ''
-            const vidLocal = vid ? await this.getLocalUrl(vid) : ''
-            this.sceneDetail = { reference_image_url: refLocal || ref, video_url: vidLocal || vid, audio_url: audio }
+            const vidLocal = (vid && this.isVideo(vid)) ? await this.getLocalUrl(vid) : ''
+            this.sceneDetail = { reference_image_url: refLocal || ref, video_url: errorVid || vidLocal || vid, audio_url: audio }
+            this.debugActiveSceneState('ensurePreviewFromScenes:fallback')
             this.syncPreviewPlayback()
             break
           }
@@ -4050,7 +4235,9 @@ export default {
           if (idx >= 0 && idx < this.scenes.length) {
             const sc = this.scenes[idx]
             const refImg = this.cleanUrl(item.reference_image_url || sc.thumbnail || '')
-            const vurl = this.cleanUrl(item.fallback_mp4 || item.video_url || '')
+            const rawVideoValue = item.fallback_mp4 || item.video_url || ''
+            const vurl = this.cleanUrl(rawVideoValue)
+            const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
             if (item.audio_url) {
               if (this.$set) this.$set(sc, 'audio_url', this.cleanUrl(item.audio_url)); else sc.audio_url = this.cleanUrl(item.audio_url)
               if (idx === this.activeSceneIndex) {
@@ -4060,17 +4247,27 @@ export default {
             }
             if ('is_muted' in item) this.setSceneMuteState(sc, idx, !!item.is_muted)
             const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
-            const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
+            const vLocal = (vurl && this.isVideo(vurl)) ? await this.getLocalUrl(vurl) : ''
             if (refImg) sc.thumbnail = refImg
-            if (vurl) {
+            if (videoErrorText) {
+              this.applySceneVideoErrorState(
+                sc,
+                idx,
+                videoErrorText,
+                refImg,
+                item && Object.prototype.hasOwnProperty.call(item, 'audio_url') ? item.audio_url : sc.audio_url
+              )
+            } else if (vurl) {
               const apiDur = Number(item.duration) ? Number(item.duration) * 1000 : undefined
               let dur = 5000
               if (apiDur) {
                 dur = apiDur
               } else {
-                dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
+                dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vLocal || vurl) : 5000
               }
-              sc.clips = [{ url: vurl, durationMs: dur }]
+              sc.clips = [{ url: vLocal || vurl, durationMs: dur }]
+              sc.video_url = vLocal || vurl
+              sc.hasVideo = this.isVideo(vLocal || vurl)
               if (!(this.durationMap instanceof Map)) this.durationMap = new Map()
               this.durationMap.set(vurl, dur)
               if (vLocal) this.durationMap.set(vLocal, dur)
@@ -4114,10 +4311,12 @@ export default {
         const activeItem = arr.find(x => String(x.scene_number || '').trim() === activeKey) || null
         if (activeItem) {
           const refImg = this.cleanUrl(activeItem.reference_image_url || active.thumbnail || '')
-          const vurl = this.cleanUrl(activeItem.fallback_mp4 || activeItem.video_url || '')
+          const rawVideoValue = activeItem.fallback_mp4 || activeItem.video_url || ''
+          const vurl = this.cleanUrl(rawVideoValue)
+          const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
           const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
-          const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
-          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: vLocal || null, audio_url: this.cleanUrl(activeItem.audio_url || active.audio_url || ''), is_muted: !!activeItem.is_muted }
+          const vLocal = (vurl && this.isVideo(vurl)) ? await this.getLocalUrl(vurl) : ''
+          this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: (videoErrorText ? rawVideoValue : '') || vLocal || null, audio_url: this.cleanUrl(activeItem.audio_url || active.audio_url || ''), is_muted: !!activeItem.is_muted }
         }
       } catch (e) { void 0 }
     },
@@ -4151,7 +4350,9 @@ export default {
                 }
                 const sc = this.scenes[idx]
                 const refImg = this.cleanUrl(item.reference_image_url || '')
-                const vurl = this.cleanUrl(item.fallback_mp4 || item.video_url || '')
+                const rawVideoValue = item.fallback_mp4 || item.video_url || ''
+                const vurl = this.cleanUrl(rawVideoValue)
+                const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
                 const scriptContent = item && item.scene_script && item.scene_script.content ? item.scene_script.content : null
                 const shotTitle = (scriptContent && scriptContent.shot_title) || (item && item.scene_script && item.scene_script.shot_title) || item.shot_title || ''
                 const visualDesc = (scriptContent && scriptContent.visual_description) || (item && item.scene_script && item.scene_script.visual_description) || item.visual_description || ''
@@ -4159,8 +4360,8 @@ export default {
                 const voiceRole = (scriptContent && scriptContent.voice_role) || (item && item.scene_script && item.scene_script.voice_role) || item.voice_role || ''
                 const narration = (scriptContent && scriptContent.dialogue_or_narration) || (item && item.scene_script && item.scene_script.dialogue_or_narration) || item.dialogue_or_narration || ''
                 const sceneKey = String(item.scene_number || '').trim()
-                if (sceneKey) map.set(sceneKey, { video_url: this.isVideo(vurl) ? vurl : '', reference_image_url: refImg })
-                if (Number.isFinite(oi) && oi > 0) map.set(`oi:${oi}`, { video_url: this.isVideo(vurl) ? vurl : '', reference_image_url: refImg })
+                if (sceneKey) map.set(sceneKey, { video_url: this.isVideo(vurl) ? vurl : ((videoErrorText ? rawVideoValue : '') || ''), reference_image_url: refImg })
+                if (Number.isFinite(oi) && oi > 0) map.set(`oi:${oi}`, { video_url: this.isVideo(vurl) ? vurl : ((videoErrorText ? rawVideoValue : '') || ''), reference_image_url: refImg })
                 if ('is_muted' in item) this.setSceneMuteState(sc, idx, !!item.is_muted)
                 if (refImg) {
                   sc.thumbnail = refImg
@@ -4179,6 +4380,14 @@ export default {
                   if (isRegen && sceneKey) {
                     this.startRegenerateVideoPolling(sceneKey)
                   }
+                } else if (videoErrorText) {
+                  this.applySceneVideoErrorState(
+                    sc,
+                    idx,
+                    videoErrorText,
+                    refImg,
+                    item && Object.prototype.hasOwnProperty.call(item, 'audio_url') ? item.audio_url : sc.audio_url
+                  )
                 } else if (this.worksVideoReady && (!vurl || !this.isVideo(vurl))) {
                   // 检查是否是 "replace image" 状态
                   const isReplaceImage = vurl && vurl.toLowerCase() === 'replaceimage'
@@ -4311,11 +4520,13 @@ export default {
           const key = String(item.scene_number || '').trim()
           const oi = Number(item.order_index || item.orderIndex)
           const refImg = this.cleanUrl(item.reference_image_url || '')
-          let vurl = this.cleanUrl(item.fallback_mp4 || item.video_url || '')
+          const rawVideoValue = item.fallback_mp4 || item.video_url || ''
+          let vurl = this.cleanUrl(rawVideoValue)
+          const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
           const isMod = this.isModifyingStatus(vurl) || this.isRegeneratingNowStatus(vurl)
           if (!this.isVideo(vurl)) vurl = ''
-          if (key) map.set(key, { video_url: isMod ? '' : vurl, reference_image_url: refImg })
-          if (Number.isFinite(oi) && oi > 0) map.set(`oi:${oi}`, { video_url: isMod ? '' : vurl, reference_image_url: refImg })
+          if (key) map.set(key, { video_url: isMod ? '' : (vurl || (videoErrorText ? rawVideoValue : '') || ''), reference_image_url: refImg })
+          if (Number.isFinite(oi) && oi > 0) map.set(`oi:${oi}`, { video_url: isMod ? '' : (vurl || (videoErrorText ? rawVideoValue : '') || ''), reference_image_url: refImg })
         }
         this.imagesDetailMap = map
         const active = this.scenes[this.activeSceneIndex] || {}
@@ -4328,7 +4539,9 @@ export default {
         if (!match) match = list[activeIdx] || null
         if (!match) return
         const refImg = this.cleanUrl(match.reference_image_url || '')
-        let vurl = this.cleanUrl(match.fallback_mp4 || match.video_url || '')
+        const rawVideoValue = match.fallback_mp4 || match.video_url || ''
+        let vurl = this.cleanUrl(rawVideoValue)
+        const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
         const rawAudio = ('audio_url' in match) ? match.audio_url : undefined
         const audioUrl = (rawAudio === null) ? null : this.cleanUrl(rawAudio || '')
         const isMod = this.isModifyingStatus(vurl) || this.isRegeneratingNowStatus(vurl)
@@ -4336,7 +4549,7 @@ export default {
         const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
         const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
         const audioLocal = audioUrl ? await this.getLocalUrl(audioUrl) : audioUrl
-        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isMod ? null : ((vLocal || vurl) || null), audio_url: audioLocal, is_muted: !!(match && match.is_muted) }
+        this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: isMod ? null : ((videoErrorText ? rawVideoValue : '') || (vLocal || vurl) || null), audio_url: audioLocal, is_muted: !!(match && match.is_muted) }
         if (activeIdx >= 0 && activeIdx < this.scenes.length) {
           const sc = this.scenes[activeIdx]
           const scriptContent = match && match.scene_script && match.scene_script.content ? match.scene_script.content : null
@@ -4365,6 +4578,14 @@ export default {
             sc.clips = []
             const sn = String(sc.scene_number || '').trim()
             if (sn && this.isRegeneratingNowStatus(match.fallback_mp4 || match.video_url || '')) this.startRegenerateVideoPolling(sn)
+          } else if (videoErrorText) {
+            this.applySceneVideoErrorState(
+              sc,
+              activeIdx,
+              videoErrorText,
+              refImg,
+              rawAudio === null ? null : audioUrl
+            )
           }
         }
       } catch (e) { void 0 }
@@ -4394,7 +4615,26 @@ export default {
             if (!list.length) return
             const item = list.find(x => String((x && x.scene_number) || '').trim() === key) || null
             if (!item) return
-            const rawV = this.cleanUrl(item.fallback_mp4 || item.video_url || '')
+            const rawVideoValue = item.fallback_mp4 || item.video_url || ''
+            const rawV = this.cleanUrl(rawVideoValue)
+            const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
+            if (videoErrorText) {
+              const oi = Number(item.order_index || item.orderIndex)
+              let idx = this.scenes.findIndex(s => String((s && s.scene_number) || '').trim() === key)
+              if (idx < 0 && Number.isFinite(oi) && oi > 0) idx = oi - 1
+              if (idx >= 0 && idx < this.scenes.length) {
+                const sc = this.scenes[idx]
+                this.applySceneVideoErrorState(
+                  sc,
+                  idx,
+                  videoErrorText,
+                  item.reference_image_url || sc.thumbnail || '',
+                  Object.prototype.hasOwnProperty.call(item, 'audio_url') ? item.audio_url : sc.audio_url
+                )
+              }
+              clearForKey()
+              return
+            }
             if (!rawV || this.isRegeneratingNowStatus(rawV) || this.isModifyingStatus(rawV) || !this.isVideo(rawV)) return
             const oi = Number(item.order_index || item.orderIndex)
             let idx = this.scenes.findIndex(s => String((s && s.scene_number) || '').trim() === key)
@@ -4452,12 +4692,28 @@ export default {
               try { json = JSON.parse(text) } catch { json = null }
               const data = json && json.data ? json.data : null
               if (!data) return
-              const rawV = this.cleanUrl(data.fallback_mp4 || data.video_url || '')
+              const rawVideoValue = data.fallback_mp4 || data.video_url || ''
+              const rawV = this.cleanUrl(rawVideoValue)
+              const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
+              const idx = this.scenes.findIndex(s => String((s && s.scene_number) || '').trim() === key)
+              const targetIndex = idx >= 0 ? idx : this.activeSceneIndex
+              if (videoErrorText) {
+                if (targetIndex >= 0 && targetIndex < this.scenes.length) {
+                  const sc = this.scenes[targetIndex]
+                  this.applySceneVideoErrorState(
+                    sc,
+                    targetIndex,
+                    videoErrorText,
+                    (data && data.reference_image_url) || sc.thumbnail || '',
+                    data && Object.prototype.hasOwnProperty.call(data, 'audio_url') ? data.audio_url : sc.audio_url
+                  )
+                }
+                clearForKey()
+                return
+              }
               if (!rawV || !this.isVideo(rawV) || this.isModifyingStatus(rawV)) return
               const vLocal = await this.getLocalUrl(rawV)
               const vFinal = vLocal || rawV
-              const idx = this.scenes.findIndex(s => String((s && s.scene_number) || '').trim() === key)
-              const targetIndex = idx >= 0 ? idx : this.activeSceneIndex
               if (targetIndex >= 0 && targetIndex < this.scenes.length) {
                 const sc = this.scenes[targetIndex]
                 const dur = (Number(data.duration) ? Number(data.duration) * 1000 : await this.measureVideoDurationMs(vFinal))
@@ -4564,16 +4820,26 @@ export default {
           const data = json && json.data ? json.data : null
           if (data) {
             const refImg = this.cleanUrl(data.reference_image_url || sc.thumbnail || '')
-            const vurl = this.cleanUrl(data.fallback_mp4 || data.video_url || '')
+          const rawVideoValue = data.fallback_mp4 || data.video_url || ''
+          const vurl = this.cleanUrl(rawVideoValue)
+          const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
             const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
-            const vLocal = vurl ? await this.getLocalUrl(vurl) : ''
+          const vLocal = (vurl && this.isVideo(vurl)) ? await this.getLocalUrl(vurl) : ''
             const incomingKey = String(data.scene_number || '').trim()
             const targetIndex = i
             const duration = Number(data.duration) ? Number(data.duration) * 1000 : undefined
             if (targetIndex >= 0 && targetIndex < this.scenes.length) {
               const target = this.scenes[targetIndex]
               if (refImg) target.thumbnail = refImg
-              if (vurl) {
+            if (videoErrorText) {
+              this.applySceneVideoErrorState(
+                target,
+                targetIndex,
+                videoErrorText,
+                refImg,
+                data && Object.prototype.hasOwnProperty.call(data, 'audio_url') ? data.audio_url : target.audio_url
+              )
+            } else if (vurl) {
                 const first = (target && Array.isArray(target.clips) && target.clips[0]) || null
                 const existingVid = this.cleanUrl((target && target.video_url) || (first && first.url) || '')
                 const alreadyProcessed = !!(target && target.hasVideo) && (!!existingVid && this.isVideo(existingVid))
@@ -4606,7 +4872,7 @@ export default {
                 const firstClip = (target && Array.isArray(target.clips) && target.clips[0]) || null
                 const clipUrl = this.cleanUrl((firstClip && firstClip.url) || '')
                 const targetVid = this.cleanUrl(target && target.video_url || '')
-                const nextVideo = vLocal || vurl || ''
+                const nextVideo = (videoErrorText ? rawVideoValue : '') || vLocal || vurl || ''
                 this.sceneDetail = { reference_image_url: refLocal, video_url: nextVideo }
               }
             }
@@ -4650,14 +4916,24 @@ export default {
         const data = json && json.data ? json.data : null
         if (data) {
           const refImg = this.cleanUrl(data.reference_image_url || sc.thumbnail || '')
-          const vurl = this.cleanUrl(data.fallback_mp4 || data.video_url || '')
+          const rawVideoValue = data.fallback_mp4 || data.video_url || ''
+          const vurl = this.cleanUrl(rawVideoValue)
+          const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
           const incomingKey = String(data.scene_number || '').trim()
           const targetIndex = i
           const duration = Number(data.duration) ? Number(data.duration) * 1000 : undefined
           if (targetIndex >= 0 && targetIndex < this.scenes.length) {
             const target = this.scenes[targetIndex]
             if (refImg) target.thumbnail = refImg
-            if (vurl && this.isVideo(vurl)) {
+            if (videoErrorText) {
+              this.applySceneVideoErrorState(
+                target,
+                targetIndex,
+                videoErrorText,
+                refImg,
+                data && Object.prototype.hasOwnProperty.call(data, 'audio_url') ? data.audio_url : target.audio_url
+              )
+            } else if (vurl && this.isVideo(vurl)) {
               let dur = duration
               if (!dur) {
                 dur = this.isVideo(vurl) ? await this.measureVideoDurationMs(vurl) : 5000
@@ -4686,7 +4962,7 @@ export default {
           if (i === this.activeSceneIndex) {
             const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
             const vLocal = (vurl && this.isVideo(vurl)) ? await this.getLocalUrl(vurl) : ''
-            this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: (vLocal || (this.isVideo(vurl) ? vurl : '')) || null }
+            this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: (videoErrorText ? rawVideoValue : '') || (vLocal || (this.isVideo(vurl) ? vurl : '')) || null }
           }
         }
         try { this.updatingKeySet && this.updatingKeySet.delete && this.updatingKeySet.delete(k) } catch (err) { void 0 }
@@ -5013,8 +5289,10 @@ export default {
             sc.clips = backup.clips
             if (idx === this.activeSceneIndex) {
               const first = (sc && Array.isArray(sc.clips) && sc.clips[0]) || null
-              const rawVid = (first && first.url) || (sc && sc.video_url)
-              const vid = (rawVid === null || this.isModifyingStatus(rawVid) || this.isRegeneratingNowStatus(rawVid)) ? null : this.cleanUrl(rawVid || '')
+              const sceneRawVideo = (sc && sc.video_url) || ''
+              const sceneErrorText = this.getGenerateErrorMessage(sceneRawVideo)
+              const rawVid = sceneRawVideo || (first && first.url) || ''
+              const vid = (rawVid === null || this.isModifyingStatus(rawVid) || this.isRegeneratingNowStatus(rawVid)) ? null : ((sceneErrorText ? sceneRawVideo : '') || this.cleanUrl(rawVid || ''))
               const ref = this.cleanUrl((sc && sc.thumbnail) || '')
               const audio = this.cleanUrl((sc && sc.audio_url) || '')
               this.sceneDetail = { reference_image_url: ref, video_url: vid, audio_url: audio }
@@ -5793,6 +6071,7 @@ export default {
       this.successModalVisible = false
     },
     selectScene(index) {
+      console.log('[video-debug] selectScene', { index, sceneNumber: this.scenes[index] && this.scenes[index].scene_number, videoUrl: this.scenes[index] && this.scenes[index].video_url })
       this.activeSceneIndex = index
       const arr = Array.isArray(this.scenes) ? this.scenes : []
       if (arr.length > 0) {
@@ -6276,7 +6555,9 @@ export default {
                     const data = json && json.data ? json.data : null
                     if (!data) return
                     const refImg = this.cleanUrl(data.reference_image_url || '')
-                    let vurl = this.cleanUrl(data.fallback_mp4 || data.video_url || '')
+                    const rawVideoValue = data.fallback_mp4 || data.video_url || ''
+                    let vurl = this.cleanUrl(rawVideoValue)
+                    const videoErrorText = this.getGenerateErrorMessage(rawVideoValue)
                     const isMod = this.isModifyingStatus(vurl)
                     if (!this.isVideo(vurl)) vurl = ''
                     const refLocal = refImg ? await this.getLocalUrl(refImg) : ''
@@ -6284,7 +6565,7 @@ export default {
                     const idx = this.activeSceneIndex
                     const sc = this.scenes[idx] || {}
                     // 对于 image 类型（vurl 为空），使用 'replaceimage' 表示图片状态
-                    const nextVideoUrl = isMod ? null : (vurl ? (vLocal || vurl) : 'replaceimage')
+                    const nextVideoUrl = isMod ? null : ((videoErrorText ? rawVideoValue : '') || (vurl ? (vLocal || vurl) : 'replaceimage'))
                     this.sceneDetail = { reference_image_url: refLocal || refImg, video_url: nextVideoUrl, audio_url: this.cleanUrl((data && data.audio_url) || '') }
                     if (sc) {
                       if (isMod) {
@@ -6292,6 +6573,14 @@ export default {
                         sc.video_url = 'modifying'
                         sc.clips = []
                         try { this.startSceneVideoPolling(shotId) } catch (e) { void 0 }
+                      } else if (videoErrorText) {
+                        this.applySceneVideoErrorState(
+                          sc,
+                          idx,
+                          videoErrorText,
+                          refImg,
+                          data && Object.prototype.hasOwnProperty.call(data, 'audio_url') ? data.audio_url : sc.audio_url
+                        )
                       } else if (vurl) {
                         const dur = (Number(data.duration) ? Number(data.duration) * 1000 : await this.measureVideoDurationMs(vLocal || vurl))
                         sc.clips = [{ url: vLocal || vurl, durationMs: dur }]
@@ -7815,6 +8104,13 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 24;
+  pointer-events: none;
+}
+
+.video-overlay--error-card {
+  padding: 24px;
+  pointer-events: auto;
 }
 
 .error-banner {
@@ -7823,6 +8119,66 @@ export default {
   padding: 12px 16px;
   border-radius: 8px;
   font-size: 14px;
+}
+
+.video-error-card {
+  width: min(440px, calc(100% - 48px));
+  padding: 22px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: rgba(17, 24, 39, 0.68);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  color: #fff;
+  text-align: center;
+  pointer-events: auto;
+}
+
+.video-error-card__title {
+  margin-bottom: 10px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.video-error-card__message {
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.94);
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.video-error-card__hint {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.video-error-card__action {
+  margin-top: 16px;
+  min-width: 148px;
+  height: 38px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.video-error-card__action:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.video-error-card__action:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
 }
 
 .play-button {

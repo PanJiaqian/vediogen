@@ -64,7 +64,8 @@
 <script>
 
 import { generateGradientPlaceholder } from '@/utils/placeholder'
-import { getMyWorksList, getStoryboardImagesDetail, queryStoryboardVideoStatus, getWorksVideoStatus, getScriptDetailByVideo, deleteConversation } from '@/api/index.js'
+import { getMyWorksList, getStoryboardImagesDetail, getWorksVideoStatus, getScriptDetailByVideo, deleteConversation } from '@/api/index.js'
+import { cleanUrl as cleanUrlUtil, shouldRenderImage as shouldRenderImageUtil, getGenerateErrorMessage as getGenerateErrorMessageUtil } from '@/utils/media'
 import { useUserStore } from '@/stores/user.js'
 
 export default {
@@ -182,25 +183,10 @@ export default {
         const pictureReady = !!(status && (status.picture === true || status.data?.picture === true))
         const scriptReady = !!(status && (status.script === true || status.data?.script === true))
 
-        let entryMode = 'canvas'
+        let entryMode = videoReady ? 'crop' : 'canvas'
         let scenes = []
 
-        if (videoReady) {
-          try {
-            const statusText = await queryStoryboardVideoStatus({ videoId, token })
-            let statusJson = null
-            try { statusJson = JSON.parse(statusText) } catch (e) { statusJson = null }
-            const items = statusJson && Array.isArray(statusJson.items) ? statusJson.items : []
-            const succeeded = items.filter(it => it && it.status === 'SUCCEEDED' && it.video_url)
-            if (succeeded.length) {
-              entryMode = 'crop'
-              scenes = succeeded.map((it, idx) => {
-                const url = String(it.video_url || '').trim()
-                return { id: idx + 1, title: `分镜${idx + 1}`, description: '分镜视频', thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number: it.scene_number }
-              })
-            }
-          } catch (e) { console.warn('查询分镜视频状态失败:', e) }
-        } else if (pictureReady) {
+        if (videoReady || pictureReady) {
           try {
             const text = await getStoryboardImagesDetail({ videoId, token })
             let resp = null
@@ -215,7 +201,20 @@ export default {
               if (content.dialogue_or_narration) descParts.push(`${this.formatVoiceRoleLabel(content.voice_role)}：${content.dialogue_or_narration}`)
               const rawUrl = String(item.reference_image_url || '').trim()
               const cleanedUrl = rawUrl.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
-              return { id: idx + 1, title, description: descParts.join(' | '), thumbnail: cleanedUrl, scene_number: item.scene_number }
+              const rawVideoUrl = cleanUrlUtil((item && item.video_url) || '')
+              const hasRealVideo = !!rawVideoUrl && !getGenerateErrorMessageUtil(rawVideoUrl) && !shouldRenderImageUtil(rawVideoUrl)
+              return {
+                id: idx + 1,
+                title,
+                description: descParts.join(' | '),
+                thumbnail: cleanedUrl,
+                scene_number: item.scene_number,
+                video_url: rawVideoUrl,
+                audio_url: Object.prototype.hasOwnProperty.call(item || {}, 'audio_url') ? item.audio_url : '',
+                scene_script: item && item.scene_script ? item.scene_script : content,
+                clips: hasRealVideo ? [{ url: rawVideoUrl, durationMs: 5000 }] : (cleanedUrl ? [{ url: cleanedUrl, durationMs: 5000 }] : []),
+                hasVideo: hasRealVideo
+              }
             })
           } catch (e) { console.warn('查询分镜图片详情失败:', e) }
         } else if (scriptReady) {
@@ -230,34 +229,38 @@ export default {
         } else {
           // 回退：与旧逻辑一致，尝试视频状态->图片详情->默认跳编辑页
           try {
-            const statusText = await queryStoryboardVideoStatus({ videoId, token })
-            let statusJson = null
-            try { statusJson = JSON.parse(statusText) } catch (e) { statusJson = null }
-            const items = statusJson && Array.isArray(statusJson.items) ? statusJson.items : []
-            const succeeded = items.filter(it => it && it.status === 'SUCCEEDED' && it.video_url)
-            if (succeeded.length) {
-              entryMode = 'crop'
-              scenes = succeeded.map((it, idx) => {
-                const url = String(it.video_url || '').trim()
-                return { id: idx + 1, title: `分镜${idx + 1}`, description: '分镜视频', thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number: it.scene_number }
-              })
-            } else {
-              const text = await getStoryboardImagesDetail({ videoId, token })
-              let resp = null
-              try { resp = JSON.parse(text) } catch (e) { console.warn('分镜图片详情解析失败:', e) }
-              const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
-              scenes = list.map((item, idx) => {
-                const content = (item && item.scene_script && item.scene_script.content) || {}
-                const title = content.shot_title || item.scene_number || `分镜${idx + 1}`
-                const descParts = []
-                if (content.visual_description) descParts.push(content.visual_description)
-                if (content.camera_direction) descParts.push(`机位：${content.camera_direction}`)
-                if (content.dialogue_or_narration) descParts.push(`${this.formatVoiceRoleLabel(content.voice_role)}：${content.dialogue_or_narration}`)
-                const rawUrl = String(item.reference_image_url || '').trim()
-                const cleanedUrl = rawUrl.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
-                return { id: idx + 1, title, description: descParts.join(' | '), thumbnail: cleanedUrl, scene_number: item.scene_number }
-              })
-            }
+            const text = await getStoryboardImagesDetail({ videoId, token })
+            let resp = null
+            try { resp = JSON.parse(text) } catch (e) { console.warn('分镜图片详情解析失败:', e) }
+            const list = resp && resp.code === 0 && Array.isArray(resp.data) ? resp.data : []
+            entryMode = list.some(item => {
+              const rawVideoUrl = cleanUrlUtil((item && item.video_url) || '')
+              return !!rawVideoUrl && !getGenerateErrorMessageUtil(rawVideoUrl) && !shouldRenderImageUtil(rawVideoUrl)
+            }) ? 'crop' : 'canvas'
+            scenes = list.map((item, idx) => {
+              const content = (item && item.scene_script && item.scene_script.content) || {}
+              const title = content.shot_title || item.scene_number || `分镜${idx + 1}`
+              const descParts = []
+              if (content.visual_description) descParts.push(content.visual_description)
+              if (content.camera_direction) descParts.push(`机位：${content.camera_direction}`)
+              if (content.dialogue_or_narration) descParts.push(`${this.formatVoiceRoleLabel(content.voice_role)}：${content.dialogue_or_narration}`)
+              const rawUrl = String(item.reference_image_url || '').trim()
+              const cleanedUrl = rawUrl.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
+              const rawVideoUrl = cleanUrlUtil((item && item.video_url) || '')
+              const hasRealVideo = !!rawVideoUrl && !getGenerateErrorMessageUtil(rawVideoUrl) && !shouldRenderImageUtil(rawVideoUrl)
+              return {
+                id: idx + 1,
+                title,
+                description: descParts.join(' | '),
+                thumbnail: cleanedUrl,
+                scene_number: item.scene_number,
+                video_url: rawVideoUrl,
+                audio_url: Object.prototype.hasOwnProperty.call(item || {}, 'audio_url') ? item.audio_url : '',
+                scene_script: item && item.scene_script ? item.scene_script : content,
+                clips: hasRealVideo ? [{ url: rawVideoUrl, durationMs: 5000 }] : (cleanedUrl ? [{ url: cleanedUrl, durationMs: 5000 }] : []),
+                hasVideo: hasRealVideo
+              }
+            })
           } catch (e) { console.warn('回退查询失败:', e) }
         }
 

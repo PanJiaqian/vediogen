@@ -284,7 +284,7 @@
 
 <script>
 
-import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo, getWorksVideoStatus, queryStoryboardVideoStatus, getStoryboardImagesDetail, scriptGenStream, getBillingEstimate, getUserBasicStatus } from '@/api'
+import { scriptModifyStream, regenerateImage, queryRegenerateImage, getScriptDetailByVideo, getWorksVideoStatus, getStoryboardImagesDetail, scriptGenStream, getBillingEstimate, getUserBasicStatus } from '@/api'
 import { getMyWorksList, getVideoVersionsByConversation, getConversationMessages } from '@/api/index.js'
 import { useUserStore } from '@/stores/user'
 import { cleanUrl as cleanUrlUtil, isGenerateFailed as isGenerateFailedUtil, shouldRenderImage as shouldRenderImageUtil } from '@/utils/media'
@@ -336,7 +336,9 @@ export default {
       characterImgErrorMap: {},
       pointsBalance: 0,
       billingEstimate: 0,
-      estimateInitialized: false
+      estimateInitialized: false,
+      scriptRecoveryInProgress: false,
+      scriptResolveInProgress: false
     }
   },
   computed: {
@@ -489,6 +491,156 @@ export default {
         this.$nextTick(() => { this.scrollToMessagesBottom() })
       } catch (e) { /* no-op */ }
     },
+    /**
+     * 清理剧本结果恢复轮询定时器，避免页面离开后残留异步任务。
+     *
+     * @returns {void}
+     */
+    clearScriptRecoveryTimer() {
+      if (this._scriptRecoverTimer) {
+        try { clearTimeout(this._scriptRecoverTimer) } catch (e) { /* no-op */ }
+        this._scriptRecoverTimer = null
+      }
+    },
+    /**
+     * 判断当前项目是否已经拿到了可复用的剧本完成标记。
+     *
+     * @returns {boolean}
+     */
+    isScriptGenerationFinished() {
+      const projectId = this.$route.params.id
+      try {
+        return localStorage.getItem(`project:script_gen_finished:${projectId}`) === '1'
+      } catch (e) {
+        return false
+      }
+    },
+    /**
+     * 将流式返回的 videoId、conversationId 等关键信息尽早落库到本地，便于断流后恢复。
+     *
+     * @param {Object} obj 流式事件对象
+     * @returns {{ videoId: string, conversationId: string, videoIdArray: Array }}
+     */
+    persistScriptStreamMeta(obj) {
+      const projectId = this.$route.params.id
+      const videoId = obj && obj.videoId ? String(obj.videoId).trim() : ''
+      const conversationId = obj && obj.conversationId ? String(obj.conversationId).trim() : ''
+      const videoIdArray = Array.isArray(obj && obj.videoIdArray) ? obj.videoIdArray : []
+      if (conversationId) {
+        try { localStorage.setItem(`project:conversationId:${projectId}`, conversationId) } catch (e) { /* no-op */ }
+      }
+      if (videoId) {
+        try { localStorage.setItem(`project:videoId:${projectId}`, videoId) } catch (e) { /* no-op */ }
+        this.videoId = videoId
+      }
+      return { videoId, conversationId, videoIdArray }
+    },
+    /**
+     * 判断页面是否已经拿到足够完整的剧本结果，用于结束长耗时等待态。
+     *
+     * @returns {boolean}
+     */
+    hasRenderableScriptResult() {
+      return !!this.summaryDone && !!this.peopleDone && !!this.sceneDone && !!this.storyboardDone
+    },
+    /**
+     * 从服务端拉取剧本详情并回填页面，供流式正常结束或异常断流后的恢复使用。
+     *
+     * @param {string} targetVideoId 目标作品ID
+     * @returns {Promise<boolean>}
+     */
+    async syncScriptDetailFromServer(targetVideoId) {
+      const token = (this.userStore && this.userStore.token) || ''
+      const videoId = String(targetVideoId || this.videoId || '').trim()
+      if (!token || !videoId) return false
+      try {
+        const text = await getScriptDetailByVideo({ videoId, token })
+        if (!text) return false
+        const projectId = this.$route.params.id
+        try { localStorage.setItem(`project:script_detail_json:${projectId}`, text) } catch (e) { /* no-op */ }
+        let obj = null
+        try { obj = JSON.parse(text) } catch (e) { obj = null }
+        const dataObj = obj && obj.data ? obj.data : obj
+        if (!dataObj || typeof dataObj !== 'object') return false
+        if (dataObj.title) {
+          this.project.title = dataObj.title
+          try { localStorage.setItem(`project:prompt:${projectId}`, String(dataObj.title)) } catch (e) { /* no-op */ }
+        }
+        this.applyParsedData([dataObj])
+        return this.hasRenderableScriptResult()
+      } catch (e) {
+        return false
+      }
+    },
+    /**
+     * 在剧本结果确认完整后统一收尾，结束加载态并刷新版本、状态和会话信息。
+     *
+     * @param {string} targetVideoId 目标作品ID
+     * @returns {Promise<void>}
+     */
+    async finalizeScriptGeneration(targetVideoId) {
+      const projectId = this.$route.params.id
+      if (targetVideoId) {
+        this.videoId = String(targetVideoId)
+        try { localStorage.setItem(`project:videoId:${projectId}`, String(targetVideoId)) } catch (e) { /* no-op */ }
+      }
+      try { localStorage.setItem(`project:script_gen_finished:${projectId}`, '1') } catch (e) { /* no-op */ }
+      this.isSubmitting = false
+      this.loadingSections = { art: false, music: false, summary: false, people: false, scene: false, storyboard: false }
+      this.scriptRecoveryInProgress = false
+      this.scriptResolveInProgress = false
+      this.clearScriptRecoveryTimer()
+      try { await this.loadVersionList() } catch (e) { /* no-op */ }
+      try { await this.fetchWorksStatus() } catch (e) { /* no-op */ }
+      try { await this.loadConversationMessages() } catch (e) { /* no-op */ }
+      this.updateEstimateAndPoints()
+    },
+    /**
+     * 当流式接口被网关或浏览器中断时，继续通过详情接口补查结果，避免用户必须重新进入页面。
+     *
+     * @param {string} reason 触发恢复的原因
+     * @returns {Promise<boolean>}
+     */
+    async recoverScriptGenerationAfterStreamIssue(reason = '') {
+      if (this.scriptRecoveryInProgress || this.scriptResolveInProgress || this.isScriptGenerationFinished()) {
+        return this.isScriptGenerationFinished()
+      }
+      this.scriptRecoveryInProgress = true
+      this.toastText = reason === 'workflow_finished' ? '正在整理最终剧本内容，请稍候' : '生成耗时较长，正在后台同步剧本结果'
+      this.toastVisible = true
+      const projectId = this.$route.params.id
+      try {
+        for (let attempt = 0; attempt < 60; attempt++) {
+          if (this._scriptPageActive === false) return false
+          const targetVideoId = String(this.videoId || localStorage.getItem(`project:videoId:${projectId}`) || '').trim()
+          if (targetVideoId) {
+            const ready = await this.syncScriptDetailFromServer(targetVideoId)
+            if (ready) {
+              await this.finalizeScriptGeneration(targetVideoId)
+              this.toastVisible = false
+              return true
+            }
+          }
+          if (attempt % 5 === 0) {
+            try { await this.loadVersionList() } catch (e) { /* no-op */ }
+          }
+          await new Promise(resolve => {
+            this._scriptRecoverTimer = setTimeout(() => {
+              this._scriptRecoverTimer = null
+              resolve()
+            }, attempt < 10 ? 3000 : 5000)
+          })
+        }
+      } finally {
+        this.scriptRecoveryInProgress = false
+        this.clearScriptRecoveryTimer()
+      }
+      this.isSubmitting = false
+      this.toastText = '剧本仍在后台处理中，页面会在拿到结果后自动展示'
+      this.toastVisible = true
+      setTimeout(() => { this.toastVisible = false }, 2500)
+      return false
+    },
     toggleVersions() {
       this.versionsMenuOpen = !this.versionsMenuOpen
       if (this.versionsMenuOpen && !this.versions.length) {
@@ -599,56 +751,46 @@ export default {
       const materialId = this.$route.query.materialId || ''
       const token = (this.userStore && this.userStore.token) || ''
       if (!stageDirections || !token) return
+      let recoveryAttempted = false
       this.isSubmitting = true
+      this.scriptResolveInProgress = false
       this.loadingSections = { art: true, music: true, summary: true, people: true, scene: true, storyboard: true }
       try {
         this._sseGenCtrl = new AbortController()
         await scriptGenStream({
           stageDirections, materialId, category, token, signal: this._sseGenCtrl.signal, onEvent: (obj) => {
-            if (!obj || obj.type === 'connected') return
-            const arr = obj && obj.videoIdArray
-            const cid = obj && obj.conversationId
-            const vid = obj && obj.videoId
-            if (Array.isArray(arr) && arr.length && cid && vid) {
-              const projectId = this.$route.params.id
-              try { localStorage.setItem(`project:conversationId:${projectId}`, String(cid)) } catch (e) { /* no-op */ }
-              try { localStorage.setItem(`project:videoId:${projectId}`, String(vid)) } catch (e) { /* no-op */ }
-              this.videoId = String(vid)
-              this.updateEstimateAndPoints()
-              try { localStorage.setItem(`project:script_gen_finished:${projectId}`, '1') } catch (e) { /* no-op */ }
-              const token2 = (this.userStore && this.userStore.token) || ''
-              if (token2) {
-                (async() => {
-                  try {
-                    const text = await getScriptDetailByVideo({ videoId: String(vid), token: token2 })
-                    try { localStorage.setItem(`project:script_detail_json:${projectId}`, text) } catch (e) { /* no-op */ }
-                    let objj = null
-                    try { objj = JSON.parse(text) } catch (e) { objj = null }
-                    const dataObj = objj && objj.data ? objj.data : objj
-                    if (dataObj && dataObj.title) {
-                      this.project.title = dataObj.title
-                      try { localStorage.setItem(`project:prompt:${projectId}`, String(dataObj.title)) } catch (e) { /* no-op */ }
-                    }
-                  } catch (e) { /* no-op */ }
-                  try { await this.loadVersionList() } catch (e) { /* no-op */ }
-                })()
-              }
-              this.isSubmitting = false
-              this.loadingSections = { art: false, music: false, summary: false, people: false, scene: false, storyboard: false }
-              return
-            }
+            if (!obj || obj.type === 'connected' || obj.type === 'heartbeat') return
+            const meta = this.persistScriptStreamMeta(obj)
+            if (meta.videoId) this.updateEstimateAndPoints()
             if (obj.status && String(obj.status).toLowerCase() === 'workflow_finished') {
-              this.isSubmitting = false
-              this.loadingSections = { art: false, music: false, summary: false, people: false, scene: false, storyboard: false }
+              this.scriptResolveInProgress = true
+              ;(async() => {
+                const targetVideoId = meta.videoId || this.videoId || localStorage.getItem(`project:videoId:${projectId}`) || ''
+                const ready = targetVideoId ? await this.syncScriptDetailFromServer(targetVideoId) : false
+                if (ready) {
+                  await this.finalizeScriptGeneration(targetVideoId)
+                  this.toastVisible = false
+                  return
+                }
+                this.scriptResolveInProgress = false
+                await this.recoverScriptGenerationAfterStreamIssue('workflow_finished')
+              })()
               return
             }
             this.applyParsedData([obj])
           }
         })
       } catch (e) {
-        console.warn('脚本生成流式接口错误:', e)
+        if (!(this._sseGenCtrl && this._sseGenCtrl.signal && this._sseGenCtrl.signal.aborted)) {
+          console.warn('脚本生成流式接口错误:', e)
+          recoveryAttempted = true
+          await this.recoverScriptGenerationAfterStreamIssue('network_error')
+        }
       } finally {
-        this.isSubmitting = false
+        if (!recoveryAttempted && !this.isScriptGenerationFinished() && !this.scriptRecoveryInProgress && !this.scriptResolveInProgress) {
+          const recovered = await this.recoverScriptGenerationAfterStreamIssue('stream_closed')
+          if (!recovered) this.isSubmitting = false
+        }
       }
     },
     async fetchWorksStatus() {
@@ -674,40 +816,9 @@ export default {
           return
         }
         const videoId = localStorage.getItem(`project:videoId:${projectId}`) || projectId
-        try {
-          if (this.worksStatusPicture) {
-            const cachedText = localStorage.getItem(`video-edit:scenes:${projectId}`) || ''
-            if (cachedText) {
-              let cachedScenes = []
-              try { cachedScenes = JSON.parse(cachedText) || [] } catch (e) { cachedScenes = [] }
-              if (Array.isArray(cachedScenes) && cachedScenes.length) {
-                try { localStorage.setItem(`video-edit:entryMode:${projectId}`, 'canvas') } catch (e) { /* no-op */ }
-                try { localStorage.setItem(`project:prompt:${projectId}`, String(this.project.title || this.prompt || '')) } catch (e) { /* no-op */ }
-                try { localStorage.setItem(`video-edit:viewStoryboard:${projectId}`, '1') } catch (e) { /* no-op */ }
-                this.$router.push(`/video-edit/${projectId}`)
-                return
-              }
-            }
-          }
-        } catch (e) { /* no-op */ }
-        let entryMode = 'canvas'
+        let entryMode = this.worksStatusVideo ? 'crop' : 'canvas'
         let scenes = []
-        if (this.worksStatusVideo) {
-          try {
-            const statusText = await queryStoryboardVideoStatus({ videoId, token })
-            let statusJson = null
-            try { statusJson = JSON.parse(statusText) } catch (e) { statusJson = null }
-            const items = statusJson && Array.isArray(statusJson.items) ? statusJson.items : []
-            const succeeded = items.filter(it => it && it.status === 'SUCCEEDED' && it.video_url)
-            if (succeeded.length) {
-              entryMode = 'crop'
-              scenes = succeeded.map((it, idx) => {
-                const url = String(it.video_url || '').trim()
-                return { id: idx + 1, title: `分镜${idx + 1}`, description: '分镜视频', thumbnail: url, clips: [{ url, durationMs: 5000 }], scene_number: it.scene_number }
-              })
-            }
-          } catch (e) { console.warn('查询分镜视频状态失败:', e) }
-        } else if (this.worksStatusPicture) {
+        if (this.worksStatusVideo || this.worksStatusPicture) {
           try {
             const text = await getStoryboardImagesDetail({ videoId, token })
             let resp = null
@@ -722,7 +833,20 @@ export default {
               if (content.dialogue_or_narration) descParts.push(`${this.formatVoiceRoleLabel(content.voice_role)}：${content.dialogue_or_narration}`)
               const rawUrl = String(item.reference_image_url || '').trim()
               const cleanedUrl = rawUrl.replace(/^`+|`+$/g, '').replace(/\s+/g, ' ').replace(/"/g, '').replace(/\\`/g, '').replace(/`/g, '')
-              return { id: idx + 1, title, description: descParts.join(' | '), thumbnail: cleanedUrl, scene_number: item.scene_number }
+              const rawVideoUrl = this.cleanUrl((item && item.video_url) || '')
+              const hasRealVideo = !!rawVideoUrl && !this.isGenerateFailed(rawVideoUrl) && !this.shouldRenderImage(rawVideoUrl)
+              return {
+                id: idx + 1,
+                title,
+                description: descParts.join(' | '),
+                thumbnail: cleanedUrl,
+                scene_number: item.scene_number,
+                video_url: rawVideoUrl,
+                audio_url: Object.prototype.hasOwnProperty.call(item || {}, 'audio_url') ? item.audio_url : '',
+                scene_script: item && item.scene_script ? item.scene_script : content,
+                clips: hasRealVideo ? [{ url: rawVideoUrl, durationMs: 5000 }] : (cleanedUrl ? [{ url: cleanedUrl, durationMs: 5000 }] : []),
+                hasVideo: hasRealVideo
+              }
             })
           } catch (e) { console.warn('查询分镜图片详情失败:', e) }
         }
@@ -811,6 +935,9 @@ export default {
                     if (dataObj && dataObj.title) {
                       this.project.title = dataObj.title
                       try { localStorage.setItem(`project:prompt:${projectId}`, String(dataObj.title)) } catch (e) { /* no-op */ }
+                    }
+                    if (dataObj && typeof dataObj === 'object') {
+                      this.applyParsedData([dataObj])
                     }
                   } catch (e) { /* no-op */ }
                   try { await this.loadVersionList() } catch (e) { /* no-op */ }
@@ -1314,6 +1441,7 @@ export default {
   },
   async mounted() {
     // 根据路由参数获取项目详情
+    this._scriptPageActive = true
     document.addEventListener('click', this.onModelDropdownOutside)
     const projectId = this.$route.params.id
     console.log('项目ID:', projectId)
@@ -1343,11 +1471,13 @@ export default {
           if (dataObj.title) this.project.title = dataObj.title
           this.applyParsedData([dataObj])
         }
-      } else {
-        const done = localStorage.getItem(`project:script_gen_finished:${projectId}`) === '1'
-        if (!done) {
-          await this.startScriptGenStream()
-        }
+      }
+      const done = this.isScriptGenerationFinished()
+      const synced = await this.syncScriptDetailFromServer(this.videoId)
+      if (synced && !done) {
+        await this.finalizeScriptGeneration(this.videoId)
+      } else if (!done && !synced) {
+        await this.startScriptGenStream()
       }
       await this.loadVersionList()
       // 确保使用当前版本对应的 videoId 进行扣费查询
@@ -1371,9 +1501,11 @@ export default {
     } catch (e) { /* no-op */ }
   }
   , beforeUnmount() {
+    this._scriptPageActive = false
     document.removeEventListener('click', this.onModelDropdownOutside)
     try { if (this._sseGenCtrl && this._sseGenCtrl.abort) this._sseGenCtrl.abort() } catch (e) { void e }
     try { if (this._sseModCtrl && this._sseModCtrl.abort) this._sseModCtrl.abort() } catch (e) { void e }
+    this.clearScriptRecoveryTimer()
   }
 }
 </script>
