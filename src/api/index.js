@@ -1,5 +1,5 @@
 // 后端接口封装
-const BASE_URL = 'http://182.92.68.240:1790'
+const BASE_URL = 'https://creator.nexafeed.cn:1790'
 
 function buildAuthHeaders(token) {
   const headers = new Headers()

@@ -78,7 +78,7 @@ export function getPlayableAudioUrl(url) {
     const parsed = new URL(u)
     const objectKey = parsed.pathname.replace(/^\/+/, '')
     if (!objectKey) return u
-    return `http://182.92.68.240:1790/uploadfile/${objectKey}`
+    return `https://creator.nexafeed.cn:1790/uploadfile/${objectKey}`
   } catch (e) {
     return u
   }
